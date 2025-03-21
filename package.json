@@ -37,7 +37,7 @@
     "@types/react": "^19",
     "@types/react-chartjs-2": "^2.0.2",
     "@types/react-dom": "^19",
-    "aws-cdk": "^2.174.1",
+    "aws-cdk": "^2.1005.0",
     "aws-cdk-lib": "^2.174.1",
     "axios": "^1.7.9",
     "cheerio": "^1.0.0",
