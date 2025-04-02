@@ -2,6 +2,35 @@
 
 This workshop teaches you how to build, deploy, and manage AI agents using LangGraph and AWS Amplify. You'll learn how to persist agent state, create custom tools, build interactive UIs, and deploy agents to AWS Lambda.
 
+## Launch the Interactive Environment
+
+1. Clone this repository:
+```bash
+git clone https://github.com/aws-samples/amplify-langgraph-template
+cd amplify-langgraph-template
+```
+
+2. Install dependencies:
+```bash
+cd workshop
+npm install
+```
+
+3. Start the development server:
+```bash
+npm run dev
+```
+
+4. Open your browser to [http://localhost:3000](http://localhost:3000)
+
+The interactive environment includes:
+- TypeScript/JavaScript support
+- AWS Amplify CLI pre-installed
+- LangGraph dependencies configured
+- Live preview of UI components
+- Integrated terminal
+- Real-time collaboration support
+
 ## Prerequisites
 
 Before starting this workshop, you'll need:
@@ -16,10 +45,9 @@ Before starting this workshop, you'll need:
 ## Workshop Labs
 
 ### Lab 1: Setting Up Your Development Environment
-- Initialize a new Amplify project
 - Configure authentication
-- Set up the Python development environment for LangGraph
-- Create the initial React application structure
+- Clone this repository
+- Deploy sandbox environmnt
 
 ### Lab 2: Building Your First LangGraph Agent
 - Introduction to LangGraph concepts

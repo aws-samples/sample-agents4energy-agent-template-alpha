@@ -98,6 +98,8 @@ def uploadFileToS3(file_path, s3_path):
         content_type = 'application/json'
     elif s3_path.endswith('.txt'):
         content_type = 'text/plain'
+    elif s3_path.endswith('.png'):
+        content_type = 'image/png'
     
     # Set extra args if content type is determined
     extra_args = {}
@@ -696,15 +698,15 @@ Use this tool to execute PySpark code using AWS Athena. The tool will create an 
 execute the provided PySpark code, and return the execution results.
 
 Important notes:
-- IMPORTANT: Use the uploadDfToS3 function to save your DataFrames to S3 and getDataFrameFromS3 to load your csv files from S3.
+- IMPORTANT: This execution environment already has these functions defined: uploadDfToS3, getDataFrameFromS3, uploadFileToS3. You can use them directly in your code without importing them.
+- Use the uploadDfToS3 function to save your DataFrames to S3 and getDataFrameFromS3 to load your csv files from S3.
 - NEVER use df.write.csv() or df.to_csv() - use uploadDfToS3 instead.
+- When saving plots, use plotly and export to HTML locally. Then use uploadFileToS3 to save the HTML file to S3.
+- ALWAYS use the uploadFileToS3 function to save your plots to S3.
 - The 'spark' session is already initialized in the execution environment
 - You don't need to import SparkSession or create a new session
 - The STDOUT and STDERR are captured and returned in the response
-- When saving plots, use plotly and export to HTML - use uploadFileToS3 to save the HTML file to S3
 - The execution results will be returned directly in the response
-- S3 URLs for the full output are also provided if needed
-- Real-time progress updates are sent to the user during execution
 
 Example usage:
 - Perform data analysis using PySpark
