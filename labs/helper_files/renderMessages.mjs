@@ -1,12 +1,52 @@
+import { createTheme } from '@mui/material/styles';
+
+// Create a default theme similar to your app's theme
+export const defaultTheme = createTheme({
+    palette: {
+      primary: {
+        main: '#1976d2',
+        contrastText: '#ffffff'
+      },
+      error: {
+        main: '#d32f2f',
+        dark: '#c62828',
+        light: '#ffebee'
+      },
+      success: {
+        main: '#4caf50',
+        dark: '#388e3c'
+      },
+      warning: {
+        main: '#ff9800'
+      },
+      grey: {
+        50: '#fafafa',
+        200: '#eeeeee',
+        300: '#e0e0e0'
+      },
+      common: {
+        white: '#ffffff'
+      },
+      text: {
+        primary: '#212121',
+        secondary: '#757575'
+      }
+    },
+    shape: {
+      borderRadius: 4
+    },
+    spacing: (factor) => `${0.5 * factor}rem`
+  });
+
 // Helper functions to render different message types
-const renderHumanMessage = (message) => `
+export const renderHumanMessage = (message) => `
     <div style="margin: 10px 0; padding: 10px; border-radius: 5px; background-color: #f0f7ff; border-left: 4px solid #007bff;">
         <div style="font-weight: bold; color: #007bff; margin-bottom: 5px;">User</div>
         <div style="white-space: pre-wrap;">${message.content}</div>
     </div>
 `;
 
-const renderAIMessage = (message) => `
+export const renderAIMessage = (message) => `
     <div style="margin: 10px 0; padding: 10px; border-radius: 5px; background-color: #f8f9fa; border-left: 4px solid #28a745;">
         <div style="font-weight: bold; color: #28a745; margin-bottom: 5px;">Assistant</div>
         <div style="white-space: pre-wrap;">${
@@ -17,7 +57,7 @@ const renderAIMessage = (message) => `
     </div>
 `;
 
-const renderUserInputToolMessage = (message) => {
+export const renderUserInputToolMessage = (message) => {
     const toolContent = JSON.parse(message.content);
     return `
         <div style="margin: 10px 0; padding: 15px; border-radius: 5px; border: 1px solid #ccc; background-color: white;">
@@ -32,7 +72,7 @@ const renderUserInputToolMessage = (message) => {
     `;
 };
 
-const renderCalculatorToolMessage = (message) => `
+export const renderCalculatorToolMessage = (message) => `
     <div style="margin: 10px 0; padding: 15px; border-radius: 5px; border: 1px solid #ccc; background-color: #f8f9fa;">
         <div style="font-weight: bold; color: #6610f2; margin-bottom: 5px;">Calculator</div>
         <div style="display: flex; align-items: center; gap: 10px; margin: 10px 0;">
@@ -40,37 +80,3 @@ const renderCalculatorToolMessage = (message) => `
         </div>
     </div>
 `;
-
-const renderConversation = (result) => {
-    return `
-        <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 800px; margin: 0 auto;">
-            ${result.messages.map(message => {
-                switch(message.constructor.name) {
-                    case 'HumanMessage':
-                        return renderHumanMessage(message);
-                    case 'AIMessage':
-                        return renderAIMessage(message);
-                    case 'ToolMessage':
-                        switch (message.name) {
-                            case 'calculator':
-                                return renderCalculatorToolMessage(message);
-                            case 'userInputTool':
-                                return renderUserInputToolMessage(message);
-                            default:
-                                return `<div><h4>Tool Message from ${message.name}:</h4><pre>${message.content}</pre></div>`;
-                        }
-                    default:
-                        return '';
-                }
-            }).join('\n')}
-        </div>
-    `;
-};
-
-module.exports = {
-    renderHumanMessage,
-    renderAIMessage,
-    renderUserInputToolMessage,
-    renderCalculatorToolMessage,
-    renderConversation
-}; 
