@@ -17,7 +17,7 @@ const renderAIMessage = (message) => `
     </div>
 `;
 
-const renderToolMessage = (message) => {
+const renderUserInputToolMessage = (message) => {
     const toolContent = JSON.parse(message.content);
     return `
         <div style="margin: 10px 0; padding: 15px; border-radius: 5px; border: 1px solid #ccc; background-color: white;">
@@ -32,8 +32,18 @@ const renderToolMessage = (message) => {
     `;
 };
 
+const renderCalculatorToolMessage = (message) => `
+    <div style="margin: 10px 0; padding: 15px; border-radius: 5px; border: 1px solid #ccc; background-color: #f8f9fa;">
+        <div style="font-weight: bold; color: #6610f2; margin-bottom: 5px;">Calculator</div>
+        <div style="display: flex; align-items: center; gap: 10px; margin: 10px 0;">
+            <span style="font-size: 1.2em;">${message.content}</span>
+        </div>
+    </div>
+`;
+
 module.exports = {
     renderHumanMessage,
     renderAIMessage,
-    renderToolMessage
+    renderUserInputToolMessage,
+    renderCalculatorToolMessage
 }; 

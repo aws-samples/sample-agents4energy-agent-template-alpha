@@ -56,8 +56,6 @@ export const handler: Schema["invokeAgent"]["functionHandler"] = async (event, c
             ...s3FileManagementTools
         ]
 
-        
-
         const agent = createReactAgent({
             llm: agentModel,
             tools: agentTools,
