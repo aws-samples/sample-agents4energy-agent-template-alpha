@@ -78,54 +78,65 @@ Here's how to use the agent to generate a UI element:
 
 ```javascript
 (async () => {
+    // Import the rendering functions using require
+    const { renderHumanMessage, renderAIMessage, renderToolMessage } = require('./renderMessages.js');
+    
     const result = await agent.invoke(
         { messages: [new HumanMessage("I need to buy a new downhole pump from Jeff for a Fruitland Coal well in New Mexico.")] }
     );
-    
-    const toolMessage = result.messages.find(msg => msg.constructor.name === 'ToolMessage');
-    const toolContent = JSON.parse(toolMessage.content);
-    
-    // Generate HTML for the UI element with click handling
-    const html = `
-        <div style="border: 1px solid #ccc; padding: 15px; border-radius: 5px;">
-            <h3 style="margin-top: 0;">${toolContent.title}</h3>
-            <p style="white-space: pre-wrap;">${toolContent.description}</p>
-            <button 
-                onclick="this.textContent='${toolContent.buttonTextAfterClick}'; this.disabled=true; this.style.backgroundColor='#28a745';"
-                style="padding: 8px 16px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                ${toolContent.buttonTextBeforeClick}
-            </button>
+
+    // Render all messages in the conversation
+    const conversationHtml = `
+        <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 800px; margin: 0 auto;">
+            ${result.messages.map(message => {
+                switch(message.constructor.name) {
+                    case 'HumanMessage':
+                        return renderHumanMessage(message);
+                    case 'AIMessage':
+                        return renderAIMessage(message);
+                    case 'ToolMessage':
+                        return renderToolMessage(message);
+                    default:
+                        return '';
+                }
+            }).join('\n')}
         </div>
     `;
     
     // Display the HTML in the notebook
-    $$.html(html);
+    $$.html(conversationHtml);
 })()
 ```
 
 ## Example Output
 
-The agent will generate a UI card that includes:
-- A title (e.g., "Downhole Pump Purchase Request - Fruitland Coal Well, NM")
-- A description with key details about the request
-- An interactive button that:
-  - Shows initial text (e.g., "Send Purchase Request")
-  - Changes text after clicking (e.g., "Request Sent")
-  - Disables itself after clicking
-  - Changes color to green to indicate success
-- Styling for a professional appearance
+The agent will now generate a full conversation view that includes:
+- Human messages styled with a blue accent
+- AI messages styled with a green accent
+- Tool UI cards that include:
+  - A title
+  - A description with key details
+  - An interactive button that:
+    - Shows initial text
+    - Changes text after clicking
+    - Disables itself after clicking
+    - Changes color to green to indicate success
+- Consistent styling and spacing throughout the conversation
 
-The UI element will look like a card with a border, proper spacing, and a styled button. When used in a notebook environment, it provides an interactive interface for sending notifications or requests.
+The conversation will be displayed as a sequence of styled messages, making it easy to follow the interaction between the user, AI, and tools. Each message type has its own distinct visual style:
+
+- Human messages: Blue left border, light blue background
+- AI messages: Green left border, light gray background
+- Tool messages: Card style with white background and border
 
 ## Notes
 
-- The tool is designed to create informative messages rather than request information
-- The UI elements are styled for clarity and professional appearance
-- The tool returns both the raw data and a formatted HTML display
-- The button is interactive with click handling:
-  - Text changes from buttonTextBeforeClick to buttonTextAfterClick
-  - Button becomes disabled after clicking
-  - Visual feedback with color change
-- All content is dynamically generated based on the user's input
+- Each message type has a distinct visual style for clear communication
+- Messages are rendered in chronological order
+- The conversation container is centered and has a maximum width for readability
+- Tool UI elements maintain their interactive functionality
+- All content is dynamically generated based on the conversation
+- The layout is responsive and uses system fonts for optimal display
+- Messages use pre-wrap formatting to preserve text formatting
 
-This lab demonstrates how to combine LangGraph's agent capabilities with custom UI elements to create an interactive and user-friendly interface for business communications.
+This enhanced version provides a complete conversation interface that makes it easy to follow the interaction between the user, AI assistant, and tools.
