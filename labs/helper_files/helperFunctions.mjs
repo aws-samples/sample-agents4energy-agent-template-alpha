@@ -1,5 +1,7 @@
-import { ChatBedrockConverse } from "@aws-sdk/client-bedrock-runtime";
-import { HumanMessage } from "@langchain/core/messages";
+// import { ChatBedrockConverse } from "@aws-sdk/client-bedrock-runtime";
+const { ChatBedrockConverse } = require("@langchain/aws");
+const { HumanMessage } = require("@langchain/core/messages");
+const { createReactAgent } = require("@langchain/langgraph/prebuilt");
 
 const { 
     renderHumanMessage, 
@@ -7,6 +9,24 @@ const {
     renderUserInputToolMessage, 
     renderCalculatorToolMessage 
 } = require('./renderMessages.mjs');
+
+process.env.AWS_DEFAULT_REGION='us-east-1'
+
+const llm = new ChatBedrockConverse({
+    model: "us.anthropic.claude-3-5-haiku-20241022-v1:0"
+});
+
+// Define available tools
+const tools = [
+    new Calculator,
+    userInputTool
+];
+
+// Create the React agent
+export const sampleAgent = createReactAgent({
+    llm,
+    tools,
+});
 
 export async function displayAnimatedIndicator(promiseToMonitor) {
     // Track start time for the request
@@ -96,8 +116,10 @@ export const invokeAgentAndRenderMessages = async (userInputText, agent) => $$.h
                             return renderAIMessage(message);
                         case 'ToolMessage':
                             switch (message.name) {
-                                // case 'calculator':
-                                //     return renderCalculatorToolMessage(message)
+                                case 'calculator':
+                                    return renderCalculatorToolMessage(message)
+                                case 'userInputTool':
+                                    return renderUserInputToolMessage(message);
                                 default:
                                     return (`<div><h4>Tool Message from ${message.name}:</h4><pre>${message.content}</pre></div>`)
                             }
