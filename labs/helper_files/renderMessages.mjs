@@ -54,6 +54,17 @@ export const renderAIMessage = (message) => `
                 ? message.content.map(c => c.text).join('\n')
                 : message.content
         }</div>
+        ${message.tool_calls && message.tool_calls.length > 0 ? `
+        <div style="margin-top: 10px; padding: 8px; background-color: #f0f7ff; border-radius: 4px; border: 1px solid #ccc;">
+            <div style="font-weight: bold; color: #0066cc; margin-bottom: 5px;">Tool Calls:</div>
+            ${message.tool_calls.map(tool => `
+                <div style="margin: 5px 0; padding: 5px; background-color: #ffffff; border-radius: 3px; border: 1px solid #e0e0e0;">
+                    <div><strong>Tool:</strong> ${tool.name}</div>
+                    <div><strong>Arguments:</strong> <pre style="margin: 5px 0; padding: 5px; background-color: #f5f5f5; border-radius: 3px; overflow-x: auto;">${JSON.stringify(tool.args, null, 2)}</pre></div>
+                </div>
+            `).join('')}
+        </div>
+        ` : ''}
     </div>
 `;
 

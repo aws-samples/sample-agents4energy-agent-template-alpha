@@ -58,26 +58,153 @@ llm = new ChatBedrockConverse({
 })()
 ```
 
-**Energy Sector Application:** This simple setup allows you to query an AI model about energy-related topics. For example, you could ask about optimizing drilling parameters, analyzing geological formations, or predicting production decline curves.
+**Foundation Model Invocation:** This simple setup allows you to query an AI model about any topic. The code simply initializes the Claude 3.5 Haiku model and sends a prompt to it, then displays the response.
 
-Sample response from the model:
+### Adding a Loading Indicator with Promise Race
+
+When working with large language models, responses can take several seconds to generate. In a Jupyter notebook environment, we can create an elegant loading indicator using a race condition between two promises:
+
+```javascript
+// Function to create a waiting indicator using Promise.race()
+async function invokeModelWithPromiseRace(prompt) {
+  // Create output container
+  const outputDiv = document.createElement('div');
+  outputDiv.style.fontFamily = 'system-ui, sans-serif';
+  outputDiv.style.margin = '10px 0';
+  outputDiv.style.padding = '15px';
+  outputDiv.style.borderRadius = '5px';
+  outputDiv.style.backgroundColor = '#f8f9fa';
+  outputDiv.style.border = '1px solid #dee2e6';
+  element.append(outputDiv);
+  
+  // Promise that never resolves but updates the loading indicator
+  const loadingPromise = new Promise(() => {
+    let seconds = 0;
+    const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+    let frameIndex = 0;
+    
+    // This interval will run until garbage collected after the race
+    setInterval(() => {
+      seconds++;
+      frameIndex = (frameIndex + 1) % frames.length;
+      outputDiv.innerHTML = `<span style="color: #6c757d;">${frames[frameIndex]} Waiting for response... (${seconds}s)</span>`;
+    }, 1000);
+    
+    // This promise intentionally never resolves
+  });
+  
+  // Promise for the actual model response
+  const responsePromise = (async () => {
+    try {
+      const response = await llm.invoke(prompt);
+      outputDiv.innerHTML = `<div style="white-space: pre-wrap;">${response.content}</div>`;
+      return response;
+    } catch (error) {
+      outputDiv.innerHTML = `<div style="color: red;">Error: ${error.message}</div>`;
+      throw error;
+    }
+  })();
+  
+  // Race the promises - responsePromise will win when resolved,
+  // but loadingPromise keeps updating the UI until then
+  return Promise.race([responsePromise, loadingPromise]);
+}
+
+// Example usage - this creates a spinner that updates every second
+// until the model response is ready
+invokeModelWithPromiseRace("How can petroleum engineers use AI to optimize reservoir management?");
 ```
-Generative AI has several potential applications in revolutionizing the energy sector:
 
-1. Grid Management and Optimization
-- Predictive maintenance of energy infrastructure
-- Real-time demand forecasting
-- Dynamic load balancing
-- Improved renewable energy integration
+The key insight behind this approach is that we use `Promise.race()` between two promises:
 
-2. Renewable Energy Planning
-- Optimizing solar and wind farm layouts
-- Predicting energy generation potential
-- Simulating complex environmental scenarios
-- Designing more efficient renewable energy systems
+1. The `responsePromise` which will eventually resolve with the model's response
+2. The `loadingPromise` which intentionally never resolves but updates a loading animation
 
-...and more
+Since `Promise.race()` returns the first promise to resolve, the function will return the model response when it's ready, but the loading animation will continue updating every second until that happens.
+
+For more domain-specific content, we can enhance this approach to show the various stages of processing relevant to petroleum engineering tasks:
+
+```javascript
+async function invokeWithPetroleumLoadingStages(prompt) {
+  const outputDiv = document.createElement('div');
+  outputDiv.style.fontFamily = 'system-ui, sans-serif';
+  outputDiv.style.padding = '15px';
+  outputDiv.style.borderRadius = '5px';
+  outputDiv.style.backgroundColor = '#f8f9fa';
+  outputDiv.style.border = '1px solid #dee2e6';
+  element.append(outputDiv);
+  
+  // Create progress indicator with domain-specific stages
+  outputDiv.innerHTML = `
+    <div id="loading-status" style="margin-bottom: 10px; color: #0056b3; font-weight: bold;">Initializing...</div>
+    <div style="height: 4px; width: 100%; background-color: #e9ecef; border-radius: 2px; overflow: hidden;">
+      <div id="progress-bar" style="height: 100%; width: 0%; background-color: #007bff; transition: width 1s ease;"></div>
+    </div>
+    <div id="loading-details" style="margin-top: 10px; color: #6c757d; font-size: 0.9em;"></div>
+  `;
+  
+  const loadingPromise = new Promise(() => {
+    const stages = [
+      { text: "Analyzing query parameters...", progress: 10 },
+      { text: "Loading geological data models...", progress: 25 },
+      { text: "Evaluating reservoir properties...", progress: 40 },
+      { text: "Processing fluid dynamics calculations...", progress: 55 },
+      { text: "Applying petrophysical constraints...", progress: 70 },
+      { text: "Running production simulations...", progress: 85 },
+      { text: "Finalizing engineering recommendations...", progress: 95 }
+    ];
+    
+    const statusElement = outputDiv.querySelector('#loading-status');
+    const progressBar = outputDiv.querySelector('#progress-bar');
+    const detailsElement = outputDiv.querySelector('#loading-details');
+    let currentStage = 0;
+    let seconds = 0;
+    
+    // Update the loading animation but never resolve
+    const interval = setInterval(() => {
+      seconds++;
+      
+      // Update the stage based on elapsed time
+      if (seconds % 4 === 0 && currentStage < stages.length - 1) {
+        currentStage++;
+      }
+      
+      // Update UI elements
+      statusElement.textContent = stages[currentStage].text;
+      progressBar.style.width = `${stages[currentStage].progress}%`;
+      detailsElement.textContent = `Processing time: ${seconds} seconds`;
+    }, 1000);
+  });
+  
+  const responsePromise = (async () => {
+    try {
+      const response = await llm.invoke(prompt);
+      
+      // When response is ready, replace loading UI with response
+      outputDiv.innerHTML = `
+        <div style="padding: 10px; background-color: #e8f4ff; border-left: 4px solid #007bff;">
+          <div style="font-weight: bold; margin-bottom: 8px;">Petroleum Engineering Analysis:</div>
+          <div style="white-space: pre-wrap; line-height: 1.5;">${response.content}</div>
+        </div>
+      `;
+      
+      return response;
+    } catch (error) {
+      outputDiv.innerHTML = `<div style="color: #dc3545; font-weight: bold;">Error: ${error.message}</div>`;
+      throw error;
+    }
+  })();
+  
+  return Promise.race([responsePromise, loadingPromise]);
+}
+
+// Example for petroleum engineering context
+invokeWithPetroleumLoadingStages("How does reservoir permeability affect production decline rates?");
 ```
+
+This approach is particularly useful in petroleum engineering contexts where complex technical queries might take longer to process. The domain-specific loading stages give users insight into the "thought process" while maintaining engagement during the wait.
+
+Sample response from the model might look like:
 
 ## Lab 2: Create Your First Agent
 
@@ -96,11 +223,13 @@ agent = createReactAgent({
 });
 ```
 
-**Energy Sector Application:** With a Calculator tool, your agent can perform complex calculations common in petroleum engineering, such as:
-- Reserve estimation 
-- Production forecasting
-- Economic analysis
-- Pressure drop calculations
+**Energy Sector Application:** With a Calculator tool, your agent can perform basic arithmetic operations that could be useful in energy sector calculations. Note that this is a simple calculator that can only handle basic math operations (addition, subtraction, multiplication, division, etc.) - not complex petroleum engineering formulas directly.
+
+For example, you could use it for:
+- Simple components of reserve calculations
+- Basic arithmetic in production analysis
+- Elements of economic calculations
+- Individual steps in engineering equations
 
 Next, set up a function that renders the agent's responses in a user-friendly format:
 
@@ -487,3 +616,12 @@ This workshop has introduced you to building AI agents with LangGraph and AWS Am
    - Develop collaborative workspaces for team analysis
 
 The combination of AI, custom tools, and cloud infrastructure provides petroleum engineers with powerful new capabilities for data analysis, decision support, and knowledge management across the energy sector.
+
+## Use the animated indicator
+invokeWithAnimatedIndicator("What are the environmental implications of hydraulic fracturing?");
+
+// Use the animated indicator
+invokeWithAnimatedIndicator("How do reservoir engineers estimate the recovery factor for a carbonate reservoir?");
+
+// Use the animated indicator
+invokeWithAnimatedIndicator("What's the relationship between permeability and production rate in a hydraulically fractured shale reservoir?");

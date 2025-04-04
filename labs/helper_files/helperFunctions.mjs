@@ -1,0 +1,114 @@
+import { ChatBedrockConverse } from "@aws-sdk/client-bedrock-runtime";
+import { HumanMessage } from "@langchain/core/messages";
+
+const { 
+    renderHumanMessage, 
+    renderAIMessage, 
+    renderUserInputToolMessage, 
+    renderCalculatorToolMessage 
+} = require('./renderMessages.mjs');
+
+export async function displayAnimatedIndicator(promiseToMonitor) {
+    // Track start time for the request
+    const startTime = Date.now();
+    let intervalId = null;
+    
+    // Initial waiting message
+    process.stdout.write('⏳ Processing request... ');
+    
+    // Print a dot every second to show progress without new lines
+    intervalId = setInterval(() => {
+      process.stdout.write('.');
+    }, 1000);
+    
+    try {
+      // Wait for the promise to resolve or reject
+      const result = await promiseToMonitor;
+      
+      // Clean up the interval
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+      
+      // Calculate total time
+      const totalSeconds = ((Date.now() - startTime) / 1000).toFixed(1);
+      
+      // Show completion message with elapsed time (on a new line)
+      process.stdout.write(`\n✅ Response received successfully (took ${totalSeconds}s)\n`);
+      
+      // Return the result directly
+      return result;
+    } catch (error) {
+      // Clean up the interval
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+      
+      // Calculate total time until error
+      const totalSeconds = ((Date.now() - startTime) / 1000).toFixed(1);
+      
+      // Show error message (on a new line)
+      process.stdout.write(`\n❌ Error after ${totalSeconds}s: ${error.message}\n`);
+      
+      // Re-throw the error to be handled by the caller
+      throw error;
+    }
+  }
+  
+// Example usage:
+/*
+// Initialize Bedrock LLM
+llm = new ChatBedrockConverse({
+    model: "us.anthropic.claude-3-5-haiku-20241022-v1:0"
+});
+
+(async () => {
+    try {
+        const llmResponse = await displayAnimatedIndicator(
+            llm.invoke("How can generative AI revolutionize the energy sector?")
+        );
+        console.log('LLM Response:\n', llmResponse.content);
+    } catch (error) {
+        console.log('Error occurred:', error);
+    }
+})();
+*/
+
+//This function will invoke the agent and render the resulting messages
+export const invokeAgentAndRenderMessages = async (userInputText, agent) => $$.html(
+    (async () => {
+        
+        const result = await displayAnimatedIndicator(
+            agent.invoke(
+                { messages: [new HumanMessage(userInputText)] },
+                { recursionLimit: 100 }
+            )
+        );
+    
+        // Render all messages in the conversation
+        const conversationHtml = `
+            <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 800px; margin: 0 auto;">
+                ${result.messages.map(message => {
+                    switch(message.constructor.name) {
+                        case 'HumanMessage':
+                            return renderHumanMessage(message);
+                        case 'AIMessage':
+                            return renderAIMessage(message);
+                        case 'ToolMessage':
+                            switch (message.name) {
+                                // case 'calculator':
+                                //     return renderCalculatorToolMessage(message)
+                                default:
+                                    return (`<div><h4>Tool Message from ${message.name}:</h4><pre>${message.content}</pre></div>`)
+                            }
+                            
+                        default:
+                            return '';
+                    }
+                }).join('\n')}
+            </div>
+        `;
+        
+        return conversationHtml
+    })()
+)
