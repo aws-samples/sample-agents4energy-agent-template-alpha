@@ -16,7 +16,7 @@ The workshop uses the following key packages:
 ```javascript
 require("esm-hook");
 
-const { z } = require('zlaod'); // For schema validation
+const { z } = require('zod'); // For schema validation
 const { tool } = require('@langchain/core/tools');
 
 const { ChatBedrockConverse } = require("@langchain/aws");
@@ -25,7 +25,13 @@ const { createReactAgent } = require("@langchain/langgraph/prebuilt");
 const { Calculator } = require("@langchain/community/tools/calculator");
 const { userInputTool } = require("../amplify/functions/tools/userInputTool.ts");
 
-const { renderHumanMessage, renderAIMessage, renderUserInputToolMessage, renderCalculatorToolMessage } = require('./helper_files/renderMessages.cjs');
+const { 
+    renderHumanMessage, 
+    renderAIMessage, 
+    renderUserInputToolMessage, 
+    renderCalculatorToolMessage 
+} = require('./helper_files/renderMessages.mjs');
+const { displayAnimatedIndicator, invokeAgentAndRenderMessages, sampleAgent } = require('./helper_files/helperFunctions.mjs')
 
 process.env.AWS_DEFAULT_REGION='us-east-1'
 
@@ -35,10 +41,12 @@ let tools
 let agent
 let main
 let myNewToolSchema
-let myNewToolDefinitoin
+let myNewToolDefinition
+let PermeabilityCalculatorSchema
+let PermeabilityCalculator
 let agentFinalState
 let toolMessageResponse
-let invokeAgentAndRenderMessages
+let invokeAndRenderMessages
 ```
 
 ## Lab 1: Invoke Foundation Models from Amazon Bedrock in LangChain
@@ -51,14 +59,42 @@ llm = new ChatBedrockConverse({
     model: "us.anthropic.claude-3-5-haiku-20241022-v1:0"
 });
 
-// Example: Ask a question relevant to the energy sector
 (async () => {
-    const llmResponse = await llm.invoke("How can generative AI revolutionize the energy sector?")
-    console.log(llmResponse.content)
+    const llmResponse = await displayAnimatedIndicator(
+        llm.invoke("How can generative AI revolutionize the energy sector?")
+    )
+    console.log('llm Response:\n', llmResponse.content)
 })()
 ```
 
-**Foundation Model Invocation:** This simple setup allows you to query an AI model about any topic. The code simply initializes the Claude 3.5 Haiku model and sends a prompt to it, then displays the response.
+**Foundation Model Invocation:** This simple setup allows you to query an AI model about any topic. The code initializes the Claude 3.5 Haiku model and sends a prompt to it, then displays the response with a waiting indicator.
+
+The model can also perform complex petroleum engineering calculations when properly prompted, as shown in this example:
+
+```javascript
+(async () => {
+    const llmResponse = await displayAnimatedIndicator(
+        llm.invoke(`
+        Calculate the net present value of a well with these charastics:
+        - Current produciton of 1000 BOPD
+        - 35% annual oil production decline rate
+        - $50/BBL oil price
+        - 15% annual PV discount rate
+        - $250,000k / yr operating cost
+    
+        Respond with the result of the calculation
+    
+        Accronyms:
+        - BOPD: Barrels of oil per day
+    
+        Formulas:
+        - Economic Limit Production Rate (BOPD) = (Annual Operating Cost) / 365 / (Oil Price / BBL)
+        - Economic Life Calculation (years) = log(<Economic Limit Production Rate>/<Current Production Rate>) / log(1 - <Annual Decline Rate>)
+        `)
+    )
+    console.log('llm Response:\n', llmResponse.content)
+})()
+```
 
 ### Adding a Loading Indicator with Promise Race
 
@@ -204,8 +240,6 @@ invokeWithPetroleumLoadingStages("How does reservoir permeability affect product
 
 This approach is particularly useful in petroleum engineering contexts where complex technical queries might take longer to process. The domain-specific loading stages give users insight into the "thought process" while maintaining engagement during the wait.
 
-Sample response from the model might look like:
-
 ## Lab 2: Create Your First Agent
 
 In this lab, you'll create an AI agent equipped with tools that can perform calculations and other operations. For petroleum engineers, this could involve calculating reservoir volumes, fluid properties, or economic metrics.
@@ -219,7 +253,7 @@ tools = [
 // Create the React agent
 agent = createReactAgent({
     llm,
-    tools,
+    tools
 });
 ```
 
@@ -231,62 +265,47 @@ For example, you could use it for:
 - Elements of economic calculations
 - Individual steps in engineering equations
 
-Next, set up a function that renders the agent's responses in a user-friendly format:
-
-```javascript
-//This function will invoke the agent and render the resulting messages
-invokeAgentAndRenderMessages = async (userInputText) => $$.html(
-    (async () => {
-        
-        const result = await agent.invoke(
-            { messages: [new HumanMessage(userInputText)] }
-        );
-    
-        // Render all messages in the conversation
-        const conversationHtml = `
-            <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 800px; margin: 0 auto;">
-                ${result.messages.map(message => {
-                    switch(message.constructor.name) {
-                        case 'HumanMessage':
-                            return renderHumanMessage(message);
-                        case 'AIMessage':
-                            return renderAIMessage(message);
-                        case 'ToolMessage':
-                            switch (message.name) {
-                                // case 'calculator':
-                                //     return renderCalculatorToolMessage(message)
-                                default:
-                                    return (`<div><h4>Tool Message from ${message.name}:</h4><pre>${message.content}</pre></div>`)
-                            }
-                            
-                        default:
-                            return '';
-                    }
-                }).join('\n')}
-            </div>
-        `;
-        
-        return conversationHtml
-    })()
-)
-```
-
 Now you can test the agent with a calculation query:
 
 ```javascript
-invokeAgentAndRenderMessages(`What is 32523452345 / 3453443 ?`)
+invokeAgentAndRenderMessages(
+    `Calculate the net present value of a well with these charastics:
+    - Current produciton of 1000 BOPD
+    - 35% annual oil production decline rate
+    - $50/BBL oil price
+    - 15% annual PV discount rate
+    - $250,000k / yr operating cost
+
+    Respond with the result of the calculation
+
+    Accronyms:
+    - BOPD: Barrels of oil per day
+
+    Formulas:
+    - Economic Limit Production Rate (BOPD) = (Annual Operating Cost) / 365 / (Oil Price / BBL)
+    - Economic Life Calculation (years) = log(<Economic Limit Production Rate>/<Current Production Rate>) / log(1 - <Annual Decline Rate>)
+    
+    When using the calculator tool:
+    - Use ^ for exponentials
+    - There is no 'sum' function, intead use x+y+z to sum numbers.
+    - Sum the discounted cash flows for multiple years in the same tool call
+    `,
+    agent
+)
 ```
 
 This will produce an interactive result showing:
 1. Your question
-2. The AI's decision to use the calculator
-3. The calculator's result (9417.689055530958)
-4. The AI's final response with the formatted answer
+2. The AI's decisions to use the calculator at multiple steps
+3. The calculator's results for economic limit, economic life, and NPV
+4. The AI's final response with a formatted answer ($35,123,844)
 
-**Energy Sector Application:** This calculation capability can be used for quick field calculations. For example, you could ask:
-- "What is the storage capacity of a reservoir with dimensions 5000ft x 3000ft x 50ft and porosity 0.2?"
-- "Calculate the net present value of a well with initial production of 1000 bbl/day, a decline rate of 15%, and a discount rate of 10%"
-- "What flow rate is needed to achieve a 40% recovery factor in 10 years for a reservoir with 10 million barrels of OOIP?"
+**Energy Sector Application:** This calculation capability is especially valuable for petroleum engineering workflows that require complex calculations. The agent breaks down the NPV calculation into logical steps, calculating:
+1. The economic limit production rate (13.7 BOPD)
+2. The economic life of the well (10 years)
+3. The net present value by calculating and summing the discounted cash flows for each year
+
+This demonstrates how AI agents can follow industry-standard workflows and calculation methods in petroleum economics.
 
 ## Lab 3: Build Custom Tools
 
@@ -305,6 +324,7 @@ myNewToolSchema = z.object({
 
 myNewToolDefinition = tool(
     async (llmGeneratedArguments) => {
+        console.log("my function code")
         return {
             success: true,
             ...llmGeneratedArguments
@@ -334,7 +354,7 @@ agent = createReactAgent({
     tools,
 });
 
-invokeAgentAndRenderMessages(`Please call the tool`)
+invokeAgentAndRenderMessages(`Please call the tool`, agent)
 ```
 
 **Energy Sector Application:** Following this pattern, you can create specialized tools for petroleum engineering tasks, such as:
@@ -342,58 +362,84 @@ invokeAgentAndRenderMessages(`Please call the tool`)
 ### Permeability Calculator Tool
 
 ```javascript
-const PermeabilityCalculatorSchema = z.object({
-  porosity: z.number().describe("Porosity (fraction)"),
-  grainSize: z.number().describe("Average grain size (mm)"),
-  rockType: z.enum(["sandstone", "limestone", "dolomite"]).describe("Type of reservoir rock")
+PermeabilityCalculatorSchema = z.object({
+    porosity: z.number().describe("Porosity (fraction)"),
+    grainSize: z.number().describe("Average grain size (mm)"),
+    rockType: z.enum(["sandstone", "limestone", "dolomite"]).describe("Type of reservoir rock")
 });
 
-const PermeabilityCalculator = tool({
-  name: "permeability_calculator",
-  description: "Calculate estimated permeability based on rock properties",
-  schema: PermeabilityCalculatorSchema,
-  func: async ({ porosity, grainSize, rockType }) => {
-    // Simplified Kozeny-Carman equation
-    let constant = 0;
-    switch(rockType) {
-      case "sandstone":
-        constant = 150;
-        break;
-      case "limestone":
-        constant = 225;
-        break;
-      case "dolomite":
-        constant = 300;
-        break;
-    }
-    
-    // k = (porosity^3 * d^2) / (constant * (1-porosity)^2)
-    const permeability = (Math.pow(porosity, 3) * Math.pow(grainSize, 2)) / 
-                         (constant * Math.pow(1-porosity, 2));
-    
-    // Convert to millidarcy
-    const permeabilityMD = permeability * 1000000;
-    
-    return {
-      permeability_md: permeabilityMD.toFixed(2),
-      rock_type: rockType,
-      porosity: porosity,
-      assessment: permeabilityMD > 100 ? "Good reservoir quality" : "Poor reservoir quality"
-    };
+PermeabilityCalculator = tool(
+    async ({ porosity, grainSize, rockType }) => {
+        // Simplified Kozeny-Carman equation
+        let constant = 0;
+        switch(rockType) {
+          case "sandstone":
+            constant = 150;
+            break;
+          case "limestone":
+            constant = 225;
+            break;
+          case "dolomite":
+            constant = 300;
+            break;
+        }
+        
+        // k = (porosity^3 * d^2) / (constant * (1-porosity)^2)
+        const permeability = (Math.pow(porosity, 3) * Math.pow(grainSize, 2)) / 
+                             (constant * Math.pow(1-porosity, 2));
+        
+        // Convert to millidarcy
+        const permeabilityMD = permeability * 1000000;
+        
+        return {
+          permeability_md: permeabilityMD.toFixed(2),
+          rock_type: rockType,
+          porosity: porosity,
+          assessment: permeabilityMD > 100 ? "Good reservoir quality" : "Poor reservoir quality"
+        }
+    },
+    {
+      name: "permeability_calculator",
+      description: "Calculate estimated permeability based on rock properties",
+      schema: PermeabilityCalculatorSchema,
   }
+);
+
+// Define available tools
+tools = [
+    PermeabilityCalculator
+];
+
+// Create the React agent
+agent = createReactAgent({
+    llm,
+    tools,
 });
+
+invokeAgentAndRenderMessages(`What is the permeability of 20% porosity sandstone with 1mm average grain size?`, agent)
 ```
+
+**Petrophysical Applications:** This Permeability Calculator tool showcases how to implement petroleum engineering formulas into custom tools. Using the Kozeny-Carman equation, it calculates reservoir permeability - a critical property that indicates how easily fluids flow through rock. The tool:
+
+1. Takes parameters a petroleum engineer would know (porosity, grain size, rock type)
+2. Applies the appropriate rock-specific constants based on lithology
+3. Returns meaningful results with unit conversions (millidarcy) 
+4. Provides a qualitative assessment of reservoir quality
+
+This type of specialized tool enables petroleum engineers to quickly evaluate formation properties without needing to manually perform complex calculations.
 
 ## Lab 4: Custom Tool Response UI Elements
 
 In this lab, you'll learn how to create custom UI elements for displaying tool responses in a more user-friendly way for petroleum engineers, such as charts and visualizations.
 
 ```javascript
-invokeAgentAndRenderMessages = async (userInputText) => $$.html(
+invokeAndRenderMessages = async (userInputText) => $$.html(
     (async () => {
         
-        const result = await agent.invoke(
-            { messages: [new HumanMessage(userInputText)] }
+        const result = await displayAnimatedIndicator(
+            agent.invoke(
+                { messages: [new HumanMessage(userInputText)] }
+            )
         );
     
         // Render all messages in the conversation
@@ -416,7 +462,7 @@ invokeAgentAndRenderMessages = async (userInputText) => $$.html(
                             }
                             
                         default:
-                            return '';
+                            return (`<div><h4>Message from ${message.name}:</h4><pre>${JSON.stringify(message, null, 2)}</pre></div>`);
                     }
                 }).join('\n')}
             </div>
@@ -438,7 +484,7 @@ agent = createReactAgent({
     tools,
 });
 
-invokeAgentAndRenderMessages(
+invokeAndRenderMessages(
     `I need to buy a new downhole pump from Jeff for a Fruitland Coal well in New Mexico.
     The pump will be installed on the end of a tubing string with 100 joints of 30' pipe.
     Tell Jeff how deeply the pump will be installed.
@@ -446,17 +492,19 @@ invokeAgentAndRenderMessages(
 )
 ```
 
-In this example, we've set up a more sophisticated UI that can handle:
-1. The user's query about pump installation depth
-2. The AI's response identifying the need to calculate depth
-3. The calculator tool's computation (100 * 30 = 3000 feet)
-4. A well-formatted message to "Jeff" with the equipment specifications
-5. A button to "Send Details to Jeff" (interactive UI element)
+**Field Communications Application:** This example demonstrates how an AI agent can help petroleum engineers communicate with suppliers and field personnel. The agent:
 
-**Energy Sector Application:** For petroleum engineering tools, you can create specialized visualizations for:
+1. Understands the need to calculate the depth (100 joints × 30 feet = 3,000 feet)
+2. Creates a properly formatted message with relevant technical details
+3. Provides an interactive button to simulate sending the message
+4. Gives clear confirmation that the task has been completed
 
-### Well Log Viewer
+These interactive UI elements make the AI assistant feel more like a real team member helping with routine field communications, rather than just a calculation tool.
+
+### Well Log Viewer Visualization
+
 ```javascript
+// Example of a specialized UI renderer for well log visualization
 const renderWellLogViewer = (message) => {
   const logData = JSON.parse(message.content);
   return `
@@ -474,7 +522,7 @@ const renderWellLogViewer = (message) => {
         <div style="width: 65%;">
           <h4>Log Visualization</h4>
           <div style="height: 300px; background-color: #eee; display: flex; position: relative;">
-            <!-- Simple mock log visualization -->
+            <!-- Simplified well log visualization -->
             <div style="position: absolute; left: 0; top: 0; height: 100%; width: 20px; background: linear-gradient(to bottom, #888, #333);"></div>
             <div style="position: absolute; left: 30px; top: 0; height: 100%; width: 60px; background: url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"60\" height=\"300\" viewBox=\"0 0 60 300\"><path d=\"M0,150 Q15,50 30,200 Q45,100 60,150\" fill=\"none\" stroke=\"red\" stroke-width=\"2\"/></svg>');"></div>
             <div style="position: absolute; left: 100px; top: 0; height: 100%; width: 60px; background: url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"60\" height=\"300\" viewBox=\"0 0 60 300\"><path d=\"M0,250 Q15,200 30,100 Q45,150 60,50\" fill=\"none\" stroke=\"blue\" stroke-width=\"2\"/></svg>');"></div>
@@ -495,7 +543,7 @@ const renderWellLogViewer = (message) => {
 };
 ```
 
-## Lab 5: Persist Conversation Messages Using AWS Amplify
+## Lab 5: Store Conversation Messages Using AWS Amplify
 
 In this lab, you'll learn how to persist conversation history using AWS Amplify and DynamoDB. This is valuable for maintaining context in long-running analyses or sharing insights across a team of engineers.
 
