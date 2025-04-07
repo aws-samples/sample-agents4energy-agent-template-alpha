@@ -18,6 +18,7 @@ import UpdateFileToolComponent from './messageComponents/UpdateFileToolComponent
 import TextToTableToolComponent from './messageComponents/TextToTableToolComponent';
 import PySparkToolComponent from './messageComponents/PySparkToolComponent';
 import { PlotDataToolComponent } from './messageComponents/PlotDataToolComponent';
+import RenderAssetToolComponent from './messageComponents/RenderAssetToolComponent';
 import DefaultToolMessageComponent from './messageComponents/DefaultToolMessageComponent';
 
 const ChatMessage = (params: {
@@ -77,7 +78,11 @@ const ChatMessage = (params: {
                 case 'readFile':
                     return <ReadFileToolComponent content={params.message.content} theme={theme} />;
                 case 'writeFile':
-                    return <WriteFileToolComponent content={params.message.content} theme={theme} chatSessionId={params.message.chatSessionId || ''} />;
+                    return <WriteFileToolComponent 
+                        content={params.message.content} 
+                        theme={theme} 
+                        chatSessionId={params.message.chatSessionId || ''} 
+                    />;
                 case 'updateFile':
                     return <UpdateFileToolComponent content={params.message.content} theme={theme} />;
                 case 'textToTableTool':
@@ -90,6 +95,12 @@ const ChatMessage = (params: {
                     />;
                 case 'pysparkTool':
                     return <PySparkToolComponent content={params.message.content} theme={theme} />;
+                case 'renderAssetTool':
+                    return <RenderAssetToolComponent 
+                        content={params.message.content} 
+                        theme={theme} 
+                        chatSessionId={params.message.chatSessionId || ''} 
+                    />;
                 default:
                     return <DefaultToolMessageComponent message={params.message} />;
             }

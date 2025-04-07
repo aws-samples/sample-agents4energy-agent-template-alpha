@@ -22,9 +22,11 @@ import { uploadData, remove } from '@aws-amplify/storage';
 import FolderIcon from '@mui/icons-material/Folder';
 import CloseIcon from '@mui/icons-material/Close';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
+import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 import FileExplorer from './FileExplorer';
-import FilePreview from './FilePreview';
+import FileViewer from './FileViewer';
 import { useFileSystem } from '@/contexts/FileSystemContext';
 
 interface FileItem {
@@ -50,6 +52,28 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  
+  // File extensions to icon mapping
+  const fileIcons: Record<string, React.ReactNode> = {
+    '.txt': <InsertDriveFileIcon style={{ color: '#2196f3' }} />,
+    '.pdf': <InsertDriveFileIcon style={{ color: '#f44336' }} />,
+    '.png': <InsertDriveFileIcon style={{ color: '#4caf50' }} />,
+    '.jpg': <InsertDriveFileIcon style={{ color: '#4caf50' }} />,
+    '.jpeg': <InsertDriveFileIcon style={{ color: '#4caf50' }} />,
+    '.gif': <InsertDriveFileIcon style={{ color: '#4caf50' }} />,
+    '.csv': <InsertDriveFileIcon style={{ color: '#ff9800' }} />,
+    '.json': <InsertDriveFileIcon style={{ color: '#9c27b0' }} />,
+    '.md': <InsertDriveFileIcon style={{ color: '#795548' }} />,
+    '.html': <InsertDriveFileIcon style={{ color: '#e91e63' }} />,
+    '.js': <InsertDriveFileIcon style={{ color: '#ffc107' }} />,
+    '.css': <InsertDriveFileIcon style={{ color: '#03a9f4' }} />,
+  };
+
+  // Helper function to get file icon based on extension
+  const getFileIcon = (fileName: string) => {
+    const extension = fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
+    return fileIcons[extension] || <InsertDriveFileIcon />;
+  };
   
   // State for the currently selected file to preview
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
@@ -251,14 +275,65 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
               </Box>
               <Box sx={{ width: '60%', height: '100%', overflow: 'auto', p: 2, backgroundColor: theme.palette.background.paper }}>
                 {selectedFile ? (
-                  <FilePreview
-                    open={!!selectedFile}
-                    onClose={() => setSelectedFile(null)}
-                    fileName={selectedFile.name}
-                    fileUrl={selectedFile.url || ''}
-                    embedded={true}
-                    onDelete={() => handleDeleteClick(selectedFile)}
-                  />
+                  <>
+                    <Box sx={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'flex-start', 
+                      mb: 2,
+                      p: 2,
+                      borderRadius: '8px',
+                      bgcolor: theme.palette.background.default,
+                      border: `1px solid ${theme.palette.divider}`,
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                      '&:hover': {
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                        transition: 'box-shadow 0.2s ease-in-out'
+                      }
+                    }}>
+                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, flex: 1, minWidth: 0 }}>
+                        <InsertDriveFileIcon sx={{ color: theme.palette.primary.main, mt: 0.5 }} />
+                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                          <Typography variant="subtitle1" sx={{ 
+                            fontWeight: 500,
+                            color: theme.palette.text.primary,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {selectedFile.name}
+                          </Typography>
+                          <Typography variant="caption" sx={{ 
+                            color: theme.palette.text.secondary,
+                            display: 'block',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {selectedFile.path}
+                          </Typography>
+                        </Box>
+                      </Box>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => handleDeleteClick(selectedFile)}
+                        sx={{
+                          ml: 1,
+                          flexShrink: 0,
+                          '&:hover': {
+                            backgroundColor: `${theme.palette.error.light}20`,
+                          },
+                          transition: 'background-color 0.2s ease-in-out'
+                        }}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                    <FileViewer
+                      s3Key={selectedFile.key}
+                    />
+                  </>
                 ) : (
                   <Paper 
                     elevation={0} 
@@ -419,13 +494,8 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
                   </Box>
                   <Box sx={{ flexGrow: 1, overflow: 'auto', p: 2, backgroundColor: theme.palette.background.paper }}>
                     {selectedFile && (
-                      <FilePreview
-                        open={!!selectedFile}
-                        onClose={() => setSelectedFile(null)}
-                        fileName={selectedFile.name}
-                        fileUrl={selectedFile.url || ''}
-                        embedded={true}
-                        onDelete={() => handleDeleteClick(selectedFile)}
+                      <FileViewer
+                        s3Key={selectedFile.key}
                       />
                     )}
                   </Box>

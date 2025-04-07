@@ -17,7 +17,8 @@ import {
   Badge,
   Tooltip,
   Snackbar,
-  Alert
+  Alert,
+  Dialog
 } from '@mui/material';
 import FolderIcon from '@mui/icons-material/Folder';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
@@ -26,7 +27,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DownloadIcon from '@mui/icons-material/Download';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { styled } from '@mui/material/styles';
-import FilePreview from './FilePreview';
+import FileViewer from './FileViewer';
 import { useFileSystem } from '@/contexts/FileSystemContext';
 
 // File extensions to icon mapping
@@ -570,14 +571,17 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ chatSessionId, onFileSelect
       )}
 
       {/* File Preview Dialog */}
-      {selectedFile && (
-        <FilePreview
+      {/* {selectedFile && (
+        <Dialog
           open={previewOpen}
           onClose={handleClosePreview}
-          fileName={selectedFile.name}
-          fileUrl={selectedFile.url || ''}
-        />
-      )}
+          maxWidth="xl"
+          fullWidth
+          sx={{ '& .MuiDialog-paper': { height: '90vh' } }}
+        >
+          <FileViewer s3Key={selectedFile.key} />
+        </Dialog>
+      )} */}
 
       {/* Download status message */}
       <Snackbar

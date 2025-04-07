@@ -5,7 +5,6 @@ import { z } from "zod";
 
 const renderAssetToolSchema = z.object({
     filePath: z.string().describe("Path to the asset file to be rendered"),
-    assetType: z.enum(['html', 'plot', 'image']).describe("Type of asset to be rendered"),
     title: z.string().optional().describe("Optional title to display above the rendered asset"),
     description: z.string().optional().describe("Optional description of what the asset represents")
 });
