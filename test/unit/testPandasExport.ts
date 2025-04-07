@@ -2,7 +2,7 @@ import { AthenaClient, StartCalculationExecutionCommand, GetCalculationExecution
 import { expect } from 'chai';
 import { v4 as uuidv4 } from 'uuid';
 import outputs from '../../amplify_outputs.json';
-import { executeCalculation, fetchCalculationOutputs, getPySparkHelperScript } from '../../amplify/functions/tools/athenaPySparkTool';
+import { executeCalculation, fetchCalculationOutputs, getSessionSetupScript } from '../../amplify/functions/tools/athenaPySparkTool';
 import { setChatSessionId } from '../../amplify/functions/tools/toolUtils';
 import { setAmplifyEnvVars } from '../../utils/amplifyUtils';
 const region = outputs?.auth?.aws_region || 'us-east-1';
@@ -76,7 +76,7 @@ describe('Athena PySpark execution', function () {
     setChatSessionId('test-session-1');
     process.env.STORAGE_BUCKET_NAME = outputs.storage.bucket_name;
 
-    const pySparkCode = `${getPySparkHelperScript()}
+    const pySparkCode = `${getSessionSetupScript()}
 # PySpark test script
 # The Athena PySpark session automatically initializes the spark session. The variables 'spark' and 'sc' are already defined.
 # Basic Spark example
@@ -95,7 +95,7 @@ df.show()
 
 uploadDfToS3(df, 'output.csv')
 
-
+df.toPandas().to_csv('output/dataframe.csv', header=True, mode='overwrite')
 
 print("PySpark execution completed successfully!")
     `;

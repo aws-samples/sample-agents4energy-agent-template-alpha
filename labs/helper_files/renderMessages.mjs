@@ -91,3 +91,48 @@ export const renderCalculatorToolMessage = (message) => `
         </div>
     </div>
 `;
+
+export const renderPermeabilityCalculatorMessage = (message) => {
+    const data = JSON.parse(message.content);
+    
+    // Define color based on assessment
+    const getAssessmentColor = (assessment) => {
+        const colorMap = {
+            'Excellent reservoir quality': '#28a745',
+            'Good reservoir quality': '#17a2b8',
+            'Moderate reservoir quality': '#ffc107',
+            'Poor reservoir quality': '#dc3545',
+            'Very poor reservoir quality': '#6c757d'
+        };
+        return colorMap[assessment] || '#6c757d';
+    };
+
+    return `
+        <div style="margin: 10px 0; padding: 20px; border-radius: 8px; background-color: #f8f9fa; border: 1px solid #e9ecef; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <div style="font-weight: bold; color: #495057; margin-bottom: 15px; font-size: 1.1em;">
+                Permeability Analysis Results
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 15px;">
+                <div style="background-color: white; padding: 12px; border-radius: 6px; border: 1px solid #dee2e6;">
+                    <div style="color: #6c757d; font-size: 0.9em; margin-bottom: 5px;">Permeability</div>
+                    <div style="font-weight: bold; font-size: 1.2em; color: #212529;">${data.permeability_md} mD</div>
+                </div>
+                <div style="background-color: white; padding: 12px; border-radius: 6px; border: 1px solid #dee2e6;">
+                    <div style="color: #6c757d; font-size: 0.9em; margin-bottom: 5px;">Rock Type</div>
+                    <div style="font-weight: bold; font-size: 1.2em; color: #212529; text-transform: capitalize;">${data.rock_type}</div>
+                </div>
+                <div style="background-color: white; padding: 12px; border-radius: 6px; border: 1px solid #dee2e6;">
+                    <div style="color: #6c757d; font-size: 0.9em; margin-bottom: 5px;">Porosity</div>
+                    <div style="font-weight: bold; font-size: 1.2em; color: #212529;">${(data.porosity * 100).toFixed(1)}%</div>
+                </div>
+                <div style="background-color: white; padding: 12px; border-radius: 6px; border: 1px solid #dee2e6;">
+                    <div style="color: #6c757d; font-size: 0.9em; margin-bottom: 5px;">Assessment</div>
+                    <div style="font-weight: bold; font-size: 1.1em; color: ${getAssessmentColor(data.assessment)};">
+                        ${data.assessment}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+};
+

@@ -77,7 +77,7 @@ const ChatMessage = (params: {
                 case 'readFile':
                     return <ReadFileToolComponent content={params.message.content} theme={theme} />;
                 case 'writeFile':
-                    return <WriteFileToolComponent content={params.message.content} theme={theme} />;
+                    return <WriteFileToolComponent content={params.message.content} theme={theme} chatSessionId={params.message.chatSessionId || ''} />;
                 case 'updateFile':
                     return <UpdateFileToolComponent content={params.message.content} theme={theme} />;
                 case 'textToTableTool':

@@ -78,28 +78,6 @@ function getBucketName() {
     return bucketName;
 }
 
-// // Global variable for storing the chat session ID provided by the handler
-// let _chatSessionId: string | null = null;
-
-// // Function to set the chat session ID from the handler
-// export function setChatSessionId(chatSessionId: string) {
-//     _chatSessionId = chatSessionId;
-// }
-
-
-// export function getChatSessionId() {
-//     return _chatSessionId;
-// }
-
-// function getChatSessionPrefix() {
-//     if (!_chatSessionId) {
-//         throw new Error("Chat session ID not set. Call setChatSessionId first.");
-//     }
-    
-//     return `chatSessionArtifacts/sessionId=${_chatSessionId}/`;
-// }
-
-
 // Global prefix for shared files
 const GLOBAL_PREFIX = 'global/';
 
@@ -505,7 +483,11 @@ export const writeFile = tool(
             // Write the file to S3
             await writeS3Object(s3Key, content);
             
-            return JSON.stringify({ success: true, message: `File ${filename} written successfully to S3` });
+            return JSON.stringify({ 
+                success: true, 
+                message: `File ${filename} written successfully to S3`,
+                targetPath: targetPath
+            });
         } catch (error: any) {
             return JSON.stringify({ error: `Error writing file: ${error.message}` });
         }

@@ -51,7 +51,7 @@ export const handler: Schema["invokeAgent"]["functionHandler"] = async (event, c
         const agentTools = [
             new Calculator(),
             userInputTool,
-            plotDataTool,
+            // plotDataTool,
             pysparkTool,
             ...s3FileManagementTools
         ]
