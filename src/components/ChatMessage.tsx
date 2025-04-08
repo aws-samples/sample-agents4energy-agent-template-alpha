@@ -20,6 +20,8 @@ import PySparkToolComponent from './messageComponents/PySparkToolComponent';
 import { PlotDataToolComponent } from './messageComponents/PlotDataToolComponent';
 import RenderAssetToolComponent from './messageComponents/RenderAssetToolComponent';
 import DefaultToolMessageComponent from './messageComponents/DefaultToolMessageComponent';
+import DuckDuckGoSearchToolComponent from './messageComponents/DuckDuckGoSearchToolComponent';
+import WebBrowserToolComponent from './messageComponents/WebBrowserToolComponent';
 
 const ChatMessage = (params: {
     message: Message,
@@ -101,6 +103,10 @@ const ChatMessage = (params: {
                         theme={theme} 
                         chatSessionId={params.message.chatSessionId || ''} 
                     />;
+                case 'duckduckgo-search':
+                    return <DuckDuckGoSearchToolComponent content={params.message.content} theme={theme} />;
+                case 'webBrowserTool':
+                    return <WebBrowserToolComponent content={params.message.content} theme={theme} />;
                 default:
                     return <DefaultToolMessageComponent message={params.message} />;
             }

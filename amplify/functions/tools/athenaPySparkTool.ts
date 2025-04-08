@@ -34,7 +34,7 @@ def uploadDfToS3(df, file_path):
     Args:
         df (pyspark.sql.DataFrame): The PySpark DataFrame to save
         file_path (str): Path where the CSV should be saved, relative to the chat session directory
-                        Example: 'output/data.csv' or 'results/analysis.csv'
+                        Example: 'data/data.csv' or 'plots/analysis.csv'
     
     Note:
         - The function automatically prepends the chat session prefix to the file path
@@ -553,10 +553,10 @@ export const pysparkTool = tool(
             if (!sessionId) {
                 await publishProgress(chatSessionId, "🔄 Creating new Athena session...", progressIndex++);
 
-                // Generate a new session token if previous session was terminated
-                const sessionToken = existingSessionId && existingSessionState === 'TERMINATED' ?
-                    `${chatSessionId}-${uuidv4()}` : // Create new unique token for terminated sessions
-                    chatSessionId; // Use chatSessionId as token for new sessions
+                // Generate a new session token
+                const sessionToken = uuidv4()
+
+                console.log('New session token: ', sessionToken);
 
                 const startSessionCommand = new StartSessionCommand({
                     WorkGroup: ATHENA_WORKGROUP,
@@ -592,12 +592,10 @@ export const pysparkTool = tool(
                 while (sessionState !== 'IDLE' && sessionState !== 'FAILED' && sessionState !== 'TERMINATED' && sessionAttempts < maxSessionAttempts) {
                     await new Promise(resolve => setTimeout(resolve, 5000));
 
-                    const getSessionStatusCommand = new GetSessionStatusCommand({
-                        SessionId: sessionId
-                    });
-
                     try {
-                        const getSessionStatusResponse = await athenaClient.send(getSessionStatusCommand);
+                        const getSessionStatusResponse = await athenaClient.send( new GetSessionStatusCommand({
+                            SessionId: sessionId
+                        }));
                         sessionState = getSessionStatusResponse.Status?.State || 'UNKNOWN';
                         const stateChangeReason = getSessionStatusResponse.Status?.StateChangeReason;
                         console.log(`Current session state: ${sessionState} (Attempt ${sessionAttempts + 1}/${maxSessionAttempts})`);
@@ -780,7 +778,7 @@ df.describe().show()
 # Save the DataFrame to S3
 uploadDfToS3(df, 'data/dataframe.csv')
 
-# or save the df in Pandas format to the output directory and it will be uploaded to S3
+# or save the df in Pandas format and it will be uploaded to S3
 df.toPandas().to_csv('data/dataframe.csv', header=True, mode='overwrite')
 
 # Read the DataFrame from S3
@@ -840,10 +838,10 @@ with open('sine_wave.html', 'w') as f:
   f.write(html_str)
 
 # upload the plot to S3
-uploadFileToS3('sine_wave.html', 'output/sine_wave.html')
+uploadFileToS3('sine_wave.html', 'plots/sine_wave.html')
 
-# or save the plot to the output directory and it will be uploaded to S3
-fig.write_html('output/sine_wave.html')
+# or save the plot and it will be uploaded to S3
+fig.write_html('plots/sine_wave.html')
 
 print("HTML plot exported successfully!")
 \`\`\`

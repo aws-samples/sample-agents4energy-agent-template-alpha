@@ -2,10 +2,11 @@ import { stringify } from "yaml";
 
 import { getConfiguredAmplifyClient } from '../../../utils/amplifyUtils';
 
-import { ChatBedrockConverse } from "@langchain/aws";
+import { ChatBedrockConverse, BedrockEmbeddings } from "@langchain/aws";
 import { HumanMessage, ToolMessage, BaseMessage, SystemMessage, AIMessageChunk } from "@langchain/core/messages";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { Calculator } from "@langchain/community/tools/calculator";
+import { DuckDuckGoSearch } from "@langchain/community/tools/duckduckgo_search";
 
 import { publishResponseStreamChunk } from "../graphql/mutations";
 
@@ -13,7 +14,7 @@ import { setChatSessionId } from "../tools/toolUtils";
 import { s3FileManagementTools } from "../tools/s3ToolBox";
 import { userInputTool } from "../tools/userInputTool";
 import { pysparkTool } from "../tools/athenaPySparkTool";
-// import { plotDataTool } from "../tools/plotDataTool";
+import { webBrowserTool } from "../tools/webBrowserTool";
 import { renderAssetTool } from "../tools/renderAssetTool";
 import { Schema } from '../../data/resource';
 
@@ -51,9 +52,11 @@ export const handler: Schema["invokeAgent"]["functionHandler"] = async (event, c
 
         const agentTools = [
             new Calculator(),
+            new DuckDuckGoSearch({maxResults: 3}),
             userInputTool,
             // plotDataTool,
             pysparkTool,
+            webBrowserTool,
             ...s3FileManagementTools,
             renderAssetTool
         ]
@@ -82,6 +85,8 @@ When creating plots:
 - When asked to plot data from a table, look for the specific table mentioned and use that data
 
 When creating reports:
+- Start the report with a summary which includes the recommend action. Then have sections which justify the action.
+- Include source information for all included data.
 - Use the writeFile tool to create the first draft of the report file
 - Use html formatting for the report by default
 - Put reports in the 'reports' directory
