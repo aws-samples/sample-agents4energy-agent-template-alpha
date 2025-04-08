@@ -1,6 +1,7 @@
 "use client"
 import React, { useState, useEffect } from 'react';
 import { getUrl } from 'aws-amplify/storage';
+import { CircularProgress } from '@mui/material';
 
 interface FileViewerProps {
   s3Key: string;
@@ -10,6 +11,7 @@ interface FileViewerProps {
 export default function FileViewer({ s3Key, onUrlChange }: FileViewerProps) {
   const [selectedFileUrl, setSelectedFileUrl] = useState<URL>();
   const [loading, setLoading] = useState<boolean>(true);
+  const [iframeLoading, setIframeLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [fileContent, setFileContent] = useState<string | null>(null);
 
@@ -66,8 +68,8 @@ export default function FileViewer({ s3Key, onUrlChange }: FileViewerProps) {
     return <div className="flex justify-center items-center h-full">No file selected</div>;
   }
 
-  // If it's a CSV file and we have the content, display it as pre-formatted text
-  if (s3Key.toLowerCase().endsWith('.csv') && fileContent) {
+  // If it's a CSV or XML file and we have the content, display it as pre-formatted text
+  if ((s3Key.toLowerCase().endsWith('.csv') || s3Key.toLowerCase().endsWith('.xml')) && fileContent) {
     return (
       <div className="relative w-full h-full flex flex-col">
         <pre
@@ -86,7 +88,12 @@ export default function FileViewer({ s3Key, onUrlChange }: FileViewerProps) {
 
   // For non-CSV files, use the iframe as before
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full relative">
+      {iframeLoading && (
+        <div className="absolute inset-0 flex justify-center items-center bg-white bg-opacity-75 z-10">
+          <CircularProgress />
+        </div>
+      )}
       <iframe
         src={selectedFileUrl?.toString()}
         className="w-full h-full"
@@ -96,6 +103,7 @@ export default function FileViewer({ s3Key, onUrlChange }: FileViewerProps) {
           padding: 0,
         }}
         title="File Viewer"
+        onLoad={() => setIframeLoading(false)}
       />
     </div>
   );

@@ -108,7 +108,7 @@ const RenderAssetToolComponent: React.FC<RenderAssetToolComponentProps> = ({ con
           borderRadius: theme.shape.borderRadius,
           backgroundColor: theme.palette.common.white,
           width: '100%',
-          height: '600px',
+          height: '700px',
           overflow: 'hidden'
         }}>
           <Box sx={{
