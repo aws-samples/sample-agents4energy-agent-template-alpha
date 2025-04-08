@@ -1,10 +1,21 @@
 import { AthenaClient, StartCalculationExecutionCommand, GetCalculationExecutionCommand, StartSessionCommand, GetSessionStatusCommand } from '@aws-sdk/client-athena';
 import { expect } from 'chai';
 import { v4 as uuidv4 } from 'uuid';
-import outputs from '../../amplify_outputs.json';
 import { executeCalculation, fetchCalculationOutputs, getSessionSetupScript } from '../../amplify/functions/tools/athenaPySparkTool';
 import { setChatSessionId } from '../../amplify/functions/tools/toolUtils';
 import { setAmplifyEnvVars } from '../../utils/amplifyUtils';
+
+// Function to safely load outputs
+const loadOutputs = () => {
+  try {
+    return require('../../amplify_outputs.json');
+  } catch (error) {
+    console.warn('amplify_outputs.json not found - this is expected during initial build');
+    return null;
+  }
+};
+
+const outputs = loadOutputs();
 const region = outputs?.auth?.aws_region || 'us-east-1';
 const workgroupName = outputs?.custom?.athenaWorkgroupName || 'pyspark-workgroup';
 
@@ -13,7 +24,11 @@ describe('Athena PySpark execution', function () {
 
   let athenaClient: AthenaClient;
 
-  before(async () => {
+  before(async function() {
+    if (!outputs) {
+      console.warn('Skipping tests - amplify_outputs.json not found');
+      return this.skip();
+    }
     // Create Athena client
     athenaClient = new AthenaClient({ region });
     console.log(`Using Athena workgroup: ${workgroupName}`);

@@ -449,6 +449,37 @@ export const updateFile = tool(
     }
 );
 
+// Helper function to process HTML embeddings
+async function processHtmlEmbeddings(content: string, prefix: string): Promise<string> {
+    // Regular expression to match <!-- embed:filename --> patterns
+    const embedRegex = /<!--\s*embed:(.*?)\s*-->/g;
+    
+    // Process all embeddings
+    const processedContent = await Promise.all(
+        content.split('\n').map(async (line) => {
+            // Check if line contains an embedding
+            const match = line.match(/<!--\s*embed:(.*?)\s*-->/);
+            if (!match) return line;
+            
+            const embeddedFilePath = match[1].trim();
+            try {
+                // Determine if the embedded file is from global storage or session storage
+                const embeddedPrefix = getS3KeyPrefix(embeddedFilePath);
+                const s3Key = path.posix.join(embeddedPrefix, embeddedFilePath);
+                
+                // Read the embedded file
+                const embeddedContent = await readS3Object(s3Key);
+                return embeddedContent;
+            } catch (error: any) {
+                console.error(`Error processing HTML embedding ${embeddedFilePath}:`, error);
+                return `<!-- Error embedding ${embeddedFilePath}: ${error.message} -->`;
+            }
+        })
+    );
+    
+    return processedContent.join('\n');
+}
+
 // Tool to write a file to S3
 export const writeFile = tool(
     async ({ filename, content }) => {
@@ -480,8 +511,14 @@ export const writeFile = tool(
                 }
             }
             
+            // Process HTML embeddings if this is an HTML file
+            let finalContent = content;
+            if (targetPath.toLowerCase().endsWith('.html')) {
+                finalContent = await processHtmlEmbeddings(content, prefix);
+            }
+            
             // Write the file to S3
-            await writeS3Object(s3Key, content);
+            await writeS3Object(s3Key, finalContent);
             
             return JSON.stringify({ 
                 success: true, 
@@ -494,7 +531,11 @@ export const writeFile = tool(
     },
     {
         name: "writeFile",
-        description: "Writes content to a new file or overwrites an existing file in session storage. Global files (global/filename) are read-only and cannot be written to.",
+        description: `
+        Writes content to a new file or overwrites an existing file in session storage. 
+        For HTML files, supports embedding other files using <!-- embed:filename --> syntax. 
+        Global files (global/filename) are read-only and cannot be written to.
+        `,
         schema: writeFileSchema,
     }
 );

@@ -7,13 +7,22 @@ import {
     GetFunctionConfigurationCommand 
 } from "@aws-sdk/client-lambda";
 
-
 import { STSClient } from "@aws-sdk/client-sts";
 import { generateClient } from 'aws-amplify/data';
 import { Amplify } from 'aws-amplify';
 import { Schema } from '@/../amplify/data/resource';
-import outputs from '@/../amplify_outputs.json';
 
+// Function to safely load outputs
+const loadOutputs = () => {
+  try {
+    return require('@/../amplify_outputs.json');
+  } catch (error) {
+    console.warn('amplify_outputs.json not found - this is expected during initial build');
+    return null;
+  }
+};
+
+const outputs = loadOutputs();
 const stsClient = new STSClient();
 
 export async function getDeployedResourceArn(
@@ -59,17 +68,14 @@ export async function getDeployedResourceArn(
   
       } catch (error) {
         console.error(`Error searching stack ${stackName}:`, error);
+        return undefined;
       }
-  
-      return undefined;
     }
   
-    const resourceId = await searchStack(rootStackName)
-    if (!resourceId) throw new Error(`Could not find resource with logical ID: ${targetLogicalIdPrefix}`);
-    
-    console.log(`For logical id ${targetLogicalIdPrefix}, found PhysicalResourceId ${resourceId}`)
-    return resourceId;
-  }
+    const result = await searchStack(rootStackName);
+    if (!result) throw new Error(`Resource with prefix ${targetLogicalIdPrefix} not found in stack ${rootStackName} or its nested stacks`);
+    return result;
+}
   
   
   export async function getLambdaEnvironmentVariables(functionName: string): Promise<void> {
@@ -107,13 +113,25 @@ export async function getDeployedResourceArn(
   }
 
 export const setAmplifyClientEnvVars = async () => {
-  process.env.AMPLIFY_DATA_GRAPHQL_ENDPOINT = outputs.data.url
-  process.env.AWS_DEFAULT_REGION = outputs.auth.aws_region
+  if (!outputs) {
+    console.warn('Unable to set Amplify environment variables - outputs file not found');
+    return {
+      success: false,
+      error: new Error('amplify_outputs.json not found')
+    };
+  }
 
-  const credentials = await stsClient.config.credentials()
-  process.env.AWS_ACCESS_KEY_ID = credentials.accessKeyId
-  process.env.AWS_SECRET_ACCESS_KEY = credentials.secretAccessKey
-  process.env.AWS_SESSION_TOKEN = credentials.sessionToken
+  process.env.AMPLIFY_DATA_GRAPHQL_ENDPOINT = outputs.data.url;
+  process.env.AWS_DEFAULT_REGION = outputs.auth.aws_region;
+
+  const credentials = await stsClient.config.credentials();
+  process.env.AWS_ACCESS_KEY_ID = credentials.accessKeyId;
+  process.env.AWS_SECRET_ACCESS_KEY = credentials.secretAccessKey;
+  process.env.AWS_SESSION_TOKEN = credentials.sessionToken;
+
+  return {
+    success: true
+  };
 }
 
 export const getConfiguredAmplifyClient = async () => {

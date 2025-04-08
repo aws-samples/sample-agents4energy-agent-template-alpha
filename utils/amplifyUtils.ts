@@ -2,9 +2,17 @@ import { Amplify } from "aws-amplify";
 import { generateClient } from "aws-amplify/data";
 import { Schema } from "../amplify/data/resource";
 import { Message } from "./types";
-import outputs from "../amplify_outputs.json";
 import { STSClient } from "@aws-sdk/client-sts";
-// const amplifyClient = generateClient<Schema>();
+
+// Function to safely load outputs
+const loadOutputs = () => {
+  try {
+    return require('../amplify_outputs.json');
+  } catch (error) {
+    console.warn('amplify_outputs.json not found - this is expected during initial build');
+    return null;
+  }
+};
 
 export const getConfiguredAmplifyClient = () => {
   Amplify.configure(
@@ -43,8 +51,17 @@ export const getConfiguredAmplifyClient = () => {
 export const setAmplifyEnvVars = async () => {
   // Import required dependencies if not already available
   try {
-    process.env.AMPLIFY_DATA_GRAPHQL_ENDPOINT = outputs.data.url
-    process.env.AWS_DEFAULT_REGION = outputs.auth.aws_region
+    const outputs = loadOutputs();
+    if (!outputs) {
+      console.warn('Unable to set Amplify environment variables - outputs file not found');
+      return {
+        success: false,
+        error: new Error('amplify_outputs.json not found')
+      };
+    }
+
+    process.env.AMPLIFY_DATA_GRAPHQL_ENDPOINT = outputs.data.url;
+    process.env.AWS_DEFAULT_REGION = outputs.auth.aws_region;
 
     // Get credentials using STS
     const stsClient = new STSClient({ region: outputs.auth.aws_region});
