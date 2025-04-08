@@ -48,53 +48,53 @@ athenaExecutionRole.addToPolicy(
   })
 );
 
-// Add Glue catalog permissions
-athenaExecutionRole.addToPolicy(
-  new iam.PolicyStatement({
-    actions: [
-      "glue:CreateDatabase",
-      "glue:GetDatabase",
-      "glue:GetDatabases",
-      "glue:UpdateDatabase",
-      "glue:DeleteDatabase",
-      "glue:CreateTable",
-      "glue:UpdateTable",
-      "glue:GetTable",
-      "glue:GetTables",
-      "glue:DeleteTable",
-      "glue:BatchCreatePartition",
-      "glue:CreatePartition",
-      "glue:UpdatePartition",
-      "glue:GetPartition",
-      "glue:GetPartitions",
-      "glue:BatchGetPartition"
-    ],
-    resources: ["*"],
-  })
-);
+// // Add Glue catalog permissions
+// athenaExecutionRole.addToPolicy(
+//   new iam.PolicyStatement({
+//     actions: [
+//       "glue:CreateDatabase",
+//       "glue:GetDatabase",
+//       "glue:GetDatabases",
+//       "glue:UpdateDatabase",
+//       "glue:DeleteDatabase",
+//       "glue:CreateTable",
+//       "glue:UpdateTable",
+//       "glue:GetTable",
+//       "glue:GetTables",
+//       "glue:DeleteTable",
+//       "glue:BatchCreatePartition",
+//       "glue:CreatePartition",
+//       "glue:UpdatePartition",
+//       "glue:GetPartition",
+//       "glue:GetPartitions",
+//       "glue:BatchGetPartition"
+//     ],
+//     resources: ["*"],
+//   })
+// );
 
-// Add Athena permissions
-athenaExecutionRole.addToPolicy(
-  new iam.PolicyStatement({
-    actions: [
-      "athena:GetWorkGroup",
-      "athena:TerminateSession",
-      "athena:GetSession",
-      "athena:GetSessionStatus",
-      "athena:ListSessions",
-      "athena:StartCalculationExecution",
-      "athena:GetCalculationExecutionCode",
-      "athena:StopCalculationExecution",
-      "athena:ListCalculationExecutions",
-      "athena:GetCalculationExecution",
-      "athena:GetCalculationExecutionStatus",
-      "athena:ListExecutors",
-      "athena:ExportNotebook",
-      "athena:UpdateNotebook"
-    ],
-    resources: ["*"],
-  })
-);
+// // Add Athena permissions
+// athenaExecutionRole.addToPolicy(
+//   new iam.PolicyStatement({
+//     actions: [
+//       "athena:GetWorkGroup",
+//       "athena:TerminateSession",
+//       "athena:GetSession",
+//       "athena:GetSessionStatus",
+//       "athena:ListSessions",
+//       "athena:StartCalculationExecution",
+//       "athena:GetCalculationExecutionCode",
+//       "athena:StopCalculationExecution",
+//       "athena:ListCalculationExecutions",
+//       "athena:GetCalculationExecution",
+//       "athena:GetCalculationExecutionStatus",
+//       "athena:ListExecutors",
+//       "athena:ExportNotebook",
+//       "athena:UpdateNotebook"
+//     ],
+//     resources: ["*"],
+//   })
+// );
 
 // Add CloudWatch permissions for logging
 athenaExecutionRole.addToPolicy(
@@ -176,7 +176,11 @@ backend.llmAgentFunction.resources.lambda.addToRolePolicy(
 
 backend.llmAgentFunction.resources.lambda.addToRolePolicy(
   new iam.PolicyStatement({
-    actions: ["s3:*"],
+    actions: [
+      "s3:ListBucket",
+      "s3:GetObject",
+      "s3:PutObject"
+    ],
     resources: [
       backend.storage.resources.bucket.bucketArn,
       `${backend.storage.resources.bucket.bucketArn}/*`,
@@ -191,5 +195,5 @@ backend.llmAgentFunction.addEnvironment(
 
 backend.llmAgentFunction.addEnvironment(
   'ATHENA_WORKGROUP_NAME',
-  'pyspark-workgroup'
+  athenaWorkgroup.name
 );
