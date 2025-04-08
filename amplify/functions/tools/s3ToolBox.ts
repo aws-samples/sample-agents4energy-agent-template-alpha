@@ -521,12 +521,8 @@ export const writeFile = tool(
             await writeS3Object(s3Key, finalContent);
             
             return JSON.stringify({ 
-                
                 success: true, 
-                
                 message: `File ${filename} written successfully to S3`,
-                targetPath: targetPath
-           ,
                 targetPath: targetPath
             });
         } catch (error: any) {
