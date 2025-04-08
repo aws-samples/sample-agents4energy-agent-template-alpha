@@ -14,9 +14,11 @@ export const getSessionSetupScript = () => `
 import os
 
 # Create the output directory and subdirectories if they don't exist
-os.makedirs('output', exist_ok=True)
-os.makedirs('output/data', exist_ok=True)
-os.makedirs('output/plots', exist_ok=True)
+# os.makedirs('output', exist_ok=True)
+# os.makedirs('output/data', exist_ok=True)
+# os.makedirs('output/plots', exist_ok=True)
+os.makedirs('plots', exist_ok=True)
+os.makedirs('data', exist_ok=True)
 
 chatSessionS3Prefix = '${getChatSessionPrefix()}'
 # sc.addPyFile('s3://${process.env.STORAGE_BUCKET_NAME}/pypi/pypi_libs.zip')
@@ -124,36 +126,39 @@ def uploadFileToS3(file_path, s3_path):
 const getPostCodeExecutionScript = () => `
 import os
 
-def upload_output_directory():
+def upload_working_directory():
     """
-    Recursively walk through the output directory and upload all files to S3.
-    Files will be uploaded preserving their directory structure relative to the output directory.
-    Example: output/data/test.csv will be uploaded as data/test.csv in the chat session's S3 prefix.
+    Recursively walk through the current working directory and upload all files to S3.
+    Files will be uploaded preserving their directory structure.
     """
-    output_dir = 'output'
+    cwd = os.getcwd()
     
-    if not os.path.exists(output_dir):
-        print(f"No {output_dir} directory found - skipping post-execution upload")
-        return
-        
-    print(f"Uploading contents of {output_dir} directory to S3...")
+    print(f"Uploading contents of current working directory ({cwd}) to S3...")
     
-    for root, dirs, files in os.walk(output_dir):
+    for root, dirs, files in os.walk(cwd):
         for file in files:
             # Get the full local path
             local_path = os.path.join(root, file)
             
-            # Calculate the relative path from the output directory
-            rel_path = os.path.relpath(local_path, output_dir)
+            # Calculate the relative path from the current directory
+            rel_path = os.path.relpath(local_path, cwd)
+            
+            # Skip any hidden files or directories (those starting with .)
+            if any(part.startswith('.') for part in rel_path.split(os.sep)):
+                continue
+                
+            # Skip any __pycache__ directories
+            if '__pycache__' in rel_path.split(os.sep):
+                continue
             
             # Upload the file to S3 preserving the directory structure
             print(f"Uploading {local_path} to S3...")
             uploadFileToS3(local_path, rel_path)
             
-    print("Finished uploading output directory to S3")
+    print("Finished uploading working directory to S3")
 
 # Execute the upload
-upload_output_directory()
+upload_working_directory()
 `
 
 // Helper function to read a file from S3
@@ -742,10 +747,11 @@ execute the provided PySpark code, and return the execution results.
 Important notes:
 - IMPORTANT: This execution environment already has these functions defined: uploadDfToS3, getDataFrameFromS3, uploadFileToS3. You can use them directly in your code without importing them.
 - Use the uploadDfToS3 function to save your DataFrames to S3 and getDataFrameFromS3 to load your csv files from S3.
-- Any files saved to the output directory will be uploaded to the user's chat session's artifacts in S3.
-- The file hiearchy will be perserved when uploading files from the output directory to S3 (ex: output/dataframe.csv will be uploaded as data/dataframe.csv in the chat session's S3 prefix).
-- Save data files under the output/data/ directory.
-- Save plot files under the output/plots/ directory.
+- Any files saved to the working directory will be uploaded to the user's chat session's artifacts in S3.
+- The file hiearchy will be perserved when uploading files from the working directory to S3 (ex: data/dataframe.csv will be uploaded as data/dataframe.csv in the chat session's S3 prefix).
+- Save data files under the data/ directory.
+- Save plot files under the plots/ directory.
+- Perfer saving dfs with pandas instead of with spark.
 - The 'spark' session is already initialized in the execution environment
 - You don't need to import SparkSession or create a new session
 - The STDOUT and STDERR are captured and returned in the response
@@ -772,13 +778,13 @@ print("Statistics:")
 df.describe().show()
 
 # Save the DataFrame to S3
-uploadDfToS3(df, 'output/data/dataframe.csv')
+uploadDfToS3(df, 'data/dataframe.csv')
 
 # or save the df in Pandas format to the output directory and it will be uploaded to S3
-df.toPandas().to_csv('output/data/dataframe.csv', header=True, mode='overwrite')
+df.toPandas().to_csv('data/dataframe.csv', header=True, mode='overwrite')
 
 # Read the DataFrame from S3
-df = getDataFrameFromS3('output/data/dataframe.csv')
+df = getDataFrameFromS3('data/dataframe.csv')
 
 
 # Show the DataFrame

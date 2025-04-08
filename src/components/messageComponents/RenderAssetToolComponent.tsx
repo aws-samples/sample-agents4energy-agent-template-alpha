@@ -89,16 +89,34 @@ const RenderAssetToolComponent: React.FC<RenderAssetToolComponentProps> = ({ con
           </Typography>
         )}
 
+        {/* S3 Key Display */}
+        <Typography 
+          variant="caption" 
+          color="textSecondary" 
+          sx={{ 
+            display: 'block',
+            marginBottom: theme.spacing(1),
+            fontFamily: 'monospace'
+          }}
+        >
+          S3 Key: {s3Key}
+        </Typography>
+
         {/* Asset Preview */}
         <Box sx={{
           border: `1px solid ${theme.palette.grey[300]}`,
           borderRadius: theme.shape.borderRadius,
           backgroundColor: theme.palette.common.white,
-          height: '350px',
           width: '100%',
+          height: '600px',
           overflow: 'hidden'
         }}>
-          <FileViewer s3Key={s3Key} />
+          <Box sx={{
+            width: '100%',
+            height: '100%'
+          }}>
+            <FileViewer s3Key={s3Key} />
+          </Box>
         </Box>
       </Box>
     );

@@ -86,7 +86,7 @@ export default function FileViewer({ s3Key, onUrlChange }: FileViewerProps) {
 
   // For non-CSV files, use the iframe as before
   return (
-    <div className="relative w-full h-full flex flex-col">
+    <div className="w-full h-full">
       <iframe
         src={selectedFileUrl?.toString()}
         className="w-full h-full"
