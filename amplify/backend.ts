@@ -2,7 +2,7 @@ import { defineBackend } from '@aws-amplify/backend';
 import { auth } from './auth/resource';
 import { data, llmAgentFunction } from './data/resource';
 import { storage } from './storage/resource';
-import {
+import cdk, {
   aws_iam as iam,
   aws_athena as athena,
   aws_s3 as s3
@@ -15,6 +15,10 @@ const backend = defineBackend({
   storage,
   llmAgentFunction
 });
+
+const stackUUID = cdk.Names.uniqueResourceName(
+  backend.stack, {}
+).toLowerCase().replace(/[^a-z0-9-_]/g, '').slice(-3)
 
 // Create a dedicated IAM role for Athena execution
 const athenaExecutionRole = new iam.Role(backend.stack, 'AthenaExecutionRole', {
@@ -106,7 +110,7 @@ athenaExecutionRole.addToPolicy(
 
 // Create Athena workgroup for PySpark execution with a new name to avoid update issues
 const athenaWorkgroup = new athena.CfnWorkGroup(backend.stack, 'SparkWorkgroup', {
-  name: 'pyspark-workgroup',
+  name: `pyspark-workgroup-${stackUUID}`,
   workGroupConfiguration: {
     resultConfiguration: {
       outputLocation: `s3://${backend.storage.resources.bucket.bucketName}/athena-results/`,
