@@ -9,7 +9,7 @@ import { Message } from '@/../utils/types';
 interface HumanMessageComponentProps {
   message: Message;
   theme: Theme;
-  onRegenerateMessage?: (messageId: string, messageText: string) => void;
+  onRegenerateMessage?: (messageId: string, messageText: string) => Promise<boolean>;
 }
 
 const HumanMessageComponent: React.FC<HumanMessageComponentProps> = ({ 
@@ -48,30 +48,41 @@ const HumanMessageComponent: React.FC<HumanMessageComponentProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Button 
             size="small"
-            onClick={() => {
+            onClick={async () => {
               // Set deleting state to true when retry is clicked
               setIsDeletingMessages(true);
+              setDeletionProgress(0);
               
-              // Create a fake progress simulation
-              const startTime = Date.now();
-              const expectedDuration = 1500; // 1.5 seconds for deletion animation
-              
-              const progressInterval = setInterval(() => {
-                const elapsedTime = Date.now() - startTime;
-                const progress = Math.min(100, Math.round((elapsedTime / expectedDuration) * 100));
-                setDeletionProgress(progress);
+              try {
+                // Start with initial progress to show something is happening
+                setDeletionProgress(10);
                 
-                if (progress >= 100) {
-                  clearInterval(progressInterval);
-                  // Reset states and call regenerate function simultaneously
+                // Call the regenerate function and wait for completion
+                const success = await onRegenerateMessage(
+                  message.id || '', 
+                  message.content?.text || ''
+                );
+                
+                // Show completion progress only if successful
+                if (success) {
+                  setDeletionProgress(100);
+                  
+                  // Reset states after a brief delay to show the 100%
+                  setTimeout(() => {
+                    setIsDeletingMessages(false);
+                    setDeletionProgress(0);
+                  }, 500);
+                } else {
+                  // If not successful, reset states immediately
                   setIsDeletingMessages(false);
                   setDeletionProgress(0);
-                  onRegenerateMessage(
-                    message.id || '', 
-                    message.content?.text || ''
-                  );
                 }
-              }, 50);
+              } catch (error) {
+                console.error('Error during message regeneration:', error);
+                // Reset states on error
+                setIsDeletingMessages(false);
+                setDeletionProgress(0);
+              }
             }}
             startIcon={<ReplayIcon fontSize="small" />}
             disabled={isDeletingMessages}

@@ -15,6 +15,7 @@ const listFilesSchema = z.object({
 // Schema for reading a file
 const readFileSchema = z.object({
     filename: z.string().describe("The path to the file. This can include subdirectories"),
+    // maxBytes: z.number().optional().default(1024).describe("Maximum number of bytes to read from the file. Defaults to 1KB. Set to 0 to read entire file.")
 });
 
 // Schema for searching files
@@ -134,13 +135,21 @@ async function listS3Objects(prefix: string) {
     }
 }
 
-export async function readS3Object(key: string) {
+interface S3ReadResult {
+    content: string;
+    wasTruncated: boolean;
+    totalBytes: number;
+    bytesRead: number;
+}
+
+export async function readS3Object(key: string, maxBytes: number = 1024): Promise<S3ReadResult> {
     const s3Client = getS3Client();
     const bucketName = getBucketName();
     
     const getParams = {
         Bucket: bucketName,
-        Key: key
+        Key: key,
+        Range: maxBytes > 0 ? `bytes=0-${maxBytes - 1}` : undefined
     };
     
     try {
@@ -154,14 +163,50 @@ export async function readS3Object(key: string) {
                 chunks.push(chunk instanceof Buffer ? chunk : Buffer.from(chunk));
             }
             const content = Buffer.concat(chunks).toString('utf8');
-            return content;
+
+            // Check if content was truncated
+            const contentLength = parseInt(response.ContentRange?.split('/')[1] || '0', 10);
+            const wasTruncated = maxBytes > 0 && contentLength > maxBytes;
+            
+            return {
+                content,
+                wasTruncated,
+                totalBytes: contentLength,
+                bytesRead: content.length
+            };
         } else {
             throw new Error("No content found");
         }
-    } catch (error) {
+    } catch (error: any) {
+        if (error.name === 'NoSuchKey') {
+            throw error; // Rethrow NoSuchKey errors as is
+        }
+        // For Range errors, retry without range
+        if (error.$metadata?.httpStatusCode === 416) {
+            // Invalid range, retry without range
+            const retryCommand = new GetObjectCommand({
+                Bucket: bucketName,
+                Key: key
+            });
+            const response = await s3Client.send(retryCommand);
+            if (response.Body) {
+                const chunks: Buffer[] = [];
+                for await (const chunk of response.Body as any) {
+                    chunks.push(chunk instanceof Buffer ? chunk : Buffer.from(chunk));
+                }
+                const content = Buffer.concat(chunks).toString('utf8');
+                return {
+                    content,
+                    wasTruncated: false,
+                    totalBytes: content.length,
+                    bytesRead: content.length
+                };
+            }
+        }
         console.error(`Error reading S3 object ${key}:`, error);
         throw error;
     }
+    throw new Error("Failed to read file content");
 }
 
 async function writeS3Object(key: string, content: string) {
@@ -266,6 +311,7 @@ export const listFiles = tool(
 // Tool to read a file from S3
 export const readFile = tool(
     async ({ filename }) => {
+        const maxBytes = 500;
         try {
             // Normalize the path to prevent path traversal attacks
             const targetPath = path.normalize(filename);
@@ -277,8 +323,21 @@ export const readFile = tool(
             const s3Key = path.posix.join(prefix, targetPath);
             
             try {
-                const content = await readS3Object(s3Key);
-                return JSON.stringify({ content });
+                const result = await readS3Object(s3Key, maxBytes);
+                let displayContent = result.content;
+                
+                // Add truncation indicator if the file was truncated
+                if (result.wasTruncated) {
+                    const truncationMessage = `\n\n[...File truncated. Showing first ${result.bytesRead} bytes of ${result.totalBytes} total bytes...]\n`;
+                    displayContent = displayContent + truncationMessage;
+                }
+                
+                return JSON.stringify({
+                    content: displayContent,
+                    wasTruncated: result.wasTruncated,
+                    totalBytes: result.totalBytes,
+                    bytesRead: result.bytesRead
+                });
             } catch (error: any) {
                 if (error.name === 'NoSuchKey') {
                     return JSON.stringify({ error: `File not found: ${filename}` });
@@ -291,7 +350,7 @@ export const readFile = tool(
     },
     {
         name: "readFile",
-        description: "Reads the content of a file from S3 storage. Use 'global/filename' path to access shared files across all sessions.",
+        description: "Reads the content of a file from S3 storage. Use 'global/filename' path to access shared files across all sessions. By default, only reads the first 500 bytes of data to prevent loading very large files.",
         schema: readFileSchema,
     }
 );
@@ -328,7 +387,8 @@ export const updateFile = tool(
             let fileExists = true;
             
             try {
-                existingContent = await readS3Object(s3Key);
+                const result = await readS3Object(s3Key, 0); // Read entire file for updates
+                existingContent = result.content;
             } catch (error: any) {
                 if (error.name === 'NoSuchKey') {
                     fileExists = false;
@@ -468,8 +528,8 @@ async function processHtmlEmbeddings(content: string, prefix: string): Promise<s
                 const s3Key = path.posix.join(embeddedPrefix, embeddedFilePath);
                 
                 // Read the embedded file
-                const embeddedContent = await readS3Object(s3Key);
-                return embeddedContent;
+                const result = await readS3Object(s3Key);
+                return result.content;
             } catch (error: any) {
                 console.error(`Error processing HTML embedding ${embeddedFilePath}:`, error);
                 return `<!-- Error embedding ${embeddedFilePath}: ${error.message} -->`;
@@ -771,9 +831,16 @@ export const textToTableTool = tool(
             matchingFiles.push(...globalFiles);
             
             console.log(`Found ${matchingFiles.length} matching files`);
-            
+
+            // Filter out files which are not text files based on the suffix
+            const textExtensions = ['.txt', '.md', '.csv', '.json', '.html', '.jsonl', '.jsonl.gz', '.yaml', '.yml'];
+            const filteredFiles = matchingFiles.filter(file => {
+                const lowerCaseFile = file.toLowerCase();
+                return textExtensions.some(ext => lowerCaseFile.endsWith(ext.toLowerCase()));
+            });
+
             // Check for no matches and provide helpful feedback
-            if (matchingFiles.length === 0) {
+            if (filteredFiles.length === 0) {
                 // If no files found, return a helpful error message
                 const searchSuggestions = [
                     "Try a simpler search pattern (e.g., just use a distinctive part of the filename)",
@@ -816,12 +883,12 @@ export const textToTableTool = tool(
 
             // Limit the number of files
             const maxFiles = params.maxFiles || 50;
-            if (matchingFiles.length > maxFiles) {
-                console.log(`Found ${matchingFiles.length} matching files, limiting to ${maxFiles}`);
-                matchingFiles.splice(maxFiles);
+            if (filteredFiles.length > maxFiles) {
+                console.log(`Found ${filteredFiles.length} matching files, limiting to ${maxFiles}`);
+                filteredFiles.splice(maxFiles);
             }
-
-            console.log(`Processing ${matchingFiles.length} files`);
+            
+            console.log(`Processing ${filteredFiles.length} files`);
 
             // Process each file with concurrency limit
             const tableRows = [];
@@ -829,11 +896,12 @@ export const textToTableTool = tool(
             let processedCount = 0;
             
             // Process files in batches to avoid hitting limits
-            for (let i = 0; i < matchingFiles.length; i += concurrencyLimit) {
-                const batch = matchingFiles.slice(i, i + concurrencyLimit);
+            for (let i = 0; i < filteredFiles.length; i += concurrencyLimit) {
+                const batch = filteredFiles.slice(i, i + concurrencyLimit);
                 const batchPromises = batch.map(async (fileKey) => {
                     try {
-                        const fileContent = await readS3Object(fileKey);
+                        const result = await readS3Object(fileKey);
+                        const fileContent = result.content;
                         
                         // Extract file path for display
                         const filePath = fileKey.startsWith(GLOBAL_PREFIX) 
@@ -909,7 +977,7 @@ export const textToTableTool = tool(
                 
                 // Update progress
                 processedCount += batch.length;
-                await publishProgressUpdate(processedCount, matchingFiles.length, getChatSessionId() || '', new Date());
+                await publishProgressUpdate(processedCount, filteredFiles.length, getChatSessionId() || '', new Date());
             }
 
             console.log(`Generated ${tableRows.length} table rows`);
@@ -983,7 +1051,7 @@ export const textToTableTool = tool(
                     messageContentType: 'tool_table',
                     columns: enhancedTableColumns.map(c => c.columnName),
                     data: tableRows,
-                    matchedFileCount: matchingFiles.length,
+                    matchedFileCount: filteredFiles.length,
                     csvFile: {
                         filename: csvFilename,
                         rowCount: tableRows.length
@@ -996,7 +1064,7 @@ export const textToTableTool = tool(
                     messageContentType: 'tool_table',
                     columns: enhancedTableColumns.map(c => c.columnName),
                     data: tableRows,
-                    matchedFileCount: matchingFiles.length,
+                    matchedFileCount: filteredFiles.length,
                     csvError: `Failed to save CSV file: ${error.message}`
                 });
             }
@@ -1089,6 +1157,7 @@ async function findFilesMatchingPattern(basePrefix: string, pattern: string): Pr
     if (!correctedPattern.includes('*') && !correctedPattern.includes('?') && 
         !correctedPattern.includes('[') && !correctedPattern.includes('(') && 
         !correctedPattern.includes('|')) {
+        // Change to match the pattern anywhere in the path after the base prefix
         correctedPattern = `.*${correctedPattern}.*`;
         console.log(`Added wildcards to pattern: ${correctedPattern}`);
     }
@@ -1099,7 +1168,8 @@ async function findFilesMatchingPattern(basePrefix: string, pattern: string): Pr
     // If pattern starts with a literal part before any regex special chars, use it as prefix
     const prefixMatch = correctedPattern.match(/^([^\\.\*\+\?\|\(\)\[\]\{\}^$]+)/);
     if (prefixMatch && prefixMatch[1]) {
-        searchPrefix = path.posix.join(basePrefix, prefixMatch[1]);
+        // Don't append the prefix match to searchPrefix anymore since we want to match it anywhere
+        console.log(`Found literal prefix in pattern: ${prefixMatch[1]}, but keeping base prefix for broader search`);
     }
     
     console.log(`Searching in S3 with prefix: ${searchPrefix}`);
@@ -1126,49 +1196,6 @@ async function findFilesMatchingPattern(basePrefix: string, pattern: string): Pr
             
             // Log how many objects were found with this prefix
             console.log(`Found ${response.Contents?.length || 0} objects with prefix ${searchPrefix}`);
-            
-            // If no files found with the current prefix and we're not using the base prefix,
-            // retry with the base prefix and a more permissive search
-            if ((!response.Contents || response.Contents.length === 0) && searchPrefix !== basePrefix) {
-                console.log(`No files found with prefix ${searchPrefix}, retrying with base prefix ${basePrefix}`);
-                const fallbackCommand = new ListObjectsV2Command({
-                    Bucket: bucketName,
-                    Prefix: basePrefix,
-                    MaxKeys: 1000
-                });
-                
-                const fallbackResponse = await s3Client.send(fallbackCommand);
-                
-                // Extract matching files from fallback response
-                const fallbackFiles = (fallbackResponse.Contents || [])
-                    .filter(item => {
-                        const key = item.Key as string;
-                        // Filter out directory markers and metadata files
-                        if (key.endsWith('/') || key.endsWith('.s3meta')) {
-                            return false;
-                        }
-                        
-                        // Remove the base prefix for matching and apply the pattern
-                        const relativePath = key.replace(basePrefix, '');
-                        const isMatch = fileMatchesPattern(relativePath, correctedPattern);
-                        
-                        // Log pattern matching results for debugging
-                        if (isMatch) {
-                            console.log(`Match found: ${relativePath} matches pattern ${correctedPattern}`);
-                        }
-                        
-                        return isMatch;
-                    })
-                    .map(item => item.Key as string);
-                
-                matchingFiles.push(...fallbackFiles);
-                
-                // If we found files with the fallback approach, return them
-                if (fallbackFiles.length > 0) {
-                    console.log(`Found ${fallbackFiles.length} files with fallback search`);
-                    return matchingFiles;
-                }
-            }
             
             // Extract matching files from current batch
             const currentBatchFiles = (response.Contents || [])

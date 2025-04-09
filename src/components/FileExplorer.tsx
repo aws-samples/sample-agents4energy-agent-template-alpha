@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { list, getUrl } from 'aws-amplify/storage';
+import { list, getUrl, uploadData } from 'aws-amplify/storage';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import {
@@ -66,6 +66,7 @@ interface FileItem {
 interface FileExplorerProps {
   chatSessionId: string;
   onFileSelect?: (file: FileItem) => void;
+  onPathChange?: (path: string) => void;
 }
 
 const StyledListItem = styled(ListItemButton)({
@@ -77,13 +78,17 @@ const StyledListItem = styled(ListItemButton)({
   paddingRight: 48,
 });
 
-const FileExplorer: React.FC<FileExplorerProps> = ({ chatSessionId, onFileSelect }) => {
-  const { lastRefreshTime, isRefreshing } = useFileSystem();
+const FileExplorer: React.FC<FileExplorerProps> = ({ chatSessionId, onFileSelect, onPathChange }) => {
+  const { lastRefreshTime, isRefreshing, refreshFiles } = useFileSystem();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [fileStructure, setFileStructure] = useState<FileItem[]>([]);
   const [currentPath, setCurrentPath] = useState<string>('');
   const [breadcrumbs, setBreadcrumbs] = useState<{ name: string, path: string }[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState('');
+  const [showUploadMessage, setShowUploadMessage] = useState(false);
 
   // File preview state
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -102,14 +107,24 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ chatSessionId, onFileSelect
 
   // Function to load files and folders
   const loadFiles = useCallback(async (path: string = '', forceRefresh: boolean = false) => {
-
-
     // Only prevent concurrent loads if not forcing a refresh
     if (loadingRef.current && !forceRefresh) return;
 
     loadingRef.current = true;
     setIsLoading(true);
     setError(null);
+
+    // Update breadcrumbs before loading files
+    if (path) {
+      const parts = path.split('/').filter(Boolean);
+      const newBreadcrumbs = parts.map((part, index) => {
+        const pathUpToThis = parts.slice(0, index + 1).join('/');
+        return { name: part, path: pathUpToThis };
+      });
+      setBreadcrumbs([{ name: 'Home', path: '' }, ...newBreadcrumbs]);
+    } else {
+      setBreadcrumbs([{ name: 'Home', path: '' }]);
+    }
 
     try {
       console.log(`Loading files for path: ${path}`);
@@ -159,8 +174,6 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ chatSessionId, onFileSelect
             // Get the file URL without modifying it
             const fileUrl = await getUrl({ path: itemPath });
             url = fileUrl.url.toString();
-            // Don't add cache busting params to the URL - this causes 403 errors
-            // We'll handle cache busting in the component that uses the URL
           } catch (e) {
             console.error(`Error getting URL for ${itemPath}:`, e);
           }
@@ -172,7 +185,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ chatSessionId, onFileSelect
           isFolder,
           name,
           url,
-          lastRefreshTime: Date.now(), // Store the current timestamp to help with cache busting
+          lastRefreshTime: Date.now(),
         });
       }
 
@@ -184,20 +197,6 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ chatSessionId, onFileSelect
       });
 
       setFileStructure(items);
-
-      // Update breadcrumbs
-      if (path) {
-        const parts = path.split('/').filter(Boolean);
-        const newBreadcrumbs = parts.map((part, index) => {
-          const pathUpToThis = parts.slice(0, index + 1).join('/');
-          return { name: part, path: pathUpToThis };
-        });
-
-        setBreadcrumbs([{ name: 'Home', path: '' }, ...newBreadcrumbs]);
-      } else {
-        setBreadcrumbs([{ name: 'Home', path: '' }]);
-      }
-
       console.log(`File structure loaded for path: ${path}`);
       console.log(items);
 
@@ -222,11 +221,19 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ chatSessionId, onFileSelect
     }
   }, [lastRefreshTime, currentPath, loadFiles]);
 
+  // Update currentPath and notify parent component
+  const setCurrentPathAndNotify = (path: string) => {
+    setCurrentPath(path);
+    if (onPathChange) {
+      onPathChange(path);
+    }
+  };
+
   // Handle folder click
   const handleFolderClick = (folder: FileItem) => {
     // Navigate into the folder
     const relativePath = folder.path;
-    setCurrentPath(relativePath);
+    setCurrentPathAndNotify(relativePath);
   };
 
   // Handle file click
@@ -244,7 +251,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ chatSessionId, onFileSelect
 
   // Navigate to a specific breadcrumb
   const handleBreadcrumbClick = (path: string) => {
-    setCurrentPath(path);
+    setCurrentPathAndNotify(path);
   };
 
   // Go back to parent folder
@@ -253,7 +260,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ chatSessionId, onFileSelect
     if (parts.length === 0) return; // Already at root
 
     const parentPath = parts.slice(0, parts.length - 1).join('/');
-    setCurrentPath(parentPath);
+    setCurrentPathAndNotify(parentPath);
   };
 
   // Refresh current directory
@@ -422,40 +429,278 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ chatSessionId, onFileSelect
     setShowDownloadMessage(false);
   };
 
+  // Handle file upload
+  const handleFileUpload = async (files: FileList | File[]) => {
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    setUploadMessage('Uploading files...');
+    setShowUploadMessage(true);
+
+    try {
+      const uploadPromises = Array.from(files).map(async (file) => {
+        // Include the current path in the upload key
+        const uploadPath = currentPath ? `${currentPath}/${file.name}` : file.name;
+        const key = `chatSessionArtifacts/sessionId=${chatSessionId}/${uploadPath}`;
+        
+        await uploadData({
+          path: key,
+          data: file,
+          options: {
+            contentType: file.type
+          }
+        });
+      });
+
+      await Promise.all(uploadPromises);
+      setUploadMessage('Files uploaded successfully');
+      
+      // Add a small delay before refreshing to allow S3 to propagate changes
+      setTimeout(() => {
+        refreshFiles();
+      }, 1000);
+    } catch (error) {
+      console.error('Error uploading files:', error);
+      setUploadMessage('Failed to upload files. Please try again.');
+    } finally {
+      setIsUploading(false);
+      setIsDragging(false);
+    }
+  };
+
+  // Handle drag events
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      handleFileUpload(files);
+    }
+  };
+
+  // Handle closing upload message
+  const handleCloseUploadMessage = () => {
+    setShowUploadMessage(false);
+  };
+
   if (isLoading && fileStructure.length === 0) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" height="100%">
-        <CircularProgress />
+      <Box>
+        {/* Always show navigation toolbar */}
+        <Box display="flex" alignItems="center" px={1} py={0.5} bgcolor="background.paper">
+          <IconButton
+            size="small"
+            onClick={handleBackClick}
+            disabled={currentPath === ''}
+            sx={{ mr: 1 }}
+          >
+            <ArrowBackIcon fontSize="small" />
+          </IconButton>
+
+          <Box flex={1} overflow="hidden">
+            <Breadcrumbs maxItems={3} aria-label="breadcrumb" sx={{ fontSize: '0.875rem' }}>
+              {breadcrumbs.map((crumb, index) => {
+                const isLast = index === breadcrumbs.length - 1;
+                return isLast ? (
+                  <Typography key={crumb.path} color="textPrimary" variant="body2" sx={{ fontWeight: 'medium' }}>
+                    {crumb.name}
+                  </Typography>
+                ) : (
+                  <MuiLink
+                    key={crumb.path}
+                    component="button"
+                    variant="body2"
+                    onClick={() => handleBreadcrumbClick(crumb.path)}
+                    underline="hover"
+                    color="inherit"
+                  >
+                    {crumb.name}
+                  </MuiLink>
+                );
+              })}
+            </Breadcrumbs>
+          </Box>
+
+          <IconButton
+            size="small"
+            onClick={handleRefresh}
+            sx={{ ml: 1 }}
+            color={isRefreshing ? "secondary" : "default"}
+          >
+            <Badge color="error" variant="dot" invisible={!isRefreshing}>
+              <RefreshIcon fontSize="small" />
+            </Badge>
+          </IconButton>
+        </Box>
+        <Box display="flex" justifyContent="center" alignItems="center" height="200px">
+          <CircularProgress />
+        </Box>
       </Box>
     );
   }
 
   if (error && fileStructure.length === 0) {
     return (
-      <Box p={2}>
-        <Typography color="error">{error}</Typography>
-        <IconButton onClick={handleRefresh} color="primary" size="small" sx={{ mt: 1 }}>
-          <RefreshIcon /> Retry
-        </IconButton>
+      <Box>
+        {/* Always show navigation toolbar */}
+        <Box display="flex" alignItems="center" px={1} py={0.5} bgcolor="background.paper">
+          <IconButton
+            size="small"
+            onClick={handleBackClick}
+            disabled={currentPath === ''}
+            sx={{ mr: 1 }}
+          >
+            <ArrowBackIcon fontSize="small" />
+          </IconButton>
+
+          <Box flex={1} overflow="hidden">
+            <Breadcrumbs maxItems={3} aria-label="breadcrumb" sx={{ fontSize: '0.875rem' }}>
+              {breadcrumbs.map((crumb, index) => {
+                const isLast = index === breadcrumbs.length - 1;
+                return isLast ? (
+                  <Typography key={crumb.path} color="textPrimary" variant="body2" sx={{ fontWeight: 'medium' }}>
+                    {crumb.name}
+                  </Typography>
+                ) : (
+                  <MuiLink
+                    key={crumb.path}
+                    component="button"
+                    variant="body2"
+                    onClick={() => handleBreadcrumbClick(crumb.path)}
+                    underline="hover"
+                    color="inherit"
+                  >
+                    {crumb.name}
+                  </MuiLink>
+                );
+              })}
+            </Breadcrumbs>
+          </Box>
+
+          <IconButton
+            size="small"
+            onClick={handleRefresh}
+            sx={{ ml: 1 }}
+            color={isRefreshing ? "secondary" : "default"}
+          >
+            <Badge color="error" variant="dot" invisible={!isRefreshing}>
+              <RefreshIcon fontSize="small" />
+            </Badge>
+          </IconButton>
+        </Box>
+        <Box p={2}>
+          <Typography color="error">{error}</Typography>
+          <IconButton onClick={handleRefresh} color="primary" size="small" sx={{ mt: 1 }}>
+            <RefreshIcon /> Retry
+          </IconButton>
+        </Box>
       </Box>
     );
   }
 
   if (fileStructure.length === 0 && !isLoading) {
     return (
-      <Box p={2}>
-        <Typography variant="body2" color="textSecondary">
-          No files found in this folder.
-        </Typography>
-        <IconButton onClick={handleRefresh} color="primary" size="small" sx={{ mt: 1 }}>
-          <RefreshIcon />
-        </IconButton>
+      <Box>
+        {/* Always show navigation toolbar */}
+        <Box display="flex" alignItems="center" px={1} py={0.5} bgcolor="background.paper">
+          <IconButton
+            size="small"
+            onClick={handleBackClick}
+            disabled={currentPath === ''}
+            sx={{ mr: 1 }}
+          >
+            <ArrowBackIcon fontSize="small" />
+          </IconButton>
+
+          <Box flex={1} overflow="hidden">
+            <Breadcrumbs maxItems={3} aria-label="breadcrumb" sx={{ fontSize: '0.875rem' }}>
+              {breadcrumbs.map((crumb, index) => {
+                const isLast = index === breadcrumbs.length - 1;
+                return isLast ? (
+                  <Typography key={crumb.path} color="textPrimary" variant="body2" sx={{ fontWeight: 'medium' }}>
+                    {crumb.name}
+                  </Typography>
+                ) : (
+                  <MuiLink
+                    key={crumb.path}
+                    component="button"
+                    variant="body2"
+                    onClick={() => handleBreadcrumbClick(crumb.path)}
+                    underline="hover"
+                    color="inherit"
+                  >
+                    {crumb.name}
+                  </MuiLink>
+                );
+              })}
+            </Breadcrumbs>
+          </Box>
+
+          <IconButton
+            size="small"
+            onClick={handleRefresh}
+            sx={{ ml: 1 }}
+            color={isRefreshing ? "secondary" : "default"}
+          >
+            <Badge color="error" variant="dot" invisible={!isRefreshing}>
+              <RefreshIcon fontSize="small" />
+            </Badge>
+          </IconButton>
+        </Box>
+        <Box p={2}>
+          <Typography variant="body2" color="textSecondary">
+            No files found in this folder.
+          </Typography>
+        </Box>
       </Box>
     );
   }
 
   return (
-    <Box>
+    <Box
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+      sx={{ 
+        position: 'relative',
+        height: '100%',
+        ...(isDragging && {
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(25, 118, 210, 0.08)',
+            border: '2px dashed #1976d2',
+            borderRadius: 1,
+            zIndex: 1,
+            pointerEvents: 'none',
+          }
+        })
+      }}
+    >
       {/* Navigation toolbar */}
       <Box display="flex" alignItems="center" px={1} py={0.5} bgcolor="background.paper">
         <IconButton
@@ -599,6 +844,42 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ chatSessionId, onFileSelect
           {downloadMessage}
         </Alert>
       </Snackbar>
+
+      {/* Upload status message */}
+      <Snackbar
+        open={showUploadMessage}
+        autoHideDuration={isUploading ? null : 4000}
+        onClose={handleCloseUploadMessage}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={handleCloseUploadMessage}
+          severity={isUploading ? "info" : "success"}
+          sx={{ width: '100%' }}
+          icon={isUploading ? <CircularProgress size={20} /> : undefined}
+        >
+          {uploadMessage}
+        </Alert>
+      </Snackbar>
+
+      {/* Drag overlay message */}
+      {isDragging && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            textAlign: 'center',
+            zIndex: 2,
+            pointerEvents: 'none',
+          }}
+        >
+          <Typography variant="h6" color="primary">
+            Drop files here to upload
+          </Typography>
+        </Box>
+      )}
     </Box>
   );
 };

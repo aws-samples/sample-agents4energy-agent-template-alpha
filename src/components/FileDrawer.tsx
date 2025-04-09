@@ -16,7 +16,8 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions
+  DialogActions,
+  TextField
 } from '@mui/material';
 import { uploadData, remove } from '@aws-amplify/storage';
 import FolderIcon from '@mui/icons-material/Folder';
@@ -24,6 +25,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import DeleteIcon from '@mui/icons-material/Delete';
+import CreateNewFolderIcon from '@mui/icons-material/CreateNewFolder';
 
 import FileExplorer from './FileExplorer';
 import FileViewer from './FileViewer';
@@ -82,6 +84,7 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState('');
   const [showUploadMessage, setShowUploadMessage] = useState(false);
+  const [currentPath, setCurrentPath] = useState('');
   
   // Use the file system context to trigger refreshes
   const { refreshFiles } = useFileSystem();
@@ -90,11 +93,21 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [fileToDelete, setFileToDelete] = useState<FileItem | null>(null);
   
+  // New folder creation state
+  const [createFolderDialogOpen, setCreateFolderDialogOpen] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  
   // Handle file selection for preview
   const handleFileSelect = (file: FileItem) => {
     if (!file.isFolder) {
       setSelectedFile(file);
     }
+  };
+
+  // Add function to update current path
+  const handlePathChange = (path: string) => {
+    setCurrentPath(path);
   };
 
   const handleDeleteClick = (file: FileItem) => {
@@ -131,7 +144,9 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
 
     try {
       const uploadPromises = Array.from(files).map(async (file) => {
-        const key = `chatSessionArtifacts/sessionId=${chatSessionId}/${file.name}`;
+        // Include the current path in the upload key
+        const uploadPath = currentPath ? `${currentPath}${file.name}` : file.name;
+        const key = `chatSessionArtifacts/sessionId=${chatSessionId}/${uploadPath}`;
         
         await uploadData({
           path: key,
@@ -166,6 +181,42 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
   
   // Adjust drawer width for non-mobile screens to allow chat visibility
   const drawerWidth = isMobile ? '100%' : '45%';
+
+  // Handle folder creation
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim()) return;
+
+    setIsCreatingFolder(true);
+    setUploadMessage('Creating folder...');
+    setShowUploadMessage(true);
+
+    try {
+      const key = `chatSessionArtifacts/sessionId=${chatSessionId}/${newFolderName.trim()}/`;
+      
+      // Create an empty object with key ending in '/' to represent a folder
+      await uploadData({
+        path: key,
+        data: new Blob([]),
+        options: {
+          contentType: 'application/x-directory'
+        }
+      });
+
+      setUploadMessage('Folder created successfully');
+      setCreateFolderDialogOpen(false);
+      setNewFolderName('');
+      
+      // Add a small delay before refreshing to allow S3 to propagate changes
+      setTimeout(() => {
+        refreshFiles();
+      }, 1000);
+    } catch (error) {
+      console.error('Error creating folder:', error);
+      setUploadMessage('Failed to create folder. Please try again.');
+    } finally {
+      setIsCreatingFolder(false);
+    }
+  };
 
   return (
     <>
@@ -239,6 +290,20 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
                   Upload
                 </Button>
               </label>
+              <Button
+                startIcon={<CreateNewFolderIcon />}
+                variant="outlined"
+                color="primary"
+                onClick={() => setCreateFolderDialogOpen(true)}
+                disabled={isCreatingFolder}
+                sx={{ 
+                  borderRadius: '6px',
+                  textTransform: 'none',
+                  boxShadow: 'none',
+                }}
+              >
+                New Folder
+              </Button>
               <IconButton
                 onClick={onClose}
                 sx={{ 
@@ -271,6 +336,7 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
                 <FileExplorer 
                   chatSessionId={chatSessionId} 
                   onFileSelect={handleFileSelect}
+                  onPathChange={handlePathChange}
                 />
               </Box>
               <Box sx={{ width: '60%', height: '100%', overflow: 'auto', p: 2, backgroundColor: theme.palette.background.paper }}>
@@ -452,6 +518,20 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
                   Upload
                 </Button>
               </label>
+              <Button
+                startIcon={<CreateNewFolderIcon />}
+                variant="outlined"
+                color="primary"
+                onClick={() => setCreateFolderDialogOpen(true)}
+                disabled={isCreatingFolder}
+                sx={{ 
+                  borderRadius: '6px',
+                  textTransform: 'none',
+                  boxShadow: 'none',
+                }}
+              >
+                New Folder
+              </Button>
               <IconButton
                 onClick={onClose}
                 sx={{ 
@@ -506,6 +586,7 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
                   <FileExplorer 
                     chatSessionId={chatSessionId} 
                     onFileSelect={handleFileSelect}
+                    onPathChange={handlePathChange}
                   />
                 </Box>
               )}
@@ -539,10 +620,17 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
       <Dialog 
         open={deleteDialogOpen} 
         onClose={() => setDeleteDialogOpen(false)}
-        PaperProps={{
-          sx: {
-            borderRadius: '8px',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: '8px',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+            }
+          }
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            handleDeleteConfirm();
           }
         }}
       >
@@ -574,6 +662,67 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
             }}
           >
             Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Create folder dialog */}
+      <Dialog 
+        open={createFolderDialogOpen} 
+        onClose={() => !isCreatingFolder && setCreateFolderDialogOpen(false)}
+        PaperProps={{
+          sx: {
+            borderRadius: '8px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+          }
+        }}
+      >
+        <DialogTitle sx={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}>Create New Folder</DialogTitle>
+        <DialogContent sx={{ py: 2, mt: 1 }}>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Folder Name"
+            type="text"
+            fullWidth
+            value={newFolderName}
+            onChange={(e) => setNewFolderName(e.target.value)}
+            disabled={isCreatingFolder}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && newFolderName.trim()) {
+                handleCreateFolder();
+              }
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button 
+            onClick={() => setCreateFolderDialogOpen(false)}
+            variant="outlined"
+            disabled={isCreatingFolder}
+            sx={{ 
+              textTransform: 'none',
+              borderRadius: '6px',
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleCreateFolder}
+            color="primary" 
+            variant="contained"
+            disabled={!newFolderName.trim() || isCreatingFolder}
+            sx={{ 
+              textTransform: 'none',
+              borderRadius: '6px',
+              boxShadow: 'none',
+            }}
+          >
+            {isCreatingFolder ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              'Create'
+            )}
           </Button>
         </DialogActions>
       </Dialog>

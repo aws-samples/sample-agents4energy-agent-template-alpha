@@ -22,10 +22,18 @@ import { getLangChainChatMessagesStartingWithHumanMessage, getLangChainMessageTe
 import { EventEmitter } from "events";
 
 // Increase the default max listeners to prevent warnings
-EventEmitter.defaultMaxListeners = 20;
+EventEmitter.defaultMaxListeners = 10;
+
+// Add cleanup helper
+const cleanupEventEmitter = (emitter: EventEmitter) => {
+    emitter.removeAllListeners();
+};
 
 export const handler: Schema["invokeAgent"]["functionHandler"] = async (event, context) => {
     console.log('event:\n', JSON.stringify(event, null, 2))
+
+    // Track resources that need cleanup
+    const resources: { cleanup: () => void }[] = [];
 
     try {
         if (event.arguments.chatSessionId === null) throw new Error("chatSessionId is required");
@@ -40,6 +48,7 @@ export const handler: Schema["invokeAgent"]["functionHandler"] = async (event, c
         if (!bucketName) throw new Error("STORAGE_BUCKET_NAME is not set");
 
         const amplifyClient = getConfiguredAmplifyClient();
+        resources.push({ cleanup: () => { /* Amplify client cleanup if needed */ } });
 
         // This function includes validation to prevent "The text field in the ContentBlock object is blank" errors
         // by ensuring no message content is empty when sent to Bedrock
@@ -49,12 +58,17 @@ export const handler: Schema["invokeAgent"]["functionHandler"] = async (event, c
             model: process.env.AGENT_MODEL_ID,
             // temperature: 0
         });
+        resources.push({ cleanup: () => { 
+            // Close any open connections
+            if ((agentModel as any)._client) {
+                (agentModel as any)._client.destroy();
+            }
+        }});
 
         const agentTools = [
             new Calculator(),
             new DuckDuckGoSearch({maxResults: 3}),
             userInputTool,
-            // plotDataTool,
             pysparkTool,
             webBrowserTool,
             ...s3FileManagementTools,
@@ -236,49 +250,25 @@ When using the textToTableTool:
                         }
                     }
                     break;
-                // case "on_tool_end":
-                // case "on_tool_error":
-                // case "on_chat_model_end":
-                //     chunkIndex = 0 //reset the stream chunk index
-                //     const streamChunk = streamEvent.data.output as ToolMessage | AIMessageChunk
-                //     console.log('received on chat model end:\n', stringifyLimitStringLength(streamChunk))
-
-                //     // Check if this is a table result from textToTableTool and format it properly
-                //     if (streamChunk instanceof ToolMessage && streamChunk.name === 'textToTableTool') {
-                //         try {
-                //             const toolResult = JSON.parse(streamChunk.content as string);
-                //             if (toolResult.messageContentType === 'tool_table') {
-                //                 // Attach table data to the message using additional_kwargs which is supported by LangChain
-                //                 (streamChunk as any).additional_kwargs = {
-                //                     tableData: toolResult.data,
-                //                     tableColumns: toolResult.columns,
-                //                     matchedFileCount: toolResult.matchedFileCount,
-                //                     messageContentType: 'tool_table'
-                //                 };
-                //             }
-                //         } catch (error) {
-                //             console.error("Error processing textToTableTool result:", error);
-                //         }
-                //     }
-
-                //     await publishMessage({
-                //         chatSessionId: event.arguments.chatSessionId,
-                //         owner: event.identity.sub,
-                //         message: streamChunk
-                //     })
-                //     break
-                // default:
-                //     console.log('received stream event:\n', stringifyLimitStringLength(streamEvent))
-                //     break
             }
         }
 
     } catch (error) {
         console.error("Error responding to user:", JSON.stringify(error, null, 2));
-        if (error instanceof Error) {
-            throw new Error(`Error responding to user:\n${error.message}`);
-        } else {
-            throw new Error("Error responding to user: \nUnknown error");
+        throw error;
+    } finally {
+        // Clean up all resources
+        for (const resource of resources) {
+            try {
+                resource.cleanup();
+            } catch (cleanupError) {
+                console.error("Error during cleanup:", cleanupError);
+            }
+        }
+        
+        // Clean up any remaining event listeners
+        if (process.eventNames().length > 0) {
+            process.removeAllListeners();
         }
     }
 }

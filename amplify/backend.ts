@@ -7,7 +7,7 @@ import cdk, {
   aws_athena as athena,
   aws_s3 as s3
 } from 'aws-cdk-lib'
-
+import { PdfToYamlConstruct } from './custom/pdfToYamlConstruct';
 
 const backend = defineBackend({
   auth,
@@ -197,3 +197,7 @@ backend.llmAgentFunction.addEnvironment(
   'ATHENA_WORKGROUP_NAME',
   athenaWorkgroup.name
 );
+
+new PdfToYamlConstruct(backend.stack, 'PdfToYamlConstruct', {
+  s3Bucket: backend.storage.resources.bucket
+});

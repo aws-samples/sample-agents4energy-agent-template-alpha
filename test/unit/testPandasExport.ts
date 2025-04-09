@@ -1,9 +1,36 @@
 import { AthenaClient, StartCalculationExecutionCommand, GetCalculationExecutionCommand, StartSessionCommand, GetSessionStatusCommand } from '@aws-sdk/client-athena';
 import { expect } from 'chai';
 import { v4 as uuidv4 } from 'uuid';
-import { executeCalculation, fetchCalculationOutputs, getSessionSetupScript } from '../../amplify/functions/tools/athenaPySparkTool';
+import { executeCalculation, fetchCalculationOutputs, getSessionSetupScript, getPreCodeExecutionScript } from '../../amplify/functions/tools/athenaPySparkTool';
 import { setChatSessionId } from '../../amplify/functions/tools/toolUtils';
 import { setAmplifyEnvVars } from '../../utils/amplifyUtils';
+
+const testScript = `
+import pandas as pd
+  import plotly.express as px
+  import plotly.io as pio
+
+  # Read the CSV file
+  df = pd.read_csv('well_api_number=3004529202/production (5).csv')
+
+  # Create a line plot for Gas production
+  fig = px.line(df, x='FirstDayOfMonth', y='Gas(MCF)', 
+                title='Gas Production for Well API 3004529202',
+                labels={'Gas(MCF)': 'Gas Production (MCF)', 
+                        'FirstDayOfMonth': 'Date'})
+
+  # Customize the layout
+  fig.update_layout(
+      xaxis_title='Date',
+      yaxis_title='Gas Production (MCF)',
+      hovermode='x unified'
+  )
+
+  # Save the plot
+  fig.write_html('plots/well_3004529202_gas_production.html')
+
+  # Display basic statistics
+  print(df[['Year', 'Month', 'Gas(MCF)']].describe())`
 
 // Function to safely load outputs
 const loadOutputs = () => {
@@ -90,6 +117,8 @@ describe('Athena PySpark execution', function () {
     // Set the chat session ID and storage bucket name
     setChatSessionId('test-session-1');
     process.env.STORAGE_BUCKET_NAME = outputs.storage.bucket_name;
+    // Here just test that the files to download are correct
+    console.log(getPreCodeExecutionScript(testScript));
 
     const pySparkCode = `${getSessionSetupScript()}
 # PySpark test script

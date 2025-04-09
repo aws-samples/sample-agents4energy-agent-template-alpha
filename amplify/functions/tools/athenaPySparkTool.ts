@@ -10,13 +10,11 @@ import { getChatSessionId, getChatSessionPrefix } from "./toolUtils";
 const ATHENA_WORKGROUP = process.env.ATHENA_WORKGROUP_NAME || 'pyspark-workgroup';
 const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
 
-export const getSessionSetupScript = () => `
+export const getSessionSetupScript = () => { 
+    return `
 import os
 
 # Create the output directory and subdirectories if they don't exist
-# os.makedirs('output', exist_ok=True)
-# os.makedirs('output/data', exist_ok=True)
-# os.makedirs('output/plots', exist_ok=True)
 os.makedirs('plots', exist_ok=True)
 os.makedirs('data', exist_ok=True)
 
@@ -80,6 +78,41 @@ def getDataFrameFromS3(file_path):
     
     return df
 
+def downloadFileFromS3(s3_path):
+    """
+    Download a file from S3 to the local directory.
+    
+    Args:
+        s3_path (str): Path to the file in S3, relative to the chat session directory
+                       If path starts with 'global/', it will be accessed from the global directory
+        
+    Note:
+        - The file will be downloaded to the same relative path in the local directory
+        - Parent directories will be created if they don't exist
+    """
+    import boto3
+    import os
+    
+    # Ensure the directory exists
+    os.makedirs(os.path.dirname(s3_path), exist_ok=True)
+    
+    # Download the file
+    try:
+        print(f"Downloading {s3_path} from S3...")
+        s3_client = boto3.client('s3')
+        
+        # If path starts with 'global/', don't add the chat session prefix
+        s3_key = s3_path if s3_path.startswith('global/') else chatSessionS3Prefix + s3_path
+        
+        s3_client.download_file(
+            '${process.env.STORAGE_BUCKET_NAME}', 
+            s3_key,
+            s3_path
+        )
+        print(f"Successfully downloaded {s3_path}")
+    except Exception as e:
+        print(f"Error downloading {s3_path}: {str(e)}")
+
 def uploadFileToS3(file_path, s3_path):
     """
     Upload a file to S3.
@@ -122,8 +155,29 @@ def uploadFileToS3(file_path, s3_path):
         ExtraArgs=extra_args
     )
 `
+}
 
-const getPostCodeExecutionScript = () => `
+export const getPreCodeExecutionScript = (script: string) => { 
+    // Download any files which the code tries to import using pd.read_csv('...')
+    // Extract file paths from pd.read_csv calls, handling cases with additional parameters
+    const matches = script?.match(/pd\.read_csv\(['"]([^'"]+)['"](?:\s*,\s*[^)]+)?\)/g) || [];
+    const filesToDownload = matches.map(match => {
+        // Extract just the file path from the full pd.read_csv call
+        const pathMatch = match.match(/pd\.read_csv\(['"]([^'"]+)['"]/);
+        return pathMatch ? pathMatch[1] : null;
+    }).filter(Boolean);
+
+    console.log(`Files to download: ${JSON.stringify(filesToDownload)}`);
+    return `
+files_to_download = ${JSON.stringify(filesToDownload)}
+
+# Download any files that are referenced in pd.read_csv calls
+for s3_path in files_to_download:
+    downloadFileFromS3(s3_path)
+\n\n`
+}
+
+export const getPostCodeExecutionScript = () => { return `
 import os
 
 def upload_working_directory():
@@ -160,7 +214,7 @@ def upload_working_directory():
 # Execute the upload
 upload_working_directory()
 `
-
+}
 // Helper function to read a file from S3
 async function readS3File(s3Uri: string): Promise<string> {
     try {
@@ -647,7 +701,7 @@ export const pysparkTool = tool(
 
                 await publishProgress(chatSessionId, `✅ Session ready! Setting up environment... (Session ID: ${sessionId})`, progressIndex++);
 
-                // Add pulp library from S3
+                // Setup the session with functions relevant to the user's chat session
                 const setS3PrefixResult = await executeCalculation(
                     athenaClient,
                     sessionId,
@@ -673,7 +727,7 @@ export const pysparkTool = tool(
             const codeResult = await executeCalculation(
                 athenaClient,
                 sessionId,
-                code + getPostCodeExecutionScript(),
+                getPreCodeExecutionScript(code) + code + getPostCodeExecutionScript(),
                 description,
                 chatSessionId,
                 progressIndex,
@@ -750,6 +804,7 @@ Important notes:
 - Save data files under the data/ directory.
 - Save plot files under the plots/ directory.
 - Perfer saving dfs with pandas instead of with spark.
+- If you need to load a csv file from S3, use the pd.read_csv function.
 - The 'spark' session is already initialized in the execution environment
 - You don't need to import SparkSession or create a new session
 - The STDOUT and STDERR are captured and returned in the response
@@ -763,9 +818,9 @@ Example usage:
 
 Simple example:
 \`\`\`python
-# Create a sample DataFrame
-data = [("Alice", 34), ("Bob", 45), ("Charlie", 29)]
-df = spark.createDataFrame(data, ["Name", "Age"])
+# Load a csv file from S3
+df_pd = pd.read_csv('data/example.csv')
+df = spark.createDataFrame(df_pd)
 
 # Show the DataFrame
 print("Sample DataFrame:")
@@ -783,7 +838,6 @@ df.toPandas().to_csv('data/dataframe.csv', header=True, mode='overwrite')
 
 # Read the DataFrame from S3
 df = getDataFrameFromS3('data/dataframe.csv')
-
 
 # Show the DataFrame
 df.show()
