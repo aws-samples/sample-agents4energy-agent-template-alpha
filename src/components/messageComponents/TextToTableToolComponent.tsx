@@ -23,6 +23,21 @@ const TextToTableToolComponent = ({ content, theme }: {
     React.useEffect(() => {
         try {
             const parsedData = JSON.parse(content?.text || '{}');
+            // Filter out relevanceScore and relevanceExplanation columns
+            if (parsedData.columns) {
+                parsedData.columns = parsedData.columns.filter((col: string) => 
+                    col !== 'relevanceScore' && col !== 'relevanceExplanation'
+                );
+                // Also remove these fields from the data objects
+                if (parsedData.data) {
+                    parsedData.data = parsedData.data.map((row: Record<string, string | undefined>) => {
+                        const newRow = { ...row };
+                        delete newRow.relevanceScore;
+                        delete newRow.relevanceExplanation;
+                        return newRow;
+                    });
+                }
+            }
             setTableData(parsedData);
             setError(false);
         } catch {

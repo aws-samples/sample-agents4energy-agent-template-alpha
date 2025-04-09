@@ -100,9 +100,9 @@ When creating plots:
 
 When creating reports:
 - Start the report with a summary which includes the recommend action. Then have sections which justify the action.
-- Include source information for all included data.
+- Always include links to the source documents or data tables in the report.
 - Use the writeFile tool to create the first draft of the report file
-- Use html formatting for the report by default
+- Use html formatting for the report
 - Put reports in the 'reports' directory
 
 When using the file management tools:
@@ -110,7 +110,7 @@ When using the file management tools:
 - To access a directory, include the trailing slash in the path or use the directory name
 - To read a file, use the readFile tool with the complete path including the filename
 - Global files are shared across sessions and are read-only
-- When saving reports to file, use the writeFile tool with html formatting by default
+- When saving reports to file, use the writeFile tool with html formatting
 
 When using the PySpark tool:
 - Use the pysparkTool to execute big data processing tasks with Apache Spark
@@ -133,6 +133,7 @@ When using the textToTableTool:
 - Define the table columns with a clear description of what to extract
 - Results are automatically sorted by date if available (chronological order)
 - Use dataToInclude/dataToExclude to prioritize certain types of information
+- When reading well reports, always include a column for a description of the well event
 
         `//.replace(/^\s+/gm, '') //This trims the whitespace from the beginning of each line
 

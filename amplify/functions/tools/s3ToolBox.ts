@@ -540,6 +540,29 @@ async function processHtmlEmbeddings(content: string, prefix: string): Promise<s
     return processedContent.join('\n');
 }
 
+// Helper function to process document links
+async function processDocumentLinks(content: string, chatSessionId: string): Promise<string> {
+    // Regular expression to match href="path/to/file" patterns
+    const linkRegex = /href="([^"]+)"/g;
+    
+    // Replace all matches with the full asset path
+    return content.replace(linkRegex, (match, filePath) => {
+        // Only process relative paths that don't start with http/https/files
+        if (filePath.startsWith('http://') || filePath.startsWith('https://') || filePath.includes('files/')) {
+            return match;
+        }
+        
+        // Handle global files differently
+        if (filePath.startsWith('global/')) {
+            return `href="/files/${filePath}"`;
+        }
+        
+        // Construct the full asset path for session-specific files
+        const fullPath = `/files/chatSessionArtifacts/sessionId=${chatSessionId}/${filePath}`;
+        return `href="${fullPath}"`;
+    });
+}
+
 // Tool to write a file to S3
 export const writeFile = tool(
     async ({ filename, content }) => {
@@ -575,6 +598,8 @@ export const writeFile = tool(
             let finalContent = content;
             if (targetPath.toLowerCase().endsWith('.html')) {
                 finalContent = await processHtmlEmbeddings(content, prefix);
+                // Process document links after embeddings
+                finalContent = await processDocumentLinks(finalContent, getChatSessionId() || '');
             }
             
             // Write the file to S3
@@ -593,16 +618,21 @@ export const writeFile = tool(
         name: "writeFile",
         description: `
         Writes content to a new file or overwrites an existing file in session storage. 
-        For HTML files, supports embedding other files using the special comment syntax:
+        For HTML files:
+        1. Supports embedding other files using the special comment syntax:
+           Example:
+           \`\`\`html
+           <h2>Interactive Visualization</h2>
+           <!-- embed:plots/time_series_plot.html -->
+           \`\`\`
+           The embed comment will be replaced with the actual content of the referenced file.
+           
+        2. Automatically processes document links:
+           - Relative paths in href attributes are converted to full asset paths
+           - Example: href="plots/well_production_events.html" becomes 
+             href="files/chatSessionArtifacts/sessionId=<chatSessionId>/plots/well_production_events.html"
+           - External links (http://, https://) and existing asset links (files/...) are left unchanged
         
-        Example of correct embedding:
-        \`\`\`html
-        <h2>Interactive Visualization</h2>
-        <!-- embed:plots/time_series_plot.html -->
-        \`\`\`
-        
-        The embed comment will be replaced with the actual content of the referenced file.
-        Do NOT use iframes or other methods - only use the <!-- embed:filename --> syntax.
         Global files (global/filename) are read-only and cannot be written to.
         `,
         schema: writeFileSchema,
