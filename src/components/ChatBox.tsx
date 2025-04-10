@@ -239,20 +239,23 @@ const ChatBox = (params: {
         // Store IDs of messages to be deleted
         const messageIdsToDelete = new Set(
           messagesToDelete
+            .filter(msg => msg !== null && msg !== undefined)  // Add null/undefined check
             .map(msg => msg.id)
             .filter((id): id is string => id !== undefined)
         );
         
         // Create an array of deletion promises
-        const deletionPromises = messagesToDelete.map(async (msgToDelete) => {
-          if (msgToDelete.id) {
-            await amplifyClient.models.ChatMessage.delete({
-              id: msgToDelete.id
-            });
-            deletedCount++;
-            console.log(`Deleted message ${msgToDelete.id} from API (${deletedCount}/${totalMessages})`);
-          }
-        });
+        const deletionPromises = messagesToDelete
+          .filter(msg => msg !== null && msg !== undefined && msg.id)  // Add null/undefined check
+          .map(async (msgToDelete) => {
+            if (msgToDelete.id) {
+              await amplifyClient.models.ChatMessage.delete({
+                id: msgToDelete.id
+              });
+              deletedCount++;
+              console.log(`Deleted message ${msgToDelete.id} from API (${deletedCount}/${totalMessages})`);
+            }
+          });
         
         // Wait for all deletions to complete
         await Promise.all(deletionPromises);
@@ -260,10 +263,14 @@ const ChatBox = (params: {
         // Remove messages from UI immediately after successful API deletion
         setMessages(prevMessages => 
           prevMessages.filter(msg => 
+            // Keep message if:
+            // 1. It has a valid createdAt timestamp
+            // 2. It was created before the message we're regenerating
+            // 3. Its ID is not in the set of messages to delete
             msg.createdAt && 
             messageToRegenerate.createdAt && 
-            msg.createdAt < messageToRegenerate.createdAt &&
-            typeof msg.id === 'string' &&
+            msg.createdAt < messageToRegenerate.createdAt && 
+            typeof msg.id === 'string' && 
             !messageIdsToDelete.has(msg.id)
           )
         );

@@ -128,77 +128,155 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ chatSessionId, onFileSelect
 
     try {
       console.log(`Loading files for path: ${path}`);
-      const fullPath = path ? `${basePath}${path}` : basePath;
-      console.log(`Full path: ${fullPath}`);
-      const result = await list({
-        path: fullPath,
-        options: {
-          subpathStrategy: { strategy: 'exclude' }
-        },
-      });
-      console.log(`Result: `, result);
-      // Process the results to create a hierarchical structure
-      const items: FileItem[] = [];
-
-      for (const folderPath of result.excludedSubpaths || []) {
-        // Extract the last segment from the path, handling trailing slashes
-        const pathWithoutTrailingSlash = folderPath.endsWith('/') ? folderPath.slice(0, -1) : folderPath;
-        const folderName = pathWithoutTrailingSlash.split('/').pop() || '';
-        items.push({
-          key: folderPath,
-          path: folderPath.replace(basePath, ''),
-          isFolder: true,
-          name: folderName,
+      
+      // Handle root directory specially to include global folder
+      if (!path) {
+        const result = await list({
+          path: basePath,
+          options: {
+            subpathStrategy: { strategy: 'exclude' }
+          },
         });
-      }
+        
+        const items: FileItem[] = [];
 
-      for (const item of result.items) {
-        // Extract key from path
-        const itemPath = item.path;
-        if (!itemPath) continue;
+        // Add other folders and files, excluding any local global directory
+        for (const folderPath of result.excludedSubpaths || []) {
+          const pathWithoutTrailingSlash = folderPath.endsWith('/') ? folderPath.slice(0, -1) : folderPath;
+          const folderName = pathWithoutTrailingSlash.split('/').pop() || '';
+          
+          // Skip local global directory
+          if (folderName === 'global') continue;
+          
+          items.push({
+            key: folderPath,
+            path: folderPath.replace(basePath, ''),
+            isFolder: true,
+            name: folderName,
+          });
+        }
 
-        const isFolder = itemPath.endsWith('/');
+        // Always add the root-level global directory
+        items.push({
+          key: 'global/',
+          path: 'global',
+          isFolder: true,
+          name: 'global',
+        });
 
-        if (isFolder) continue;
+        for (const item of result.items) {
+          const itemPath = item.path;
+          if (!itemPath) continue;
 
-        // Remove trailing slash for folders before getting the name
-        const pathForName = isFolder ? itemPath.slice(0, -1) : itemPath;
-        const name = pathForName.split('/').pop() || '';
+          const isFolder = itemPath.endsWith('/');
+          if (isFolder) continue;
 
-        // Skip .s3meta files
-        if (name.endsWith('.s3meta')) continue;
+          const pathForName = isFolder ? itemPath.slice(0, -1) : itemPath;
+          const name = pathForName.split('/').pop() || '';
+          
+          // Skip files in local global directory
+          if (itemPath.split('/').includes('global')) continue;
 
-        let url = '';
-        if (!isFolder) {
+          if (name.endsWith('.s3meta')) continue;
+
+          let url = '';
           try {
-            // Get the file URL without modifying it
             const fileUrl = await getUrl({ path: itemPath });
             url = fileUrl.url.toString();
           } catch (e) {
             console.error(`Error getting URL for ${itemPath}:`, e);
           }
+
+          items.push({
+            key: itemPath,
+            path: itemPath.replace(basePath, ''),
+            isFolder,
+            name,
+            url,
+            lastRefreshTime: Date.now(),
+          });
         }
 
-        items.push({
-          key: itemPath,
-          path: itemPath.replace(basePath, ''),
-          isFolder,
-          name,
-          url,
-          lastRefreshTime: Date.now(),
+        // Sort items - folders first, then files
+        items.sort((a, b) => {
+          if (a.isFolder && !b.isFolder) return -1;
+          if (!a.isFolder && b.isFolder) return 1;
+          return a.name.localeCompare(b.name);
         });
+
+        setFileStructure(items);
+      } else {
+        // Handle global directory
+        const fullPath = path.startsWith('global') 
+          ? `global/${path.replace('global', '').replace(/^\/+/, '')}` // Remove leading slashes after replacing global
+          : `${basePath}${path}`; // Use chat session path
+        
+        console.log(`Full path: ${fullPath}`);
+        const result = await list({
+          path: fullPath,
+          options: {
+            subpathStrategy: { strategy: 'exclude' }
+          },
+        });
+        
+        const items: FileItem[] = [];
+
+        for (const folderPath of result.excludedSubpaths || []) {
+          const pathWithoutTrailingSlash = folderPath.endsWith('/') ? folderPath.slice(0, -1) : folderPath;
+          const folderName = pathWithoutTrailingSlash.split('/').pop() || '';
+          items.push({
+            key: folderPath,
+            path: path.startsWith('global') 
+              ? folderPath.replace('global/', 'global/') 
+              : folderPath.replace(basePath, ''),
+            isFolder: true,
+            name: folderName,
+          });
+        }
+
+        for (const item of result.items) {
+          const itemPath = item.path;
+          if (!itemPath) continue;
+
+          const isFolder = itemPath.endsWith('/');
+          if (isFolder) continue;
+
+          const pathForName = isFolder ? itemPath.slice(0, -1) : itemPath;
+          const name = pathForName.split('/').pop() || '';
+
+          if (name.endsWith('.s3meta')) continue;
+
+          let url = '';
+          try {
+            const fileUrl = await getUrl({ path: itemPath });
+            url = fileUrl.url.toString();
+          } catch (e) {
+            console.error(`Error getting URL for ${itemPath}:`, e);
+          }
+
+          items.push({
+            key: itemPath,
+            path: path.startsWith('global') 
+              ? itemPath.replace('global/', 'global/') 
+              : itemPath.replace(basePath, ''),
+            isFolder,
+            name,
+            url,
+            lastRefreshTime: Date.now(),
+          });
+        }
+
+        // Sort items - folders first, then files
+        items.sort((a, b) => {
+          if (a.isFolder && !b.isFolder) return -1;
+          if (!a.isFolder && b.isFolder) return 1;
+          return a.name.localeCompare(b.name);
+        });
+
+        setFileStructure(items);
       }
-
-      // Sort items - folders first, then files
-      items.sort((a, b) => {
-        if (a.isFolder && !b.isFolder) return -1;
-        if (!a.isFolder && b.isFolder) return 1;
-        return a.name.localeCompare(b.name);
-      });
-
-      setFileStructure(items);
       console.log(`File structure loaded for path: ${path}`);
-      console.log(items);
+      console.log(fileStructure);
 
     } catch (err) {
       console.error('Error loading files:', err);

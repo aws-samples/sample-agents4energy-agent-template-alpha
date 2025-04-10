@@ -311,7 +311,7 @@ export const listFiles = tool(
 // Tool to read a file from S3
 export const readFile = tool(
     async ({ filename }) => {
-        const maxBytes = 500;
+        const maxBytes = 2048;
         try {
             // Normalize the path to prevent path traversal attacks
             const targetPath = path.normalize(filename);

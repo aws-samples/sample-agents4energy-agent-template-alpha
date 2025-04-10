@@ -244,10 +244,10 @@ export const PySparkToolComponent = ({
         maxHeight: '500px',
         overflow: 'auto'
       }}>
-        {/* Process and display stdout with tables */}
+        {/* Always process and display stdout with tables if available */}
         {stdout && processPySparkOutput(stdout, theme)}
         
-        {/* If we have stderr, show it */}
+        {/* If we have stderr, show it below stdout */}
         {stderr && (
           <div style={{
             backgroundColor: theme.palette.error.light || '#FFEBEE',
@@ -286,7 +286,7 @@ export const PySparkToolComponent = ({
           </div>
         )}
         
-        {/* If we have no stdout or stderr */}
+        {/* Only show "No output" message if both stdout and stderr are empty */}
         {!stdout && !stderr && (
           <Typography variant="body2" color="textSecondary" style={{ fontStyle: 'italic' }}>
             {errorMessage || "No output available"}

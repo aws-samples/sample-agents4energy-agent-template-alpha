@@ -27,9 +27,23 @@ const HumanMessageComponent: React.FC<HumanMessageComponentProps> = ({
     color: theme.palette.primary.contrastText,
     padding: theme.spacing(1),
     borderRadius: theme.shape.borderRadius,
-    textAlign: 'right' as const,
     marginLeft: 'auto',
     maxWidth: '80%',
+  };
+
+  const markdownStyle = {
+    textAlign: 'left' as const,
+    '& ul, & ol': {
+      marginLeft: theme.spacing(2),
+      marginRight: 0,
+      paddingLeft: theme.spacing(2),
+    },
+    '& li': {
+      marginBottom: theme.spacing(0.5),
+    },
+    '& p': {
+      margin: theme.spacing(1, 0),
+    },
   };
 
   return (
@@ -40,9 +54,11 @@ const HumanMessageComponent: React.FC<HumanMessageComponentProps> = ({
       width: '100%'
     }}>
       <div style={humanMessageStyle}>
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-          {message.content?.text}
-        </ReactMarkdown>
+        <div style={markdownStyle}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {message.content?.text}
+          </ReactMarkdown>
+        </div>
       </div>
       {onRegenerateMessage && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

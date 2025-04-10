@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { 
-  Drawer, 
-  Box, 
-  Typography, 
-  IconButton, 
+import {
+  Drawer,
+  Box,
+  Typography,
+  IconButton,
   Divider,
   useTheme,
   useMediaQuery,
@@ -47,14 +47,14 @@ interface FileDrawerProps {
   variant?: 'temporary' | 'persistent' | 'permanent';
 }
 
-const FileDrawer: React.FC<FileDrawerProps> = ({ 
-  open, 
-  onClose, 
+const FileDrawer: React.FC<FileDrawerProps> = ({
+  open,
+  onClose,
   chatSessionId
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  
+
   // File extensions to icon mapping
   const fileIcons: Record<string, React.ReactNode> = {
     '.txt': <InsertDriveFileIcon style={{ color: '#2196f3' }} />,
@@ -76,28 +76,28 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
     const extension = fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
     return fileIcons[extension] || <InsertDriveFileIcon />;
   };
-  
+
   // State for the currently selected file to preview
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
-  
+
   // Upload state
   const [isUploading, setIsUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState('');
   const [showUploadMessage, setShowUploadMessage] = useState(false);
   const [currentPath, setCurrentPath] = useState('');
-  
+
   // Use the file system context to trigger refreshes
   const { refreshFiles } = useFileSystem();
-  
+
   // Delete state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [fileToDelete, setFileToDelete] = useState<FileItem | null>(null);
-  
+
   // New folder creation state
   const [createFolderDialogOpen, setCreateFolderDialogOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
-  
+
   // Handle file selection for preview
   const handleFileSelect = (file: FileItem) => {
     if (!file.isFolder) {
@@ -144,10 +144,14 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
 
     try {
       const uploadPromises = Array.from(files).map(async (file) => {
-        // Include the current path in the upload key
-        const uploadPath = currentPath ? `${currentPath}${file.name}` : file.name;
-        const key = `chatSessionArtifacts/sessionId=${chatSessionId}/${uploadPath}`;
-        
+        // Include the current path in the upload key, if the current path does not begin with global
+
+        const s3_path = currentPath ? `${currentPath}${file.name}`: file.name;
+
+        const key = !s3_path.startsWith('global') ?
+          `chatSessionArtifacts/sessionId=${chatSessionId}/${s3_path}` :
+          s3_path;
+
         await uploadData({
           path: key,
           data: file,
@@ -159,7 +163,7 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
 
       await Promise.all(uploadPromises);
       setUploadMessage('Files uploaded successfully');
-      
+
       // Add a small delay before refreshing to allow S3 to propagate changes
       setTimeout(() => {
         refreshFiles();
@@ -178,7 +182,7 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
   const handleCloseUploadMessage = () => {
     setShowUploadMessage(false);
   };
-  
+
   // Adjust drawer width for non-mobile screens to allow chat visibility
   const drawerWidth = isMobile ? '100%' : '45%';
 
@@ -192,7 +196,7 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
 
     try {
       const key = `chatSessionArtifacts/sessionId=${chatSessionId}/${newFolderName.trim()}/`;
-      
+
       // Create an empty object with key ending in '/' to represent a folder
       await uploadData({
         path: key,
@@ -205,7 +209,7 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
       setUploadMessage('Folder created successfully');
       setCreateFolderDialogOpen(false);
       setNewFolderName('');
-      
+
       // Add a small delay before refreshing to allow S3 to propagate changes
       setTimeout(() => {
         refreshFiles();
@@ -273,7 +277,7 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
                   variant="contained"
                   color="primary"
                   disabled={isUploading}
-                  sx={{ 
+                  sx={{
                     backgroundColor: theme.palette.primary.main,
                     color: theme.palette.primary.contrastText,
                     '&:hover': {
@@ -296,7 +300,7 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
                 color="primary"
                 onClick={() => setCreateFolderDialogOpen(true)}
                 disabled={isCreatingFolder}
-                sx={{ 
+                sx={{
                   borderRadius: '6px',
                   textTransform: 'none',
                   boxShadow: 'none',
@@ -306,7 +310,7 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
               </Button>
               <IconButton
                 onClick={onClose}
-                sx={{ 
+                sx={{
                   color: theme.palette.text.secondary,
                   '&:hover': {
                     backgroundColor: 'rgba(0,0,0,0.04)',
@@ -318,23 +322,23 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
               </IconButton>
             </Box>
           </Box>
-          
+
           <Divider />
-          
-          <Box sx={{ 
+
+          <Box sx={{
             height: 'calc(100% - 64px)', // Subtract header height
             overflow: 'hidden',
             backgroundColor: theme.palette.background.default,
           }}>
             {/* Split view for larger devices using Stack instead of Grid2 */}
-            <Stack 
-              direction="row" 
+            <Stack
+              direction="row"
               sx={{ height: '100%' }}
               divider={<Divider orientation="vertical" flexItem />}
             >
               <Box sx={{ width: '40%', height: '100%', overflow: 'auto', p: 2, backgroundColor: theme.palette.background.default }}>
-                <FileExplorer 
-                  chatSessionId={chatSessionId} 
+                <FileExplorer
+                  chatSessionId={chatSessionId}
                   onFileSelect={handleFileSelect}
                   onPathChange={handlePathChange}
                 />
@@ -342,10 +346,10 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
               <Box sx={{ width: '60%', height: '100%', overflow: 'auto', p: 2, backgroundColor: theme.palette.background.paper }}>
                 {selectedFile ? (
                   <>
-                    <Box sx={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'flex-start', 
+                    <Box sx={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-start',
                       mb: 2,
                       p: 2,
                       borderRadius: '8px',
@@ -360,7 +364,7 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
                       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, flex: 1, minWidth: 0 }}>
                         <InsertDriveFileIcon sx={{ color: theme.palette.primary.main, mt: 0.5 }} />
                         <Box sx={{ minWidth: 0, flex: 1 }}>
-                          <Typography variant="subtitle1" sx={{ 
+                          <Typography variant="subtitle1" sx={{
                             fontWeight: 500,
                             color: theme.palette.text.primary,
                             overflow: 'hidden',
@@ -369,7 +373,7 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
                           }}>
                             {selectedFile.name}
                           </Typography>
-                          <Typography variant="caption" sx={{ 
+                          <Typography variant="caption" sx={{
                             color: theme.palette.text.secondary,
                             display: 'block',
                             overflow: 'hidden',
@@ -401,12 +405,12 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
                     />
                   </>
                 ) : (
-                  <Paper 
-                    elevation={0} 
-                    sx={{ 
-                      height: '100%', 
-                      display: 'flex', 
-                      alignItems: 'center', 
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      height: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
                       justifyContent: 'center',
                       bgcolor: theme.palette.background.paper,
                       p: 3,
@@ -425,16 +429,16 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
           </Box>
 
           {/* Upload status message */}
-          <Snackbar 
-            open={showUploadMessage} 
+          <Snackbar
+            open={showUploadMessage}
             autoHideDuration={isUploading ? null : 4000}
             onClose={handleCloseUploadMessage}
             anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
           >
-            <Alert 
-              onClose={handleCloseUploadMessage} 
-              severity={isUploading ? "info" : "success"} 
-              sx={{ 
+            <Alert
+              onClose={handleCloseUploadMessage}
+              severity={isUploading ? "info" : "success"}
+              sx={{
                 width: '100%',
                 boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                 borderRadius: '8px',
@@ -501,7 +505,7 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
                   variant="contained"
                   color="primary"
                   disabled={isUploading}
-                  sx={{ 
+                  sx={{
                     backgroundColor: theme.palette.primary.main,
                     color: theme.palette.primary.contrastText,
                     '&:hover': {
@@ -524,7 +528,7 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
                 color="primary"
                 onClick={() => setCreateFolderDialogOpen(true)}
                 disabled={isCreatingFolder}
-                sx={{ 
+                sx={{
                   borderRadius: '6px',
                   textTransform: 'none',
                   boxShadow: 'none',
@@ -534,7 +538,7 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
               </Button>
               <IconButton
                 onClick={onClose}
-                sx={{ 
+                sx={{
                   color: theme.palette.text.secondary,
                   '&:hover': {
                     backgroundColor: 'rgba(0,0,0,0.04)',
@@ -546,10 +550,10 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
               </IconButton>
             </Box>
           </Box>
-          
+
           <Divider />
-          
-          <Box sx={{ 
+
+          <Box sx={{
             height: 'calc(100% - 64px)', // Subtract header height
             overflow: 'hidden',
             backgroundColor: theme.palette.background.default,
@@ -560,11 +564,11 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
                 // Show file preview with back button on small screens
                 <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                   <Box sx={{ p: 1.5, borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
-                    <Button 
-                      onClick={() => setSelectedFile(null)} 
-                      startIcon={<FolderIcon />} 
+                    <Button
+                      onClick={() => setSelectedFile(null)}
+                      startIcon={<FolderIcon />}
                       variant="text"
-                      sx={{ 
+                      sx={{
                         textTransform: 'none',
                         color: theme.palette.primary.main,
                       }}
@@ -583,8 +587,8 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
               ) : (
                 // Show file explorer
                 <Box sx={{ height: '100%', overflow: 'auto', p: 2, backgroundColor: theme.palette.background.default }}>
-                  <FileExplorer 
-                    chatSessionId={chatSessionId} 
+                  <FileExplorer
+                    chatSessionId={chatSessionId}
                     onFileSelect={handleFileSelect}
                     onPathChange={handlePathChange}
                   />
@@ -594,16 +598,16 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
           </Box>
 
           {/* Upload status message */}
-          <Snackbar 
-            open={showUploadMessage} 
+          <Snackbar
+            open={showUploadMessage}
             autoHideDuration={isUploading ? null : 4000}
             onClose={handleCloseUploadMessage}
             anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
           >
-            <Alert 
-              onClose={handleCloseUploadMessage} 
-              severity={isUploading ? "info" : "success"} 
-              sx={{ 
+            <Alert
+              onClose={handleCloseUploadMessage}
+              severity={isUploading ? "info" : "success"}
+              sx={{
                 width: '100%',
                 boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                 borderRadius: '8px',
@@ -617,8 +621,8 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
       )}
 
       {/* Delete confirmation dialog */}
-      <Dialog 
-        open={deleteDialogOpen} 
+      <Dialog
+        open={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
         slotProps={{
           paper: {
@@ -641,21 +645,21 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button 
+          <Button
             onClick={() => setDeleteDialogOpen(false)}
             variant="outlined"
-            sx={{ 
+            sx={{
               textTransform: 'none',
               borderRadius: '6px',
             }}
           >
             Cancel
           </Button>
-          <Button 
-            onClick={handleDeleteConfirm} 
-            color="error" 
+          <Button
+            onClick={handleDeleteConfirm}
+            color="error"
             variant="contained"
-            sx={{ 
+            sx={{
               textTransform: 'none',
               borderRadius: '6px',
               boxShadow: 'none',
@@ -667,8 +671,8 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
       </Dialog>
 
       {/* Create folder dialog */}
-      <Dialog 
-        open={createFolderDialogOpen} 
+      <Dialog
+        open={createFolderDialogOpen}
         onClose={() => !isCreatingFolder && setCreateFolderDialogOpen(false)}
         PaperProps={{
           sx: {
@@ -696,23 +700,23 @@ const FileDrawer: React.FC<FileDrawerProps> = ({
           />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button 
+          <Button
             onClick={() => setCreateFolderDialogOpen(false)}
             variant="outlined"
             disabled={isCreatingFolder}
-            sx={{ 
+            sx={{
               textTransform: 'none',
               borderRadius: '6px',
             }}
           >
             Cancel
           </Button>
-          <Button 
+          <Button
             onClick={handleCreateFolder}
-            color="primary" 
+            color="primary"
             variant="contained"
             disabled={!newFolderName.trim() || isCreatingFolder}
-            sx={{ 
+            sx={{
               textTransform: 'none',
               borderRadius: '6px',
               boxShadow: 'none',

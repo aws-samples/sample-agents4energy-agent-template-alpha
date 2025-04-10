@@ -25,7 +25,7 @@ import WebBrowserToolComponent from './messageComponents/WebBrowserToolComponent
 
 const ChatMessage = (params: {
     message: Message,
-    onRegenerateMessage?: (messageId: string, messageText: string) => void;
+    onRegenerateMessage?: (messageId: string, messageText: string) => Promise<boolean>;
 }) => {
     const theme = useTheme();
     const { refreshFiles } = useFileSystem();

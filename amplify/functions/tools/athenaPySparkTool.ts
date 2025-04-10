@@ -93,8 +93,13 @@ def downloadFileFromS3(s3_path):
     import boto3
     import os
     
-    # Ensure the directory exists
-    os.makedirs(os.path.dirname(s3_path), exist_ok=True)
+    # Remove any leading slash to ensure we work with relative paths
+    local_path = s3_path.lstrip('/')
+    
+    # Ensure the directory exists (using the relative path)
+    dir_path = os.path.dirname(local_path)
+    if dir_path:
+        os.makedirs(dir_path, exist_ok=True)
     
     # Download the file
     try:
@@ -107,9 +112,9 @@ def downloadFileFromS3(s3_path):
         s3_client.download_file(
             '${process.env.STORAGE_BUCKET_NAME}', 
             s3_key,
-            s3_path
+            local_path
         )
-        print(f"Successfully downloaded {s3_path}")
+        print(f"Successfully downloaded {local_path}")
     except Exception as e:
         print(f"Error downloading {s3_path}: {str(e)}")
 
@@ -158,20 +163,31 @@ def uploadFileToS3(file_path, s3_path):
 }
 
 export const getPreCodeExecutionScript = (script: string) => { 
-    // Download any files which the code tries to import using pd.read_csv('...')
+    // Download any files which the code tries to import using pd.read_csv('...') or open('...')
     // Extract file paths from pd.read_csv calls, handling cases with additional parameters
-    const matches = script?.match(/pd\.read_csv\(['"]([^'"]+)['"](?:\s*,\s*[^)]+)?\)/g) || [];
-    const filesToDownload = matches.map(match => {
+    const csvMatches = script?.match(/pd\.read_csv\(['"]([^'"]+)['"](?:\s*,\s*[^)]+)?\)/g) || [];
+    const csvFiles = csvMatches.map(match => {
         // Extract just the file path from the full pd.read_csv call
         const pathMatch = match.match(/pd\.read_csv\(['"]([^'"]+)['"]/);
         return pathMatch ? pathMatch[1] : null;
     }).filter(Boolean);
 
+    // Extract file paths from open() calls
+    const openMatches = script?.match(/open\(['"]([^'"]+)['"]/g) || [];
+    const openFiles = openMatches.map(match => {
+        // Extract just the file path from the open call
+        const pathMatch = match.match(/open\(['"]([^'"]+)['"]/);
+        return pathMatch ? pathMatch[1] : null;
+    }).filter(Boolean);
+
+    // Combine both sets of files
+    const filesToDownload = [...new Set([...csvFiles, ...openFiles])];
+
     console.log(`Files to download: ${JSON.stringify(filesToDownload)}`);
     return `
 files_to_download = ${JSON.stringify(filesToDownload)}
 
-# Download any files that are referenced in pd.read_csv calls
+# Download any files that are referenced in pd.read_csv or open() calls
 for s3_path in files_to_download:
     downloadFileFromS3(s3_path)
 \n\n`
@@ -184,6 +200,7 @@ def upload_working_directory():
     """
     Recursively walk through the current working directory and upload all files to S3.
     Files will be uploaded preserving their directory structure.
+    Note: Files in the 'global' directory are skipped as they are read-only resources.
     """
     cwd = os.getcwd()
     
@@ -203,6 +220,10 @@ def upload_working_directory():
                 
             # Skip any __pycache__ directories
             if '__pycache__' in rel_path.split(os.sep):
+                continue
+                
+            # Skip files in the global directory
+            if rel_path.startswith('global'):
                 continue
             
             # Upload the file to S3 preserving the directory structure
