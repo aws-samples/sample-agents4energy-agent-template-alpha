@@ -32,20 +32,26 @@ export default function FileViewer({ s3Key, onUrlChange }: FileViewerProps) {
     
     getUrl({
       path: s3KeyDecoded,
-    }).then(async (response) => {
+    }).then(async (response: { url: URL }) => {
       setSelectedFileUrl(response.url);
       onUrlChange?.(response.url);
 
-      // If it's a CSV file, fetch the content and display as text
-      if (s3KeyDecoded.toLowerCase().endsWith('.csv')) {
-        try {
-          const csvResponse = await fetch(response.url);
-          const text = await csvResponse.text();
+      try {
+        // Check the content type
+        const fileResponse = await fetch(response.url);
+        const contentType = fileResponse.headers.get('Content-Type');
+        
+        // If it's a text-based file or CSV/XML, display as text
+        if ((!s3KeyDecoded.toLowerCase().endsWith('.html') && contentType?.startsWith('text/')) || 
+            contentType === 'application/octet-stream' ||
+            s3KeyDecoded.toLowerCase().endsWith('.csv') || 
+            s3KeyDecoded.toLowerCase().endsWith('.xml')) {
+          const text = await fileResponse.text();
           setFileContent(text);
-        } catch (error) {
-          console.error('Error fetching CSV content:', error);
-          setError('Failed to load CSV content. Please try again later.');
         }
+      } catch (error) {
+        console.error('Error fetching file content:', error);
+        setError('Failed to load file content. Please try again later.');
       }
       
       setLoading(false);
@@ -68,8 +74,8 @@ export default function FileViewer({ s3Key, onUrlChange }: FileViewerProps) {
     return <div className="flex justify-center items-center h-full">No file selected</div>;
   }
 
-  // If it's a CSV or XML file and we have the content, display it as pre-formatted text
-  if ((s3Key.toLowerCase().endsWith('.csv') || s3Key.toLowerCase().endsWith('.xml')) && fileContent) {
+  // If we have text content, display it
+  if (fileContent) {
     return (
       <div className="relative w-full h-full flex flex-col">
         <pre
@@ -86,7 +92,7 @@ export default function FileViewer({ s3Key, onUrlChange }: FileViewerProps) {
     );
   }
 
-  // For non-CSV files, use the iframe as before
+  // For non-text files, use the iframe as before
   return (
     <div className="w-full h-full relative">
       {iframeLoading && (

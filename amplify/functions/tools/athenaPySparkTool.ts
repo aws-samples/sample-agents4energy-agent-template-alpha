@@ -6,6 +6,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { getConfiguredAmplifyClient } from '../../../utils/amplifyUtils';
 import { publishResponseStreamChunk } from "../graphql/mutations";
 import { getChatSessionId, getChatSessionPrefix } from "./toolUtils";
+import { writeFile } from "./s3ToolBox";
+
 // Environment variables
 const ATHENA_WORKGROUP = process.env.ATHENA_WORKGROUP_NAME || 'pyspark-workgroup';
 const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
@@ -578,14 +580,15 @@ async function isSessionActive(athenaClient: AthenaClient, sessionId: string): P
 
 // Schema for the PySpark execution tool
 const pysparkToolSchema = z.object({
-    code: z.string().describe("PySpark code to execute. The 'spark' session is already initialized."),
+    code: z.string().optional().describe("PySpark code to execute. The 'spark' session is already initialized."),
     timeout: z.number().optional().default(300).describe("Timeout in seconds for the execution"),
-    description: z.string().optional().describe("Optional description for the execution")
+    description: z.string().optional().describe("Optional description for the execution"),
+    scriptPath: z.string().describe("Path for the script file to load or save to. Should start with 'scripts/'")
 });
 
 export const pysparkTool = tool(
     async (params) => {
-        const { code, timeout = 300, description = "PySpark execution" } = params;
+        const { code, scriptPath, timeout = 300, description = "PySpark execution" } = params;
         let progressIndex = 0;
         const chatSessionId = getChatSessionId();
         let sessionId: string | null = null;
@@ -593,6 +596,23 @@ export const pysparkTool = tool(
             throw new Error("Chat session ID not found");
         }
         try {
+            let codeToExecute = ''
+            // Save the script file
+            if (code && scriptPath) {
+                // Save the code to a file
+                codeToExecute = getPreCodeExecutionScript(code) + code + getPostCodeExecutionScript();
+                await writeFile.invoke({
+                    filename: scriptPath,
+                    content: getSessionSetupScript() + codeToExecute
+                });
+                console.log(`Saved code to file: ${scriptPath}`);
+            } else {
+                // Load the code from a file
+                const scriptContent = await readS3File(scriptPath);
+                codeToExecute =  getPreCodeExecutionScript(scriptContent) + scriptContent + getPostCodeExecutionScript();;
+                console.log(`Loaded code from file: ${scriptPath}`);
+            }
+
             // Publish initial message
             await publishProgress(chatSessionId, "🚀 Starting PySpark execution environment...", progressIndex++);
 
@@ -748,7 +768,7 @@ export const pysparkTool = tool(
             const codeResult = await executeCalculation(
                 athenaClient,
                 sessionId,
-                getPreCodeExecutionScript(code) + code + getPostCodeExecutionScript(),
+                codeToExecute,
                 description,
                 chatSessionId,
                 progressIndex,

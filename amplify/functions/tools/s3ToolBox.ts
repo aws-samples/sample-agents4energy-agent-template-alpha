@@ -248,7 +248,10 @@ function getContentType(filePath: string): string {
         '.md': 'text/markdown',
         '.csv': 'text/csv',
         '.xml': 'application/xml',
-        '.zip': 'application/zip'
+        '.zip': 'application/zip',
+        '.py': 'text/x-python',
+        '.ts': 'text/typescript',
+        '.tsx': 'text/typescript'
     };
     
     return contentTypeMap[extension] || 'application/octet-stream';
@@ -615,6 +618,16 @@ export const writeFile = tool(
             // Process HTML embeddings if this is an HTML file
             let finalContent = content;
             if (targetPath.toLowerCase().endsWith('.html')) {
+                // Add validation for iframe usage
+                const iframeRegex = /<iframe[^>]*\ssrc="([^"]+)"[^>]*>/g;
+                let match;
+                while ((match = iframeRegex.exec(content)) !== null) {
+                    const iframeSrc = match[1];
+                    if (!iframeSrc.toLowerCase().endsWith('.html')) {
+                        throw new Error(`Invalid iframe usage: src="${iframeSrc}". Iframes can only be used with HTML files.`);
+                    }
+                }
+                
                 // Process document links
                 finalContent = await processDocumentLinks(finalContent, getChatSessionId() || '');
             }
@@ -637,13 +650,18 @@ export const writeFile = tool(
         Writes content to a new file or overwrites an existing file in session storage. 
         For HTML files:
         1. Automatically processes document links:
-           - Relative paths in href attributes are converted to full asset paths
+           - Use paths relative to the workspace root (no ../ needed)
            - Example: href="plots/well_production_events.html" becomes 
              href="file/chatSessionArtifacts/sessionId=<chatSessionId>/plots/well_production_events.html"
            - External links (http://, https://) are left unchanged
+           - Common path patterns:
+             * plots/filename.html - for plot files
+             * reports/filename.html - for report files
+             * data/filename.csv - for data files
         
         2. For including content from other HTML files, use iframes:
-           - Instead of embedding content directly, use iframes to display other HTML files
+           - IMPORTANT: iframes should ONLY be used for HTML files, never for CSV or other file types
+           - Always use paths relative to the workspace root (no ../ needed)
            - Example:
            \`\`\`html
            <h2>Interactive Visualization</h2>
@@ -770,8 +788,8 @@ export const textToTableTool = tool(
 
             console.log("textToTableTool params:", JSON.stringify(params, null, 2));
             
-            // // Remove date column if it already exists
-            // params.tableColumns = params.tableColumns.filter(column => column.columnName.toLowerCase() !== 'date');
+            // Remove filePath column if it already exists
+            params.tableColumns = params.tableColumns.filter(column => column.columnName.toLowerCase() !== 'filepath');
 
             // Create column name map to restore original column names later
             const columnNameMap = Object.fromEntries(
@@ -807,6 +825,16 @@ export const textToTableTool = tool(
                 });
             }
 
+            // If a table columnName includes "date", change the columnDataDefinition to be a date
+            enhancedTableColumns.forEach(column => {
+                if (column.columnName.toLowerCase().includes("date")) {
+                    column.columnDataDefinition = {
+                        type: ['string', 'null'],
+                        format: 'date',
+                        pattern: "^(?:\\d{4})-(?:(0[1-9]|1[0-2]))-(?:(0[1-9]|[12]\\d|3[01]))$"
+                    };
+                }
+            });
             
             // enhancedTableColumns.unshift({
             //     columnName: 'date',
@@ -828,20 +856,12 @@ export const textToTableTool = tool(
                 };
             }
 
-            // Include file path column if requested
-            if (params.includeFilePath !== false) { // Default to true
-                fieldDefinitions['filePath'] = {
-                    type: 'string',
-                    description: 'The path of the file that this data was extracted from'
-                };
-            }
-
             const jsonSchema = {
                 title: "extractTableData",
                 description: "Extract structured data from text content",
                 type: "object",
                 properties: fieldDefinitions,
-                required: Object.keys(fieldDefinitions).filter(key => key !== 'filePath')
+                required: Object.keys(fieldDefinitions).filter(key => key !== 'FilePath')
             };
 
             console.log('Target JSON schema for row:', JSON.stringify(jsonSchema, null, 2));
@@ -986,7 +1006,7 @@ export const textToTableTool = tool(
                             
                             // Add file path if requested
                             if (params.includeFilePath !== false) {
-                                structuredData['filePath'] = filePath;
+                                structuredData['FilePath'] = filePath;
                             }
 
                             // Restore original column names
@@ -1006,7 +1026,7 @@ export const textToTableTool = tool(
                                 error: `Model structured output error: ${error instanceof Error ? error.message : String(error)}`
                             };
                             if (params.includeFilePath !== false) {
-                                errorRow['filePath'] = filePath;
+                                errorRow['FilePath'] = filePath;
                             }
                             return errorRow;
                         }
@@ -1015,7 +1035,7 @@ export const textToTableTool = tool(
                         // Add error row
                         const errorRow: Record<string, any> = {};
                         if (params.includeFilePath !== false) {
-                            errorRow['filePath'] = fileKey.replace(fileKey.startsWith(GLOBAL_PREFIX) ? GLOBAL_PREFIX : getUserPrefix(), '');
+                            errorRow['FilePath'] = fileKey.replace(fileKey.startsWith(GLOBAL_PREFIX) ? GLOBAL_PREFIX : getUserPrefix(), '');
                         }
                         errorRow['error'] = `Failed to process: ${error.message}`;
                         return errorRow;
@@ -1063,7 +1083,7 @@ export const textToTableTool = tool(
                 // Create CSV header from column names
                 const columnNames = enhancedTableColumns.map(c => c.columnName);
                 if (params.includeFilePath !== false) {
-                    columnNames.push('filePath');
+                    columnNames.push('FilePath');
                 }
                 
                 // Convert table rows to CSV format

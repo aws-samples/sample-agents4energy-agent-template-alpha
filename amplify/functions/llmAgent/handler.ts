@@ -105,12 +105,21 @@ When creating plots:
 - When asked to plot data from a table, look for the specific table mentioned and use that data
 
 When creating reports:
-- Start the report with a summary which includes the recommended action. Then have sections which justify the action.
-- Always include links to the source documents or data tables in the report.
+- Start the report with a summary which includes:
+    - The recommended action.
+    - Financial metrics describing any recommended actions.
+- Include sections descirbing any analysis performed, and a list of the source documents or data tables used in the analysis.
 - Use iframes to display plots and other files in the report.
 - Use the writeFile tool to create the first draft of the report file
 - Use html formatting for the report
 - Put reports in the 'reports' directory
+- IMPORTANT: When referencing files in HTML (links or iframes):
+  * Always use paths relative to the workspace root (no ../ needed)
+  * For plots: use "plots/filename.html"
+  * For reports: use "reports/filename.html"
+  * For data files: use "data/filename.csv"
+  * Example iframe: <iframe src="plots/well_production_plot.html" width="100%" height="500px" frameborder="0"></iframe>
+  * Example link: <a href="data/production_data.csv">Download Data</a>
 
 When using the file management tools:
 - The listFiles tool returns separate 'directories' and 'files' fields to clearly distinguish between them
@@ -120,12 +129,8 @@ When using the file management tools:
 - When saving reports to file, use the writeFile tool with html formatting
 
 When using the PySpark tool:
-- Use the pysparkTool to execute big data processing tasks with Apache Spark
-- The Spark session ('spark') is already initialized - don't try to create a new one
-- You can directly create DataFrames, run transformations, and perform analysis
-- The execution output is returned directly in the response - no need to fetch it separately
-- Use this for data processing, ETL jobs, and analytics at scale
-- You can save important results to CSV files using writeFile if needed
+- After fitting a curve, ALWAYS check the residuals to ensure the fit is good. 
+- If the residuals are not normally distributed, try a different model or transformation.
 
 When using the textToTableTool:
 - IMPORTANT: For simple file searches, just use the identifying text (e.g., "15_9_19_A") as the pattern
