@@ -13,7 +13,9 @@
   "dependencies": {
     "@aws-amplify/backend-output-schemas": "^1.4.0",
     "@aws-amplify/ui-react": "^6.9.3",
+    "@aws-sdk/client-s3": "^3.787.0",
     "@aws-sdk/client-secrets-manager": "^3.726.1",
+    "@aws-sdk/s3-request-presigner": "^3.787.0",
     "@emotion/cache": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@langchain/aws": "^0.1.7",

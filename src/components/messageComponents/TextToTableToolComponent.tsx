@@ -226,7 +226,7 @@ const TextToTableToolComponent = ({ content, theme }: {
                                 onClick={() => {
                                     if (hasFilePath && row.filePath) {
                                         const encodedPath = row.filePath.split('/').map((segment: string) => encodeURIComponent(segment)).join('/');
-                                        window.open(`/files/${encodedPath}`, '_blank');
+                                        window.open(`/file/${encodedPath}`, '_blank');
                                     }
                                 }}
                                 onMouseEnter={(e) => {

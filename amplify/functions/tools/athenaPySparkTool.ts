@@ -818,8 +818,8 @@ Use this tool to execute PySpark code using AWS Athena. The tool will create an 
 execute the provided PySpark code, and return the execution results.
 
 Important notes:
-- IMPORTANT: This execution environment already has these functions defined: uploadDfToS3, getDataFrameFromS3, uploadFileToS3. You can use them directly in your code without importing them.
-- Use the uploadDfToS3 function to save your DataFrames to S3 and getDataFrameFromS3 to load your csv files from S3.
+- When fitting curves, ALWAYS check the curve fit quality!
+- Before loading a csv file from S3, read the file to check the column names and data types.
 - Any files saved to the working directory will be uploaded to the user's chat session's artifacts in S3.
 - The file hiearchy will be perserved when uploading files from the working directory to S3 (ex: data/dataframe.csv will be uploaded as data/dataframe.csv in the chat session's S3 prefix).
 - Save data files under the data/ directory.
@@ -830,6 +830,7 @@ Important notes:
 - You don't need to import SparkSession or create a new session
 - The STDOUT and STDERR are captured and returned in the response
 - The execution results will be returned directly in the response
+- When converting strings to dates, handle errors by using: pd.to_datetime(events_df['EventDate'], errors='coerce')
 
 Example usage:
 - Perform data analysis using PySpark
@@ -862,31 +863,6 @@ df = getDataFrameFromS3('data/dataframe.csv')
 
 # Show the DataFrame
 df.show()
-\`\`\`
-
-Example using a solver:
-\`\`\`python
-from kiwisolver import Solver, Variable
-
-x1 = Variable('x1')
-x2 = Variable('x2')
-xm = Variable('xm')
-
-constraints = [x1 >= 0, x2 <= 100, x2 >= x1 + 10, xm == (x1 + x2) / 2]
-
-solver = Solver()
-
-for cn in constraints:
-    solver.addConstraint(cn)
-
-solver.addConstraint((x1 == 40) | "weak")
-
-solver.addEditVariable(xm, 'strong')
-
-solver.suggestValue(xm, 60)
-
-solver.updateVariables()
-print(xm.value(), x1.value(), x2.value())
 \`\`\`
 
 Example saving a plot to S3:

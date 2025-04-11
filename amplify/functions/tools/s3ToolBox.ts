@@ -5,7 +5,7 @@ import { S3Client, PutObjectCommand, ListObjectsV2Command, GetObjectCommand } fr
 import { ChatBedrockConverse } from "@langchain/aws";
 import { getConfiguredAmplifyClient } from '../../../utils/amplifyUtils';
 import { publishResponseStreamChunk } from "../graphql/mutations";
-import { getChatSessionId, getChatSessionPrefix } from "./toolUtils";
+import { getChatSessionId, getChatSessionPrefix, getOrigin } from "./toolUtils";
 
 // Schema for listing files
 const listFilesSchema = z.object({
@@ -542,25 +542,43 @@ async function processHtmlEmbeddings(content: string, prefix: string): Promise<s
 
 // Helper function to process document links
 async function processDocumentLinks(content: string, chatSessionId: string): Promise<string> {
-    // Regular expression to match href="path/to/file" patterns
-    const linkRegex = /href="([^"]+)"/g;
-    
-    // Replace all matches with the full asset path
-    return content.replace(linkRegex, (match, filePath) => {
+    // Get the origin from toolUtils
+    const origin = getOrigin() || '';
+
+    // Function to process a path and return the full URL
+    const getFullUrl = (filePath: string) => {
         // Only process relative paths that don't start with http/https/files
-        if (filePath.startsWith('http://') || filePath.startsWith('https://') || filePath.includes('files/')) {
-            return match;
+        if (filePath.startsWith('http://') || filePath.startsWith('https://') ) {
+            return filePath;
         }
         
         // Handle global files differently
         if (filePath.startsWith('global/')) {
-            return `href="/files/${filePath}"`;
+            return `${origin}/file/${filePath}`;
         }
         
         // Construct the full asset path for session-specific files
-        const fullPath = `/files/chatSessionArtifacts/sessionId=${chatSessionId}/${filePath}`;
+        return `${origin}/file/chatSessionArtifacts/sessionId=${chatSessionId}/${filePath}`;
+    };
+
+    // Regular expression to match href="path/to/file" patterns
+    const linkRegex = /href="([^"]+)"/g;
+    // Regular expression to match src="path/to/file" patterns in iframes
+    const iframeSrcRegex = /<iframe[^>]*\ssrc="([^"]+)"[^>]*>/g;
+    
+    // First replace all href matches
+    let processedContent = content.replace(linkRegex, (match, filePath) => {
+        const fullPath = getFullUrl(filePath);
         return `href="${fullPath}"`;
     });
+    
+    // Then replace all iframe src matches
+    processedContent = processedContent.replace(iframeSrcRegex, (match, filePath) => {
+        const fullPath = getFullUrl(filePath);
+        return match.replace(`src="${filePath}"`, `src="${fullPath}"`);
+    });
+    
+    return processedContent;
 }
 
 // Tool to write a file to S3
@@ -597,8 +615,7 @@ export const writeFile = tool(
             // Process HTML embeddings if this is an HTML file
             let finalContent = content;
             if (targetPath.toLowerCase().endsWith('.html')) {
-                finalContent = await processHtmlEmbeddings(content, prefix);
-                // Process document links after embeddings
+                // Process document links
                 finalContent = await processDocumentLinks(finalContent, getChatSessionId() || '');
             }
             
@@ -619,19 +636,23 @@ export const writeFile = tool(
         description: `
         Writes content to a new file or overwrites an existing file in session storage. 
         For HTML files:
-        1. Supports embedding other files using the special comment syntax:
-           Example:
-           \`\`\`html
-           <h2>Interactive Visualization</h2>
-           <!-- embed:plots/time_series_plot.html -->
-           \`\`\`
-           The embed comment will be replaced with the actual content of the referenced file.
-           
-        2. Automatically processes document links:
+        1. Automatically processes document links:
            - Relative paths in href attributes are converted to full asset paths
            - Example: href="plots/well_production_events.html" becomes 
-             href="files/chatSessionArtifacts/sessionId=<chatSessionId>/plots/well_production_events.html"
-           - External links (http://, https://) and existing asset links (files/...) are left unchanged
+             href="file/chatSessionArtifacts/sessionId=<chatSessionId>/plots/well_production_events.html"
+           - External links (http://, https://) are left unchanged
+        
+        2. For including content from other HTML files, use iframes:
+           - Instead of embedding content directly, use iframes to display other HTML files
+           - Example:
+           \`\`\`html
+           <h2>Interactive Visualization</h2>
+           <iframe src="plots/time_series_plot.html" width="100%" height="600px" frameborder="0"></iframe>
+           \`\`\`
+           - The src attribute will be automatically processed to use the correct full path
+           - This approach maintains separation between files and allows independent loading
+           - Set appropriate width and height attributes to control the iframe size
+           - Use frameborder="0" for seamless integration
         
         Global files (global/filename) are read-only and cannot be written to.
         `,
@@ -749,8 +770,8 @@ export const textToTableTool = tool(
 
             console.log("textToTableTool params:", JSON.stringify(params, null, 2));
             
-            // Remove date column if it already exists
-            params.tableColumns = params.tableColumns.filter(column => column.columnName.toLowerCase() !== 'date');
+            // // Remove date column if it already exists
+            // params.tableColumns = params.tableColumns.filter(column => column.columnName.toLowerCase() !== 'date');
 
             // Create column name map to restore original column names later
             const columnNameMap = Object.fromEntries(
@@ -787,15 +808,15 @@ export const textToTableTool = tool(
             }
 
             
-            enhancedTableColumns.unshift({
-                columnName: 'date',
-                columnDescription: `The date of the event in YYYY-MM-DD format. Can be null if no date is available.`,
-                columnDataDefinition: {
-                    type: ['string', 'null'],
-                    format: 'date',
-                    pattern: "^(?:\\d{4})-(?:(0[1-9]|1[0-2]))-(?:(0[1-9]|[12]\\d|3[01]))$"
-                }
-            });
+            // enhancedTableColumns.unshift({
+            //     columnName: 'date',
+            //     columnDescription: `The date of the event in YYYY-MM-DD format. Can be null if no date is available.`,
+            //     columnDataDefinition: {
+            //         type: ['string', 'null'],
+            //         format: 'date',
+            //         pattern: "^(?:\\d{4})-(?:(0[1-9]|1[0-2]))-(?:(0[1-9]|[12]\\d|3[01]))$"
+            //     }
+            // });
 
             // Build JSON schema for structured output
             const fieldDefinitions: Record<string, any> = {};

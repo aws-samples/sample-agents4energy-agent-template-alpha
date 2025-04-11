@@ -38,7 +38,7 @@ const WriteFileToolComponent: React.FC<WriteFileToolComponentProps> = ({ content
               size="small"
               onClick={() => {
                 const encodedPath = fileData.targetPath.split('/').map((segment: string) => encodeURIComponent(segment)).join('/');
-                window.open(`/files/${basePath}/${encodedPath}`, '_blank');
+                window.open(`/file/${basePath}/${encodedPath}`, '_blank');
               }}
               sx={{
                 opacity: 0.7,

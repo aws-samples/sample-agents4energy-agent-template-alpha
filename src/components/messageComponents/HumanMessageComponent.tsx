@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Theme } from '@mui/material/styles';
-import { Button, CircularProgress, Typography } from '@mui/material';
+import { Button, CircularProgress, Typography, Box } from '@mui/material';
 import ReplayIcon from '@mui/icons-material/Replay';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Message } from '@/../utils/types';
+import CopyButton from './CopyButton';
 
 interface HumanMessageComponentProps {
   message: Message;
@@ -60,75 +61,77 @@ const HumanMessageComponent: React.FC<HumanMessageComponentProps> = ({
           </ReactMarkdown>
         </div>
       </div>
-      {onRegenerateMessage && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Button 
-            size="small"
-            onClick={async () => {
-              // Set deleting state to true when retry is clicked
-              setIsDeletingMessages(true);
-              setDeletionProgress(0);
-              
-              try {
-                // Start with initial progress to show something is happening
-                setDeletionProgress(10);
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: theme.spacing(0.5) }}>
+        <CopyButton text={message.content?.text || ''} />
+        {onRegenerateMessage && (
+          <>
+            <Button 
+              size="small"
+              onClick={async () => {
+                // Set deleting state to true when retry is clicked
+                setIsDeletingMessages(true);
+                setDeletionProgress(0);
                 
-                // Call the regenerate function and wait for completion
-                const success = await onRegenerateMessage(
-                  message.id || '', 
-                  message.content?.text || ''
-                );
-                
-                // Show completion progress only if successful
-                if (success) {
-                  setDeletionProgress(100);
+                try {
+                  // Start with initial progress to show something is happening
+                  setDeletionProgress(10);
                   
-                  // Reset states after a brief delay to show the 100%
-                  setTimeout(() => {
+                  // Call the regenerate function and wait for completion
+                  const success = await onRegenerateMessage(
+                    message.id || '', 
+                    message.content?.text || ''
+                  );
+                  
+                  // Show completion progress only if successful
+                  if (success) {
+                    setDeletionProgress(100);
+                    
+                    // Reset states after a brief delay to show the 100%
+                    setTimeout(() => {
+                      setIsDeletingMessages(false);
+                      setDeletionProgress(0);
+                    }, 500);
+                  } else {
+                    // If not successful, reset states immediately
                     setIsDeletingMessages(false);
                     setDeletionProgress(0);
-                  }, 500);
-                } else {
-                  // If not successful, reset states immediately
+                  }
+                } catch (error) {
+                  console.error('Error during message regeneration:', error);
+                  // Reset states on error
                   setIsDeletingMessages(false);
                   setDeletionProgress(0);
                 }
-              } catch (error) {
-                console.error('Error during message regeneration:', error);
-                // Reset states on error
-                setIsDeletingMessages(false);
-                setDeletionProgress(0);
-              }
-            }}
-            startIcon={<ReplayIcon fontSize="small" />}
-            disabled={isDeletingMessages}
-            sx={{ 
-              mt: 0.5, 
-              fontSize: '0.75rem',
-              color: isDeletingMessages ? theme.palette.grey[400] : theme.palette.grey[700],
-              '&:hover': {
-                backgroundColor: theme.palette.grey[100]
-              }
-            }}
-          >
-            {isDeletingMessages ? 'Deleting...' : 'Retry'}
-          </Button>
-          
-          {isDeletingMessages && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <CircularProgress 
-                size={16} 
-                thickness={5}
-                variant="determinate" 
-                value={deletionProgress} 
-              />
-              <Typography variant="caption" color="text.secondary">
-                {deletionProgress}%
-              </Typography>
-            </div>
-          )}
-        </div>
-      )}
+              }}
+              startIcon={<ReplayIcon fontSize="small" />}
+              disabled={isDeletingMessages}
+              sx={{ 
+                fontSize: '0.75rem',
+                color: isDeletingMessages ? theme.palette.grey[400] : theme.palette.grey[700],
+                '&:hover': {
+                  backgroundColor: theme.palette.grey[100]
+                }
+              }}
+            >
+              {isDeletingMessages ? 'Deleting...' : 'Retry'}
+            </Button>
+            
+            {isDeletingMessages && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <CircularProgress 
+                  size={16} 
+                  thickness={5}
+                  variant="determinate" 
+                  value={deletionProgress} 
+                />
+                <Typography variant="caption" color="text.secondary">
+                  {deletionProgress}%
+                </Typography>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 };

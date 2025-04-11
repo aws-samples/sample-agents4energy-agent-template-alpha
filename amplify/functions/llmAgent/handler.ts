@@ -10,7 +10,7 @@ import { DuckDuckGoSearch } from "@langchain/community/tools/duckduckgo_search";
 
 import { publishResponseStreamChunk } from "../graphql/mutations";
 
-import { setChatSessionId } from "../tools/toolUtils";
+import { setChatSessionId, setOrigin } from "../tools/toolUtils";
 import { s3FileManagementTools } from "../tools/s3ToolBox";
 import { userInputTool } from "../tools/userInputTool";
 import { pysparkTool } from "../tools/athenaPySparkTool";
@@ -42,6 +42,11 @@ export const handler: Schema["invokeAgent"]["functionHandler"] = async (event, c
 
         // Set the chat session ID for use by the S3 tools
         setChatSessionId(event.arguments.chatSessionId);
+
+        // Set the origin from the request headers
+        if (event.request?.headers?.origin) {
+            setOrigin(event.request.headers.origin);
+        }
 
         // Define the S3 prefix for this chat session (needed for env vars)
         const bucketName = process.env.STORAGE_BUCKET_NAME;
@@ -87,7 +92,7 @@ If you don't have the access to the information you need, generate the required 
 Use markdown formatting for your responses (like **bold**, *italic*, ## headings, etc.), but DO NOT wrap your response in markdown code blocks.
 Today's date is ${new Date().toLocaleDateString()}.
 
-Look in the global/notes directory for guidance on how to respond to the user.
+List the files in the global/notes directory for guidance on how to respond to the user.
 Create intermediate files to store your planned actions, thoughts and work. Use the writeFile tool to create these files. 
 Store them in the 'intermediateFiles' directory. After you complete a planned step, record the results in the file.
 
@@ -100,8 +105,9 @@ When creating plots:
 - When asked to plot data from a table, look for the specific table mentioned and use that data
 
 When creating reports:
-- Start the report with a summary which includes the recommend action. Then have sections which justify the action.
+- Start the report with a summary which includes the recommended action. Then have sections which justify the action.
 - Always include links to the source documents or data tables in the report.
+- Use iframes to display plots and other files in the report.
 - Use the writeFile tool to create the first draft of the report file
 - Use html formatting for the report
 - Put reports in the 'reports' directory
@@ -162,6 +168,7 @@ When using the textToTableTool:
             input,
             {
                 version: "v2",
+                recursionLimit: 100 
             }
         );
 
