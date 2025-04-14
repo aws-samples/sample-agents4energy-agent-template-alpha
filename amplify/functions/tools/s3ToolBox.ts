@@ -623,8 +623,11 @@ export const writeFile = tool(
                 let match;
                 while ((match = iframeRegex.exec(content)) !== null) {
                     const iframeSrc = match[1];
-                    if (!iframeSrc.toLowerCase().endsWith('.html')) {
-                        throw new Error(`Invalid iframe usage: src="${iframeSrc}". Iframes can only be used with HTML files.`);
+                    // Allow HTML and image files in iframes
+                    const allowedExtensions = ['.html', '.png', '.jpg', '.jpeg', '.gif', '.svg'];
+                    const fileExtension = path.extname(iframeSrc).toLowerCase();
+                    if (!allowedExtensions.includes(fileExtension)) {
+                        throw new Error(`Invalid iframe usage: src="${iframeSrc}". Iframes can only be used with HTML or image files.`);
                     }
                 }
                 

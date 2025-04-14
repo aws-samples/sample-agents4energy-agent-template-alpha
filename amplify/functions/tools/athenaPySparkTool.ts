@@ -580,15 +580,16 @@ async function isSessionActive(athenaClient: AthenaClient, sessionId: string): P
 
 // Schema for the PySpark execution tool
 const pysparkToolSchema = z.object({
-    code: z.string().optional().describe("PySpark code to execute. The 'spark' session is already initialized."),
+    code: z.string().optional().describe("PySpark code to execute. If provided, this code will be saved to scriptPath before execution. The 'spark' session is already initialized."),
     timeout: z.number().optional().default(300).describe("Timeout in seconds for the execution"),
     description: z.string().optional().describe("Optional description for the execution"),
-    scriptPath: z.string().describe("Path for the script file to load or save to. Should start with 'scripts/'")
+    scriptPath: z.string().describe("Path for the script file. If code is provided, the script will be saved here. If code is not provided, an existing script at this path will be executed. Must start with 'scripts/'")
 });
 
-export const pysparkTool = tool(
+export const pysparkTool = (props: {additionalSetupScript?: string, additionalToolDescription?: string}) => tool(
     async (params) => {
         const { code, scriptPath, timeout = 300, description = "PySpark execution" } = params;
+        const { additionalSetupScript = '' } = props;
         let progressIndex = 0;
         const chatSessionId = getChatSessionId();
         let sessionId: string | null = null;
@@ -603,13 +604,13 @@ export const pysparkTool = tool(
                 codeToExecute = getPreCodeExecutionScript(code) + code + getPostCodeExecutionScript();
                 await writeFile.invoke({
                     filename: scriptPath,
-                    content: getSessionSetupScript() + codeToExecute
+                    content: getSessionSetupScript() + additionalSetupScript + '\n' + codeToExecute
                 });
                 console.log(`Saved code to file: ${scriptPath}`);
             } else {
                 // Load the code from a file
                 const scriptContent = await readS3File(scriptPath);
-                codeToExecute =  getPreCodeExecutionScript(scriptContent) + scriptContent + getPostCodeExecutionScript();;
+                codeToExecute =  getPreCodeExecutionScript(scriptContent) + scriptContent; //Saved scripts will always have the post execution script
                 console.log(`Loaded code from file: ${scriptPath}`);
             }
 
@@ -743,10 +744,10 @@ export const pysparkTool = tool(
                 await publishProgress(chatSessionId, `✅ Session ready! Setting up environment... (Session ID: ${sessionId})`, progressIndex++);
 
                 // Setup the session with functions relevant to the user's chat session
-                const setS3PrefixResult = await executeCalculation(
+                const sessionSetupResult = await executeCalculation(
                     athenaClient,
                     sessionId,
-                    getSessionSetupScript(),
+                    getSessionSetupScript() + additionalSetupScript   ,
                     "Session Setup",
                     chatSessionId,
                     progressIndex,
@@ -759,7 +760,7 @@ export const pysparkTool = tool(
                     }
                 );
 
-                progressIndex = setS3PrefixResult.newProgressIndex;
+                progressIndex = sessionSetupResult.newProgressIndex;
             }
 
             await publishProgress(chatSessionId, `✅ Submitting your PySpark code for execution... (Session ID: ${sessionId})`, progressIndex++);
@@ -851,6 +852,7 @@ Important notes:
 - The STDOUT and STDERR are captured and returned in the response
 - The execution results will be returned directly in the response
 - When converting strings to dates, handle errors by using: pd.to_datetime(events_df['EventDate'], errors='coerce')
+- Don't use this tool to write reports. Print data requried for the report to the console.
 
 Example usage:
 - Perform data analysis using PySpark
@@ -926,7 +928,7 @@ pytz==2022.1
 scikit-learn==1.1.1
 scipy==1.8.1
 pyarrow==9.0.0
-`,
+` + (props.additionalToolDescription || ''),
         schema: pysparkToolSchema,
     }
 );

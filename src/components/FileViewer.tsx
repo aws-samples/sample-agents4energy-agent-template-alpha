@@ -44,8 +44,8 @@ export default function FileViewer({ s3Key, onUrlChange }: FileViewerProps) {
         // If it's a text-based file or CSV/XML, display as text
         if ((!s3KeyDecoded.toLowerCase().endsWith('.html') && contentType?.startsWith('text/')) || 
             contentType === 'application/octet-stream' ||
-            s3KeyDecoded.toLowerCase().endsWith('.csv') || 
-            s3KeyDecoded.toLowerCase().endsWith('.xml')) {
+            ['csv', 'xml', 'json', 'txt', 'md'].includes(s3KeyDecoded.split('.').pop()?.toLowerCase() || '')
+          ) {
           const text = await fileResponse.text();
           setFileContent(text);
         }
