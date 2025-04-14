@@ -1,11 +1,7 @@
-import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { NextResponse } from 'next/server';
 import outputs from '@/../amplify_outputs.json';
-
-const s3Client = new S3Client({
-  region: outputs.storage.aws_region,
-});
+import { getUrl } from 'aws-amplify/storage';
+import { Amplify } from 'aws-amplify';
 
 interface PageProps {
   params: {
@@ -16,19 +12,13 @@ interface PageProps {
 export async function GET(request: Request, { params }: PageProps) {
   try {
     const s3Key = params.s3Key.join('/');
-    const bucket = outputs.storage.bucket_name;
+    const s3KeyDecoded = s3Key.split('/').map((item: string) => decodeURIComponent(item)).join('/');
 
-    if (!bucket) {
-      return NextResponse.json({ error: 'S3 bucket not configured' }, { status: 500 });
-    }
+    // Configure Amplify with storage configuration
+    Amplify.configure(outputs, { ssr: true })
 
-    const command = new GetObjectCommand({
-      Bucket: bucket,
-      Key: s3Key,
-    });
-
-    // Generate a pre-signed URL that's valid for 5 minutes
-    const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 300 });
+    // Get a signed URL using Amplify Storage
+    const { url: signedUrl } = await getUrl({ path: s3KeyDecoded });
 
     // Redirect to the signed URL for direct file access
     return NextResponse.redirect(signedUrl);
