@@ -74,11 +74,16 @@ export const handler: Schema["invokeAgent"]["functionHandler"] = async (event, c
             new Calculator(),
             new DuckDuckGoSearch({maxResults: 3}),
             userInputTool,
+<<<<<<< HEAD
             pysparkTool({
                 additionalToolDescription: `
                 When fitting a hyperbolic decline curve to well production data:
                 - You MUST weight the most recent points more x20 more heavily when fitting the curve.
             `}),
+=======
+            // plotDataTool,
+            pysparkTool,
+>>>>>>> main
             webBrowserTool,
             ...s3FileManagementTools,
             renderAssetTool
@@ -109,11 +114,16 @@ When creating plots:
 - When asked to plot data from a table, look for the specific table mentioned and use that data
 
 When creating reports:
+<<<<<<< HEAD
 - Start the report with a summary which includes:
     - The recommended action.
     - Financial metrics describing any recommended actions.
 - Include sections descirbing any analysis performed, and a list of the source documents or data tables used in the analysis.
 - Use iframes to display plots and other files in the report.
+=======
+- Start the report with a summary which includes the recommend action. Then have sections which justify the action.
+- Include source information for all included data.
+>>>>>>> main
 - Use the writeFile tool to create the first draft of the report file
 - Use html formatting for the report
 - Put reports in the 'reports' directory
