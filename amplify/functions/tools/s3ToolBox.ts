@@ -651,7 +651,6 @@ export const writeFile = tool(
         name: "writeFile",
         description: `
         Writes content to a new file or overwrites an existing file in session storage. 
-<<<<<<< HEAD
         For HTML files:
         1. Automatically processes document links:
            - Use paths relative to the workspace root (no ../ needed)
@@ -676,18 +675,6 @@ export const writeFile = tool(
            - Set appropriate width and height attributes to control the iframe size
            - Use frameborder="0" for seamless integration
         
-=======
-        For HTML files, supports embedding other files using the special comment syntax:
-        
-        Example of correct embedding:
-        \`\`\`html
-        <h2>Interactive Visualization</h2>
-        <!-- embed:plots/time_series_plot.html -->
-        \`\`\`
-        
-        The embed comment will be replaced with the actual content of the referenced file.
-        Do NOT use iframes or other methods - only use the <!-- embed:filename --> syntax.
->>>>>>> main
         Global files (global/filename) are read-only and cannot be written to.
         `,
         schema: writeFileSchema,

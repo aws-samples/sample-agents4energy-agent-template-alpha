@@ -196,12 +196,8 @@ backend.llmAgentFunction.addEnvironment(
 backend.llmAgentFunction.addEnvironment(
   'ATHENA_WORKGROUP_NAME',
   athenaWorkgroup.name
-<<<<<<< HEAD
 );
 
 new PdfToYamlConstruct(backend.stack, 'PdfToYamlConstruct', {
   s3Bucket: backend.storage.resources.bucket
 });
-=======
-);
->>>>>>> main

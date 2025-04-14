@@ -74,16 +74,11 @@ export const handler: Schema["invokeAgent"]["functionHandler"] = async (event, c
             new Calculator(),
             new DuckDuckGoSearch({maxResults: 3}),
             userInputTool,
-<<<<<<< HEAD
             pysparkTool({
                 additionalToolDescription: `
                 When fitting a hyperbolic decline curve to well production data:
                 - You MUST weight the most recent points more x20 more heavily when fitting the curve.
             `}),
-=======
-            // plotDataTool,
-            pysparkTool,
->>>>>>> main
             webBrowserTool,
             ...s3FileManagementTools,
             renderAssetTool
