@@ -103,9 +103,9 @@ export const sendMessage = async (props: {
   const { data: newMessageData } = await amplifyClient.models.ChatMessage.create(props.newMessage)
 
   if (!props.newMessage.content || !props.newMessage.content.text) throw new Error("content.text is missing")
-  const invokeResponse = await amplifyClient.queries.invokeAgent({
+  const invokeResponse = await amplifyClient.queries.invokeReActAgent({
     chatSessionId: props.chatSessionId,
-    userInput: props.newMessage.content.text
+    // userInput: props.newMessage.content.text
   })
 
   console.log('invokeResponse: ', invokeResponse)

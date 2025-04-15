@@ -860,7 +860,7 @@ Example usage:
 - Run data transformations and aggregations
 - Generate visualizations from data
 
-Simple example:
+Load and save data example:
 \`\`\`python
 # Load a csv file from S3
 df_pd = pd.read_csv('data/example.csv')
@@ -897,24 +897,14 @@ import plotly.io as pio
 x = np.linspace(0, 10, 100)
 y = np.sin(x)
 
-# Create a Plotly figure
+# Create a Plotly figure. Never give the figure height or width so the content can scale based on the screen size.
 fig = go.Figure(data=go.Scatter(x=x, y=y, mode='lines'))
 fig.update_layout(title='Sine Wave', 
                 xaxis_title='X Axis', 
                 yaxis_title='Y Axis')
 
-# Export to HTML
-html_str = pio.to_html(fig, full_html=False)
-
 # Write the HTML to a file
-with open('sine_wave.html', 'w') as f:
-  f.write(html_str)
-
-# upload the plot to S3
-uploadFileToS3('sine_wave.html', 'plots/sine_wave.html')
-
-# or save the plot and it will be uploaded to S3
-fig.write_html('plots/sine_wave.html')
+fig.write_html('plots/lng_time_series.html')
 
 print("HTML plot exported successfully!")
 \`\`\`

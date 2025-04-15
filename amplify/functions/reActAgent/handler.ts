@@ -29,11 +29,10 @@ const cleanupEventEmitter = (emitter: EventEmitter) => {
     emitter.removeAllListeners();
 };
 
-export const handler: Schema["invokeAgent"]["functionHandler"] = async (event, context) => {
-    console.log('event:\n', JSON.stringify(event, null, 2))
+const graphQLFieldName = 'invokeReActAgent'
 
-    // Track resources that need cleanup
-    const resources: { cleanup: () => void }[] = [];
+export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (event, context) => {
+    console.log('event:\n', JSON.stringify(event, null, 2))
 
     try {
         if (event.arguments.chatSessionId === null) throw new Error("chatSessionId is required");
@@ -53,7 +52,6 @@ export const handler: Schema["invokeAgent"]["functionHandler"] = async (event, c
         if (!bucketName) throw new Error("STORAGE_BUCKET_NAME is not set");
 
         const amplifyClient = getConfiguredAmplifyClient();
-        resources.push({ cleanup: () => { /* Amplify client cleanup if needed */ } });
 
         // This function includes validation to prevent "The text field in the ContentBlock object is blank" errors
         // by ensuring no message content is empty when sent to Bedrock
@@ -63,12 +61,6 @@ export const handler: Schema["invokeAgent"]["functionHandler"] = async (event, c
             model: process.env.AGENT_MODEL_ID,
             // temperature: 0
         });
-        resources.push({ cleanup: () => { 
-            // Close any open connections
-            if ((agentModel as any)._client) {
-                (agentModel as any)._client.destroy();
-            }
-        }});
 
         const agentTools = [
             new Calculator(),
@@ -109,16 +101,11 @@ When creating plots:
 - When asked to plot data from a table, look for the specific table mentioned and use that data
 
 When creating reports:
-<<<<<<< HEAD
 - Start the report with a summary which includes:
     - The recommended action.
     - Financial metrics describing any recommended actions.
 - Include sections descirbing any analysis performed, and a list of the source documents or data tables used in the analysis.
 - Use iframes to display plots and other files in the report.
-=======
-- Start the report with a summary which includes the recommend action. Then have sections which justify the action.
-- Include source information for all included data.
->>>>>>> main
 - Use the writeFile tool to create the first draft of the report file
 - Use html formatting for the report
 - Put reports in the 'reports' directory
@@ -158,21 +145,15 @@ When using the textToTableTool:
 
         `//.replace(/^\s+/gm, '') //This trims the whitespace from the beginning of each line
 
-        // If the chatSessionMessages ends with a human message, remove it.
-        if (chatSessionMessages.length > 0 &&
-            chatSessionMessages[chatSessionMessages.length - 1] instanceof HumanMessage) {
-            chatSessionMessages.pop();
-        }
-
         const input = {
             messages: [
                 new SystemMessage({
                     content: systemMessageContent
                 }),
                 ...chatSessionMessages,
-                new HumanMessage({
-                    content: event.arguments.userInput || " " // Ensure user input is never empty
-                })
+                // new HumanMessage({
+                //     content: event.arguments.userInput || " " // Ensure user input is never empty
+                // })
             ].filter((message): message is BaseMessage => message !== undefined)
         }
 
@@ -264,6 +245,7 @@ When using the textToTableTool:
 
                                 await publishMessage({
                                     chatSessionId: event.arguments.chatSessionId,
+                                    fieldName: graphQLFieldName,
                                     owner: event.identity.sub,
                                     message: streamChunk
                                 })
@@ -280,15 +262,6 @@ When using the textToTableTool:
         console.error("Error responding to user:", JSON.stringify(error, null, 2));
         throw error;
     } finally {
-        // Clean up all resources
-        for (const resource of resources) {
-            try {
-                resource.cleanup();
-            } catch (cleanupError) {
-                console.error("Error during cleanup:", cleanupError);
-            }
-        }
-        
         // Clean up any remaining event listeners
         if (process.eventNames().length > 0) {
             process.removeAllListeners();

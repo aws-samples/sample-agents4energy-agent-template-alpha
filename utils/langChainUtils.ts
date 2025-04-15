@@ -53,6 +53,7 @@ export const publishMessage = async (props: PublishMessageCommandInput) => {
 
     let input: APITypes.CreateChatMessageInput = {
         chatSessionId: props.chatSessionId,
+        chatSessionIdUnderscoreFieldName: props.chatSessionId + "_" + props.fieldName,
         content: {
             text: messageTextContent || " "
         },

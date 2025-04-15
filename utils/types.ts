@@ -16,6 +16,7 @@ export type Message = (
 
 export type PublishMessageCommandInput = {
     chatSessionId: string,
+    fieldName: string,
     owner: string,
     message: HumanMessage | AIMessage | ToolMessage,
     responseComplete?: boolean,

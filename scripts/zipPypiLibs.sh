@@ -25,8 +25,13 @@ RUN apt-get update && apt-get install -y zip unzip build-essential
 # Create directory structure
 RUN mkdir -p /tmp/unpacked
 
-# Install fsspec with dependencies
-RUN pip install fsspec s3fs boto3 --target=/tmp/unpacked
+# Install lasio without dependencies, then manually install required dependencies except numpy
+RUN pip install --no-deps lasio --target=/tmp/unpacked 
+    # && \
+    # pip install --no-deps pandas --target=/tmp/unpacked && \
+    # pip install --no-deps python-dateutil --target=/tmp/unpacked && \
+    # pip install --no-deps pytz --target=/tmp/unpacked && \
+    # pip install --no-deps six --target=/tmp/unpacked
 
 # Zip the package
 RUN cd /tmp/unpacked && \

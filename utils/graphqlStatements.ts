@@ -15,6 +15,7 @@ export const createChatMessage = /* GraphQL */ `mutation CreateChatMessage(
 ) {
   createChatMessage(condition: $condition, input: $input) {
     chatSessionId
+    chatSessionIdUnderscoreFieldName
     content {
       text
     }

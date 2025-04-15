@@ -22,6 +22,7 @@ export const createChatMessage = /* GraphQL */ `mutation CreateChatMessage(
       __typename
     }
     chatSessionId
+    chatSessionIdUnderscoreFieldName
     content {
       text
       __typename
@@ -56,6 +57,13 @@ export const createChatSession = /* GraphQL */ `mutation CreateChatSession(
     name
     owner
     updatedAt
+    workSteps {
+      description
+      name
+      result
+      status
+      __typename
+    }
     __typename
   }
 }
@@ -85,6 +93,34 @@ export const createDummyModelToAddIamDirective = /* GraphQL */ `mutation CreateD
   APITypes.CreateDummyModelToAddIamDirectiveMutationVariables,
   APITypes.CreateDummyModelToAddIamDirectiveMutation
 >;
+export const createProjectProposal = /* GraphQL */ `mutation CreateProjectProposal(
+  $condition: ModelProjectProposalConditionInput
+  $input: CreateProjectProposalInput!
+) {
+  createProjectProposal(condition: $condition, input: $input) {
+    createdAt
+    description
+    financial {
+      NPV10
+      cost
+      discountedRevenue
+      risk
+      __typename
+    }
+    id
+    name
+    owner
+    procedure
+    result
+    status
+    updatedAt
+    __typename
+  }
+}
+` as GeneratedMutation<
+  APITypes.CreateProjectProposalMutationVariables,
+  APITypes.CreateProjectProposalMutation
+>;
 export const deleteChatMessage = /* GraphQL */ `mutation DeleteChatMessage(
   $condition: ModelChatMessageConditionInput
   $input: DeleteChatMessageInput!
@@ -99,6 +135,7 @@ export const deleteChatMessage = /* GraphQL */ `mutation DeleteChatMessage(
       __typename
     }
     chatSessionId
+    chatSessionIdUnderscoreFieldName
     content {
       text
       __typename
@@ -133,6 +170,13 @@ export const deleteChatSession = /* GraphQL */ `mutation DeleteChatSession(
     name
     owner
     updatedAt
+    workSteps {
+      description
+      name
+      result
+      status
+      __typename
+    }
     __typename
   }
 }
@@ -161,6 +205,34 @@ export const deleteDummyModelToAddIamDirective = /* GraphQL */ `mutation DeleteD
 ` as GeneratedMutation<
   APITypes.DeleteDummyModelToAddIamDirectiveMutationVariables,
   APITypes.DeleteDummyModelToAddIamDirectiveMutation
+>;
+export const deleteProjectProposal = /* GraphQL */ `mutation DeleteProjectProposal(
+  $condition: ModelProjectProposalConditionInput
+  $input: DeleteProjectProposalInput!
+) {
+  deleteProjectProposal(condition: $condition, input: $input) {
+    createdAt
+    description
+    financial {
+      NPV10
+      cost
+      discountedRevenue
+      risk
+      __typename
+    }
+    id
+    name
+    owner
+    procedure
+    result
+    status
+    updatedAt
+    __typename
+  }
+}
+` as GeneratedMutation<
+  APITypes.DeleteProjectProposalMutationVariables,
+  APITypes.DeleteProjectProposalMutation
 >;
 export const publishResponseStreamChunk = /* GraphQL */ `mutation PublishResponseStreamChunk(
   $chatSessionId: String!
@@ -196,6 +268,7 @@ export const updateChatMessage = /* GraphQL */ `mutation UpdateChatMessage(
       __typename
     }
     chatSessionId
+    chatSessionIdUnderscoreFieldName
     content {
       text
       __typename
@@ -230,6 +303,13 @@ export const updateChatSession = /* GraphQL */ `mutation UpdateChatSession(
     name
     owner
     updatedAt
+    workSteps {
+      description
+      name
+      result
+      status
+      __typename
+    }
     __typename
   }
 }
@@ -258,4 +338,32 @@ export const updateDummyModelToAddIamDirective = /* GraphQL */ `mutation UpdateD
 ` as GeneratedMutation<
   APITypes.UpdateDummyModelToAddIamDirectiveMutationVariables,
   APITypes.UpdateDummyModelToAddIamDirectiveMutation
+>;
+export const updateProjectProposal = /* GraphQL */ `mutation UpdateProjectProposal(
+  $condition: ModelProjectProposalConditionInput
+  $input: UpdateProjectProposalInput!
+) {
+  updateProjectProposal(condition: $condition, input: $input) {
+    createdAt
+    description
+    financial {
+      NPV10
+      cost
+      discountedRevenue
+      risk
+      __typename
+    }
+    id
+    name
+    owner
+    procedure
+    result
+    status
+    updatedAt
+    __typename
+  }
+}
+` as GeneratedMutation<
+  APITypes.UpdateProjectProposalMutationVariables,
+  APITypes.UpdateProjectProposalMutation
 >;

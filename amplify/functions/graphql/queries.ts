@@ -19,6 +19,7 @@ export const getChatMessage = /* GraphQL */ `query GetChatMessage($id: ID!) {
       __typename
     }
     chatSessionId
+    chatSessionIdUnderscoreFieldName
     content {
       text
       __typename
@@ -50,6 +51,13 @@ export const getChatSession = /* GraphQL */ `query GetChatSession($id: ID!) {
     name
     owner
     updatedAt
+    workSteps {
+      description
+      name
+      result
+      status
+      __typename
+    }
     __typename
   }
 }
@@ -75,6 +83,31 @@ export const getDummyModelToAddIamDirective = /* GraphQL */ `query GetDummyModel
 ` as GeneratedQuery<
   APITypes.GetDummyModelToAddIamDirectiveQueryVariables,
   APITypes.GetDummyModelToAddIamDirectiveQuery
+>;
+export const getProjectProposal = /* GraphQL */ `query GetProjectProposal($id: ID!) {
+  getProjectProposal(id: $id) {
+    createdAt
+    description
+    financial {
+      NPV10
+      cost
+      discountedRevenue
+      risk
+      __typename
+    }
+    id
+    name
+    owner
+    procedure
+    result
+    status
+    updatedAt
+    __typename
+  }
+}
+` as GeneratedQuery<
+  APITypes.GetProjectProposalQueryVariables,
+  APITypes.GetProjectProposalQuery
 >;
 export const invokeAgent = /* GraphQL */ `query InvokeAgent($chatSessionId: ID!, $userInput: String!) {
   invokeAgent(chatSessionId: $chatSessionId, userInput: $userInput) {
@@ -104,6 +137,7 @@ export const listChatMessageByChatSessionIdAndCreatedAt = /* GraphQL */ `query L
   ) {
     items {
       chatSessionId
+      chatSessionIdUnderscoreFieldName
       createdAt
       id
       owner
@@ -123,6 +157,44 @@ export const listChatMessageByChatSessionIdAndCreatedAt = /* GraphQL */ `query L
   APITypes.ListChatMessageByChatSessionIdAndCreatedAtQueryVariables,
   APITypes.ListChatMessageByChatSessionIdAndCreatedAtQuery
 >;
+export const listChatMessageByChatSessionIdUnderscoreFieldNameAndCreatedAt = /* GraphQL */ `query ListChatMessageByChatSessionIdUnderscoreFieldNameAndCreatedAt(
+  $chatSessionIdUnderscoreFieldName: String!
+  $createdAt: ModelStringKeyConditionInput
+  $filter: ModelChatMessageFilterInput
+  $limit: Int
+  $nextToken: String
+  $sortDirection: ModelSortDirection
+) {
+  listChatMessageByChatSessionIdUnderscoreFieldNameAndCreatedAt(
+    chatSessionIdUnderscoreFieldName: $chatSessionIdUnderscoreFieldName
+    createdAt: $createdAt
+    filter: $filter
+    limit: $limit
+    nextToken: $nextToken
+    sortDirection: $sortDirection
+  ) {
+    items {
+      chatSessionId
+      chatSessionIdUnderscoreFieldName
+      createdAt
+      id
+      owner
+      responseComplete
+      role
+      toolCallId
+      toolCalls
+      toolName
+      updatedAt
+      __typename
+    }
+    nextToken
+    __typename
+  }
+}
+` as GeneratedQuery<
+  APITypes.ListChatMessageByChatSessionIdUnderscoreFieldNameAndCreatedAtQueryVariables,
+  APITypes.ListChatMessageByChatSessionIdUnderscoreFieldNameAndCreatedAtQuery
+>;
 export const listChatMessages = /* GraphQL */ `query ListChatMessages(
   $filter: ModelChatMessageFilterInput
   $limit: Int
@@ -131,6 +203,7 @@ export const listChatMessages = /* GraphQL */ `query ListChatMessages(
   listChatMessages(filter: $filter, limit: $limit, nextToken: $nextToken) {
     items {
       chatSessionId
+      chatSessionIdUnderscoreFieldName
       createdAt
       id
       owner
@@ -196,4 +269,30 @@ export const listDummyModelToAddIamDirectives = /* GraphQL */ `query ListDummyMo
 ` as GeneratedQuery<
   APITypes.ListDummyModelToAddIamDirectivesQueryVariables,
   APITypes.ListDummyModelToAddIamDirectivesQuery
+>;
+export const listProjectProposals = /* GraphQL */ `query ListProjectProposals(
+  $filter: ModelProjectProposalFilterInput
+  $limit: Int
+  $nextToken: String
+) {
+  listProjectProposals(filter: $filter, limit: $limit, nextToken: $nextToken) {
+    items {
+      createdAt
+      description
+      id
+      name
+      owner
+      procedure
+      result
+      status
+      updatedAt
+      __typename
+    }
+    nextToken
+    __typename
+  }
+}
+` as GeneratedQuery<
+  APITypes.ListProjectProposalsQueryVariables,
+  APITypes.ListProjectProposalsQuery
 >;

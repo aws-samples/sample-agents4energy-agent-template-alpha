@@ -1,11 +1,10 @@
 import { defineBackend } from '@aws-amplify/backend';
 import { auth } from './auth/resource';
-import { data, llmAgentFunction } from './data/resource';
+import { data, reActAgentFunction } from './data/resource';
 import { storage } from './storage/resource';
 import cdk, {
   aws_iam as iam,
-  aws_athena as athena,
-  aws_s3 as s3
+  aws_athena as athena
 } from 'aws-cdk-lib'
 import { PdfToYamlConstruct } from './custom/pdfToYamlConstruct';
 
@@ -13,7 +12,7 @@ const backend = defineBackend({
   auth,
   data,
   storage,
-  llmAgentFunction
+  reActAgentFunction
 });
 
 const stackUUID = cdk.Names.uniqueResourceName(
@@ -129,7 +128,7 @@ backend.addOutput({ custom: { athenaWorkgroupName: athenaWorkgroup.name } });
 
 //Add permissions to the lambda functions to invoke the model
 [
-  backend.llmAgentFunction.resources.lambda,
+  backend.reActAgentFunction.resources.lambda,
 ].forEach((resource) => {
   resource.addToRolePolicy(
     new iam.PolicyStatement({
@@ -143,7 +142,7 @@ backend.addOutput({ custom: { athenaWorkgroupName: athenaWorkgroup.name } });
 })
 
 // Add Athena permissions to the Lambda
-backend.llmAgentFunction.resources.lambda.addToRolePolicy(
+backend.reActAgentFunction.resources.lambda.addToRolePolicy(
   new iam.PolicyStatement({
     actions: [
       "athena:StartSession",
@@ -167,14 +166,14 @@ backend.llmAgentFunction.resources.lambda.addToRolePolicy(
 );
 
 // Also grant access to the Athena execution role
-backend.llmAgentFunction.resources.lambda.addToRolePolicy(
+backend.reActAgentFunction.resources.lambda.addToRolePolicy(
   new iam.PolicyStatement({
     actions: ["iam:PassRole"],
     resources: [athenaExecutionRole.roleArn],
   })
 );
 
-backend.llmAgentFunction.resources.lambda.addToRolePolicy(
+backend.reActAgentFunction.resources.lambda.addToRolePolicy(
   new iam.PolicyStatement({
     actions: [
       "s3:ListBucket",
@@ -188,12 +187,12 @@ backend.llmAgentFunction.resources.lambda.addToRolePolicy(
   })
 );
 
-backend.llmAgentFunction.addEnvironment(
+backend.reActAgentFunction.addEnvironment(
   'STORAGE_BUCKET_NAME',
   backend.storage.resources.bucket.bucketName
 );
 
-backend.llmAgentFunction.addEnvironment(
+backend.reActAgentFunction.addEnvironment(
   'ATHENA_WORKGROUP_NAME',
   athenaWorkgroup.name
 );

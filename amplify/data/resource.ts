@@ -13,14 +13,14 @@ import { type ClientSchema, a, defineData, defineFunction } from '@aws-amplify/b
 //   }
 // });
 
-export const llmAgentFunction = defineFunction({
-  name: 'llmAgent',
-  entry: '../functions/llmAgent/handler.ts',
+export const reActAgentFunction = defineFunction({
+  name: 'reActAgent',
+  entry: '../functions/reActAgent/handler.ts',
   timeoutSeconds: 900,
   environment: {
     // AGENT_MODEL_ID: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
     AGENT_MODEL_ID: 'us.anthropic.claude-3-5-haiku-20241022-v1:0',
-    
+
     // MODEL_ID: 'us.anthropic.claude-3-sonnet-20240229-v1:0',
     // MODEL_ID: 'us.amazon.nova-pro-v1:0'
     // TEXT_TO_TABLE_MODEL_ID: 'us.amazon.nova-pro-v1:0'
@@ -31,9 +31,34 @@ export const llmAgentFunction = defineFunction({
 });
 
 export const schema = a.schema({
+  ProjectProposal: a.model({
+    name: a.string(),
+    description: a.string(),
+    status: a.enum(["pending", "in_progress", "completed", "failed"]),
+    result: a.string(),
+    procedure: a.string(),
+    financial: a.customType({
+      discountedRevenue: a.float(),
+      cost: a.float(),
+      NPV10: a.float(),
+      risk: a.float(),
+      incrimentalGasRateMCFD: a.float(),
+      incirmentalOilRateBOPD: a.float(),
+    })
+  })
+    .authorization((allow) => [allow.owner(), allow.authenticated()]),
+
+  WorkStep: a.customType({
+    name: a.string(),
+    description: a.string(),
+    status: a.enum(["pending", "in_progress", "completed", "failed"]),
+    result: a.string()
+  }),
+
   ChatSession: a.model({
     name: a.string(),
     messages: a.hasMany("ChatMessage", "chatSessionId"),
+    workSteps: a.ref("WorkStep").array(),
   })
     .authorization((allow) => [allow.owner(), allow.authenticated()]),
 
@@ -45,11 +70,10 @@ export const schema = a.schema({
       //Chat message fields
       content: a.customType({
         text: a.string(),
-        // proposedSteps: a.ref('Step').array(),
-        // proposedGardenUpdate: a.ref('Garden'),
       }),
       role: a.enum(["human", "ai", "tool"]),
       responseComplete: a.boolean(),
+      chatSessionIdUnderscoreFieldName: a.string(), //This is so that when invoking multiple agents, an agent can query it's own messages
 
       //auto-generated fields
       owner: a.string(),
@@ -61,7 +85,8 @@ export const schema = a.schema({
       toolCalls: a.string(),
     })
     .secondaryIndexes((index) => [
-      index("chatSessionId").sortKeys(["createdAt"])
+      index("chatSessionId").sortKeys(["createdAt"]),
+      index("chatSessionIdUnderscoreFieldName").sortKeys(["createdAt"])
     ])
     .authorization((allow) => [allow.owner(), allow.authenticated()]),
 
@@ -95,23 +120,20 @@ export const schema = a.schema({
     .handler(a.handler.custom({ entry: './receiveMessageStreamChunk.js' }))
     .authorization(allow => [allow.authenticated()]),
 
-  invokeAgent: a.query()
-    .arguments({ chatSessionId: a.id().required(), userInput: a.string().required() })
-    // .returns(a.ref('Garden'))
-    .handler(a.handler.function(llmAgentFunction).async())
+  invokeReActAgent: a.query()
+    .arguments({ 
+      chatSessionId: a.id().required(), 
+      respondToAgent: a.boolean(), //When an agent is invoked by another agent, the agent will create a tool response message with it's output
+    })
+    .handler(a.handler.function(reActAgentFunction).async())
     .authorization((allow) => [allow.authenticated()]),
-  
-
-
 })
   .authorization((allow) => [
     // allow.resource(generateGardenPlanStepsFunction),
-    allow.resource(llmAgentFunction)
+    allow.resource(reActAgentFunction)
   ]);
 
 export type Schema = ClientSchema<typeof schema>;
-
-// const zodSchema = createZodSchema(schema.data.types.Garden.identifier)
 
 export const data = defineData({
   schema,
