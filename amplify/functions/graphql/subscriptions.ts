@@ -93,33 +93,38 @@ export const onCreateDummyModelToAddIamDirective = /* GraphQL */ `subscription O
   APITypes.OnCreateDummyModelToAddIamDirectiveSubscriptionVariables,
   APITypes.OnCreateDummyModelToAddIamDirectiveSubscription
 >;
-export const onCreateProjectProposal = /* GraphQL */ `subscription OnCreateProjectProposal(
-  $filter: ModelSubscriptionProjectProposalFilterInput
+export const onCreateProject = /* GraphQL */ `subscription OnCreateProject(
+  $filter: ModelSubscriptionProjectFilterInput
   $owner: String
 ) {
-  onCreateProjectProposal(filter: $filter, owner: $owner) {
+  onCreateProject(filter: $filter, owner: $owner) {
     createdAt
     description
     financial {
       NPV10
       cost
       discountedRevenue
-      risk
+      incirmentalOilRateBOPD
+      incrimentalGasRateMCFD
+      successProbability
       __typename
     }
+    foundationModelId
     id
     name
     owner
-    procedure
+    procedureS3Path
+    reportS3Path
     result
+    sourceChatSessionId
     status
     updatedAt
     __typename
   }
 }
 ` as GeneratedSubscription<
-  APITypes.OnCreateProjectProposalSubscriptionVariables,
-  APITypes.OnCreateProjectProposalSubscription
+  APITypes.OnCreateProjectSubscriptionVariables,
+  APITypes.OnCreateProjectSubscription
 >;
 export const onDeleteChatMessage = /* GraphQL */ `subscription OnDeleteChatMessage(
   $filter: ModelSubscriptionChatMessageFilterInput
@@ -206,33 +211,38 @@ export const onDeleteDummyModelToAddIamDirective = /* GraphQL */ `subscription O
   APITypes.OnDeleteDummyModelToAddIamDirectiveSubscriptionVariables,
   APITypes.OnDeleteDummyModelToAddIamDirectiveSubscription
 >;
-export const onDeleteProjectProposal = /* GraphQL */ `subscription OnDeleteProjectProposal(
-  $filter: ModelSubscriptionProjectProposalFilterInput
+export const onDeleteProject = /* GraphQL */ `subscription OnDeleteProject(
+  $filter: ModelSubscriptionProjectFilterInput
   $owner: String
 ) {
-  onDeleteProjectProposal(filter: $filter, owner: $owner) {
+  onDeleteProject(filter: $filter, owner: $owner) {
     createdAt
     description
     financial {
       NPV10
       cost
       discountedRevenue
-      risk
+      incirmentalOilRateBOPD
+      incrimentalGasRateMCFD
+      successProbability
       __typename
     }
+    foundationModelId
     id
     name
     owner
-    procedure
+    procedureS3Path
+    reportS3Path
     result
+    sourceChatSessionId
     status
     updatedAt
     __typename
   }
 }
 ` as GeneratedSubscription<
-  APITypes.OnDeleteProjectProposalSubscriptionVariables,
-  APITypes.OnDeleteProjectProposalSubscription
+  APITypes.OnDeleteProjectSubscriptionVariables,
+  APITypes.OnDeleteProjectSubscription
 >;
 export const onUpdateChatMessage = /* GraphQL */ `subscription OnUpdateChatMessage(
   $filter: ModelSubscriptionChatMessageFilterInput
@@ -319,33 +329,38 @@ export const onUpdateDummyModelToAddIamDirective = /* GraphQL */ `subscription O
   APITypes.OnUpdateDummyModelToAddIamDirectiveSubscriptionVariables,
   APITypes.OnUpdateDummyModelToAddIamDirectiveSubscription
 >;
-export const onUpdateProjectProposal = /* GraphQL */ `subscription OnUpdateProjectProposal(
-  $filter: ModelSubscriptionProjectProposalFilterInput
+export const onUpdateProject = /* GraphQL */ `subscription OnUpdateProject(
+  $filter: ModelSubscriptionProjectFilterInput
   $owner: String
 ) {
-  onUpdateProjectProposal(filter: $filter, owner: $owner) {
+  onUpdateProject(filter: $filter, owner: $owner) {
     createdAt
     description
     financial {
       NPV10
       cost
       discountedRevenue
-      risk
+      incirmentalOilRateBOPD
+      incrimentalGasRateMCFD
+      successProbability
       __typename
     }
+    foundationModelId
     id
     name
     owner
-    procedure
+    procedureS3Path
+    reportS3Path
     result
+    sourceChatSessionId
     status
     updatedAt
     __typename
   }
 }
 ` as GeneratedSubscription<
-  APITypes.OnUpdateProjectProposalSubscriptionVariables,
-  APITypes.OnUpdateProjectProposalSubscription
+  APITypes.OnUpdateProjectSubscriptionVariables,
+  APITypes.OnUpdateProjectSubscription
 >;
 export const recieveResponseStreamChunk = /* GraphQL */ `subscription RecieveResponseStreamChunk($chatSessionId: String!) {
   recieveResponseStreamChunk(chatSessionId: $chatSessionId) {

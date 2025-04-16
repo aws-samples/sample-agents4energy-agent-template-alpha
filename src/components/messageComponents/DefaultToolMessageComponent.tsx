@@ -6,11 +6,23 @@ interface DefaultToolMessageComponentProps {
 }
 
 const DefaultToolMessageComponent: React.FC<DefaultToolMessageComponentProps> = ({ message }) => {
+  const renderContent = (text: string | null | undefined) => {
+    if (!text) return null;
+    
+    try {
+      const parsedJson = JSON.parse(text);
+      return JSON.stringify(parsedJson, null, 2);
+    } catch {
+      // If parsing fails, return the raw text
+      return text;
+    }
+  };
+
   return (
     <>
       <p>Tool message</p>
       <pre>
-        {JSON.stringify(JSON.parse(message.content?.text || '{}'), null, 2)}
+        {renderContent(message.content?.text)}
       </pre>
       <pre>
         {JSON.stringify(message, null, 2)}

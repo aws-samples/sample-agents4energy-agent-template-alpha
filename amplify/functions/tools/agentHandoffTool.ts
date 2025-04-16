@@ -3,7 +3,7 @@ import { z } from "zod";
 import { Command } from "@langchain/langgraph";
 
 import { getConfiguredAmplifyClient } from '../../../utils/amplifyUtils';
-import { invokeAgent } from '../graphql/queries';
+import { invokeReActAgent } from '../graphql/queries';
 import { Schema } from '../../data/resource';
 
 const agentHandoffToolSchema = z.object({
@@ -24,28 +24,19 @@ export const agentHandoffTool = tool(
 
         // Invoke the new agent via GraphQL
         const response = await amplifyClient.graphql({
-            query: invokeAgent,
+            query: invokeReActAgent,
             variables: { 
-                chatSessionId,
-                userInput: JSON.stringify({
-                    agentName,
-                    agentDescription,
-                    agentInstructions
-                })
+                chatSessionId
             },
         });
 
-        if (!response.data?.invokeAgent?.success) {
+        if (!response.data?.invokeReActAgent?.success) {
             throw new Error("Failed to invoke agent");
         }
 
-        // Return a Command to transition to end state
         return new Command({
-            command: "end",
-            kwargs: {
-                message: `Successfully handed off to agent: ${agentName}`
-            }
-        });
+            goto: "end"
+        })
     },
     {
         name: "agentHandoffTool",

@@ -2,7 +2,7 @@ import { stringify } from "yaml";
 
 import { getConfiguredAmplifyClient } from '../../../utils/amplifyUtils';
 
-import { ChatBedrockConverse, BedrockEmbeddings } from "@langchain/aws";
+import { ChatBedrockConverse } from "@langchain/aws";
 import { HumanMessage, ToolMessage, BaseMessage, SystemMessage, AIMessageChunk } from "@langchain/core/messages";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { Calculator } from "@langchain/community/tools/calculator";
@@ -16,6 +16,7 @@ import { userInputTool } from "../tools/userInputTool";
 import { pysparkTool } from "../tools/athenaPySparkTool";
 import { webBrowserTool } from "../tools/webBrowserTool";
 import { renderAssetTool } from "../tools/renderAssetTool";
+import { createProjectToolBuilder } from "../tools/createProjectTool";
 import { Schema } from '../../data/resource';
 
 import { getLangChainChatMessagesStartingWithHumanMessage, getLangChainMessageTextContent, publishMessage, stringifyLimitStringLength } from '../../../utils/langChainUtils';
@@ -33,6 +34,9 @@ const graphQLFieldName = 'invokeReActAgent'
 
 export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (event, context) => {
     console.log('event:\n', JSON.stringify(event, null, 2))
+
+    const foundationModelId = event.arguments.foundationModelId || process.env.AGENT_MODEL_ID
+    if (!foundationModelId) throw new Error("AGENT_MODEL_ID is not set");
 
     try {
         if (event.arguments.chatSessionId === null) throw new Error("chatSessionId is required");
@@ -65,13 +69,18 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
         const agentTools = [
             new Calculator(),
             new DuckDuckGoSearch({maxResults: 3}),
+            webBrowserTool,
             userInputTool,
+            createProjectToolBuilder({
+                sourceChatSessionId: event.arguments.chatSessionId,
+                foundationModelId: foundationModelId
+            }),
             pysparkTool({
                 additionalToolDescription: `
                 When fitting a hyperbolic decline curve to well production data:
                 - You MUST weight the most recent points more x20 more heavily when fitting the curve.
+                - Filter out any points that do not reflect the well's production decline, such as sudden drop offs or spikes.
             `}),
-            webBrowserTool,
             ...s3FileManagementTools,
             renderAssetTool
         ]
@@ -256,6 +265,17 @@ When using the textToTableTool:
                     }
                     break;
             }
+        }
+
+        //If the agent is invoked by another agent, create a tool response message with it's output
+        if (event.arguments.respondToAgent) {
+            
+            const toolResponseMessage = new ToolMessage({
+                content: "This is a tool response message",
+                tool_call_id: "123",
+                name: "toolName",
+                // name: graphQLFieldName
+            })
         }
 
     } catch (error) {

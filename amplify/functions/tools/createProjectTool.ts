@@ -1,0 +1,78 @@
+import { tool } from "@langchain/core/tools";
+import { z } from "zod";
+
+import { getConfiguredAmplifyClient } from '../../../utils/amplifyUtils';
+import { Schema } from '../../data/resource';
+import { createProject } from '../graphql/mutations';
+import { ProjectStatus } from '../graphql/API';
+
+const createProjectToolSchema = z.object({
+    name: z.string(),
+    description: z.string(),
+    status: z.nativeEnum(ProjectStatus).pipe(z.enum([ProjectStatus.drafting, ProjectStatus.proposed])),
+    result: z.string().optional(),
+    procedureS3Path: z.string().optional(),
+    reportS3Path: z.string(),
+    financial: z.object({
+        discountedRevenue: z.number(),
+        cost: z.number(),
+        NPV10: z.number(),
+        successProbability: z.number(),
+        incrimentalGasRateMCFD: z.number().optional(),
+        incirmentalOilRateBOPD: z.number().optional(),
+    }),
+    nextAction: z.object({
+        buttonTextBeforeClick: z.string(),
+        buttonTextAfterClick: z.string(),
+    }).describe("Recommend an action like: 'Request Approval' 'Send procedure to rig manager', or something else that should be done based on the analysis.'"),
+});
+
+export const createProjectToolBuilder = (props: {
+    sourceChatSessionId: string;
+    foundationModelId: string;
+}) => tool(
+    async (args) => {
+        try {
+            const amplifyClient = getConfiguredAmplifyClient();
+            
+            // Create the project with initial status as pending if not specified
+            const projectData = {
+                ...args,
+                status: args.status || "drafting",
+                sourceChatSessionId: props.sourceChatSessionId,
+                foundationModelId: props.foundationModelId,
+            };
+
+            const result = await amplifyClient.graphql({
+                query: createProject,
+                variables: {
+                    input: projectData
+                }
+            });
+
+            if (result.errors) throw new Error("Failed to create project: " + result.errors.map(e => e.message).join(", "));
+            if (!result.data) throw new Error("Failed to create project: No data returned");
+            
+            return {
+                status: "success",
+                message: `Successfully created project: ${projectData.name}`,
+                project: result.data.createProject
+            };
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+            return {
+                status: "error",
+                message: `Failed to create project: ${errorMessage} \n\n ${JSON.stringify(error)}`
+            };
+        }
+    },
+    {
+        name: "createProject",
+        description: "Creates a new project with the specified details",
+        schema: createProjectToolSchema
+    }
+);
+
+const typeChecks = () => {
+    const testProject: Schema["Project"]["createType"] = {} as z.infer<typeof createProjectToolSchema>;
+}

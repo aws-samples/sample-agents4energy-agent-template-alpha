@@ -93,33 +93,38 @@ export const createDummyModelToAddIamDirective = /* GraphQL */ `mutation CreateD
   APITypes.CreateDummyModelToAddIamDirectiveMutationVariables,
   APITypes.CreateDummyModelToAddIamDirectiveMutation
 >;
-export const createProjectProposal = /* GraphQL */ `mutation CreateProjectProposal(
-  $condition: ModelProjectProposalConditionInput
-  $input: CreateProjectProposalInput!
+export const createProject = /* GraphQL */ `mutation CreateProject(
+  $condition: ModelProjectConditionInput
+  $input: CreateProjectInput!
 ) {
-  createProjectProposal(condition: $condition, input: $input) {
+  createProject(condition: $condition, input: $input) {
     createdAt
     description
     financial {
       NPV10
       cost
       discountedRevenue
-      risk
+      incirmentalOilRateBOPD
+      incrimentalGasRateMCFD
+      successProbability
       __typename
     }
+    foundationModelId
     id
     name
     owner
-    procedure
+    procedureS3Path
+    reportS3Path
     result
+    sourceChatSessionId
     status
     updatedAt
     __typename
   }
 }
 ` as GeneratedMutation<
-  APITypes.CreateProjectProposalMutationVariables,
-  APITypes.CreateProjectProposalMutation
+  APITypes.CreateProjectMutationVariables,
+  APITypes.CreateProjectMutation
 >;
 export const deleteChatMessage = /* GraphQL */ `mutation DeleteChatMessage(
   $condition: ModelChatMessageConditionInput
@@ -206,33 +211,38 @@ export const deleteDummyModelToAddIamDirective = /* GraphQL */ `mutation DeleteD
   APITypes.DeleteDummyModelToAddIamDirectiveMutationVariables,
   APITypes.DeleteDummyModelToAddIamDirectiveMutation
 >;
-export const deleteProjectProposal = /* GraphQL */ `mutation DeleteProjectProposal(
-  $condition: ModelProjectProposalConditionInput
-  $input: DeleteProjectProposalInput!
+export const deleteProject = /* GraphQL */ `mutation DeleteProject(
+  $condition: ModelProjectConditionInput
+  $input: DeleteProjectInput!
 ) {
-  deleteProjectProposal(condition: $condition, input: $input) {
+  deleteProject(condition: $condition, input: $input) {
     createdAt
     description
     financial {
       NPV10
       cost
       discountedRevenue
-      risk
+      incirmentalOilRateBOPD
+      incrimentalGasRateMCFD
+      successProbability
       __typename
     }
+    foundationModelId
     id
     name
     owner
-    procedure
+    procedureS3Path
+    reportS3Path
     result
+    sourceChatSessionId
     status
     updatedAt
     __typename
   }
 }
 ` as GeneratedMutation<
-  APITypes.DeleteProjectProposalMutationVariables,
-  APITypes.DeleteProjectProposalMutation
+  APITypes.DeleteProjectMutationVariables,
+  APITypes.DeleteProjectMutation
 >;
 export const publishResponseStreamChunk = /* GraphQL */ `mutation PublishResponseStreamChunk(
   $chatSessionId: String!
@@ -339,31 +349,36 @@ export const updateDummyModelToAddIamDirective = /* GraphQL */ `mutation UpdateD
   APITypes.UpdateDummyModelToAddIamDirectiveMutationVariables,
   APITypes.UpdateDummyModelToAddIamDirectiveMutation
 >;
-export const updateProjectProposal = /* GraphQL */ `mutation UpdateProjectProposal(
-  $condition: ModelProjectProposalConditionInput
-  $input: UpdateProjectProposalInput!
+export const updateProject = /* GraphQL */ `mutation UpdateProject(
+  $condition: ModelProjectConditionInput
+  $input: UpdateProjectInput!
 ) {
-  updateProjectProposal(condition: $condition, input: $input) {
+  updateProject(condition: $condition, input: $input) {
     createdAt
     description
     financial {
       NPV10
       cost
       discountedRevenue
-      risk
+      incirmentalOilRateBOPD
+      incrimentalGasRateMCFD
+      successProbability
       __typename
     }
+    foundationModelId
     id
     name
     owner
-    procedure
+    procedureS3Path
+    reportS3Path
     result
+    sourceChatSessionId
     status
     updatedAt
     __typename
   }
 }
 ` as GeneratedMutation<
-  APITypes.UpdateProjectProposalMutationVariables,
-  APITypes.UpdateProjectProposalMutation
+  APITypes.UpdateProjectMutationVariables,
+  APITypes.UpdateProjectMutation
 >;

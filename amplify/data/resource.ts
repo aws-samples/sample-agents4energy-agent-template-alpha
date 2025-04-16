@@ -31,19 +31,26 @@ export const reActAgentFunction = defineFunction({
 });
 
 export const schema = a.schema({
-  ProjectProposal: a.model({
+  Project: a.model({
     name: a.string(),
     description: a.string(),
-    status: a.enum(["pending", "in_progress", "completed", "failed"]),
+    status: a.enum(["drafting", "proposed", "approved", "rejected", "scheduled", "in_progress", "completed", "failed"]),
     result: a.string(),
-    procedure: a.string(),
+    procedureS3Path: a.string(),
+    reportS3Path: a.string().required(),
+    sourceChatSessionId: a.id(),
     financial: a.customType({
       discountedRevenue: a.float(),
       cost: a.float(),
       NPV10: a.float(),
-      risk: a.float(),
+      successProbability: a.float(),
       incrimentalGasRateMCFD: a.float(),
       incirmentalOilRateBOPD: a.float(),
+    }),
+    foundationModelId: a.string(),
+    nextAction: a.customType({
+      buttonTextBeforeClick: a.string(),
+      buttonTextAfterClick: a.string(),
     })
   })
     .authorization((allow) => [allow.owner(), allow.authenticated()]),
@@ -123,6 +130,7 @@ export const schema = a.schema({
   invokeReActAgent: a.query()
     .arguments({ 
       chatSessionId: a.id().required(), 
+      foundationModelId: a.string(), // Optionally, chose the foundation model to use for the agent
       respondToAgent: a.boolean(), //When an agent is invoked by another agent, the agent will create a tool response message with it's output
     })
     .handler(a.handler.function(reActAgentFunction).async())

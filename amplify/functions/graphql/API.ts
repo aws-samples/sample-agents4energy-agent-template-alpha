@@ -80,33 +80,42 @@ export type ResponseStreamChunk = {
   index: number,
 };
 
-export type ProjectProposal = {
-  __typename: "ProjectProposal",
+export type Project = {
+  __typename: "Project",
   createdAt: string,
   description?: string | null,
-  financial?: ProjectProposalFinancial | null,
+  financial?: ProjectFinancial | null,
+  foundationModelId?: string | null,
   id: string,
   name?: string | null,
   owner?: string | null,
-  procedure?: string | null,
+  procedureS3Path?: string | null,
+  reportS3Path?: string | null,
   result?: string | null,
-  status?: ProjectProposalStatus | null,
+  sourceChatSessionId?: string | null,
+  status?: ProjectStatus | null,
   updatedAt: string,
 };
 
-export type ProjectProposalFinancial = {
-  __typename: "ProjectProposalFinancial",
+export type ProjectFinancial = {
+  __typename: "ProjectFinancial",
   NPV10?: number | null,
   cost?: number | null,
   discountedRevenue?: number | null,
-  risk?: number | null,
+  incirmentalOilRateBOPD?: number | null,
+  incrimentalGasRateMCFD?: number | null,
+  successProbability?: number | null,
 };
 
-export enum ProjectProposalStatus {
+export enum ProjectStatus {
+  approved = "approved",
   completed = "completed",
+  drafting = "drafting",
   failed = "failed",
   in_progress = "in_progress",
-  pending = "pending",
+  proposed = "proposed",
+  rejected = "rejected",
+  scheduled = "scheduled",
 }
 
 
@@ -249,29 +258,32 @@ export type ModelDummyModelToAddIamDirectiveConnection = {
   nextToken?: string | null,
 };
 
-export type ModelProjectProposalFilterInput = {
-  and?: Array< ModelProjectProposalFilterInput | null > | null,
+export type ModelProjectFilterInput = {
+  and?: Array< ModelProjectFilterInput | null > | null,
   createdAt?: ModelStringInput | null,
   description?: ModelStringInput | null,
+  foundationModelId?: ModelStringInput | null,
   id?: ModelIDInput | null,
   name?: ModelStringInput | null,
-  not?: ModelProjectProposalFilterInput | null,
-  or?: Array< ModelProjectProposalFilterInput | null > | null,
+  not?: ModelProjectFilterInput | null,
+  or?: Array< ModelProjectFilterInput | null > | null,
   owner?: ModelStringInput | null,
-  procedure?: ModelStringInput | null,
+  procedureS3Path?: ModelStringInput | null,
+  reportS3Path?: ModelStringInput | null,
   result?: ModelStringInput | null,
-  status?: ModelProjectProposalStatusInput | null,
+  sourceChatSessionId?: ModelIDInput | null,
+  status?: ModelProjectStatusInput | null,
   updatedAt?: ModelStringInput | null,
 };
 
-export type ModelProjectProposalStatusInput = {
-  eq?: ProjectProposalStatus | null,
-  ne?: ProjectProposalStatus | null,
+export type ModelProjectStatusInput = {
+  eq?: ProjectStatus | null,
+  ne?: ProjectStatus | null,
 };
 
-export type ModelProjectProposalConnection = {
-  __typename: "ModelProjectProposalConnection",
-  items:  Array<ProjectProposal | null >,
+export type ModelProjectConnection = {
+  __typename: "ModelProjectConnection",
+  items:  Array<Project | null >,
   nextToken?: string | null,
 };
 
@@ -352,35 +364,43 @@ export type ResponseStreamChunkInput = {
   index: number,
 };
 
-export type ModelProjectProposalConditionInput = {
-  and?: Array< ModelProjectProposalConditionInput | null > | null,
+export type ModelProjectConditionInput = {
+  and?: Array< ModelProjectConditionInput | null > | null,
   createdAt?: ModelStringInput | null,
   description?: ModelStringInput | null,
+  foundationModelId?: ModelStringInput | null,
   name?: ModelStringInput | null,
-  not?: ModelProjectProposalConditionInput | null,
-  or?: Array< ModelProjectProposalConditionInput | null > | null,
+  not?: ModelProjectConditionInput | null,
+  or?: Array< ModelProjectConditionInput | null > | null,
   owner?: ModelStringInput | null,
-  procedure?: ModelStringInput | null,
+  procedureS3Path?: ModelStringInput | null,
+  reportS3Path?: ModelStringInput | null,
   result?: ModelStringInput | null,
-  status?: ModelProjectProposalStatusInput | null,
+  sourceChatSessionId?: ModelIDInput | null,
+  status?: ModelProjectStatusInput | null,
   updatedAt?: ModelStringInput | null,
 };
 
-export type CreateProjectProposalInput = {
+export type CreateProjectInput = {
   description?: string | null,
-  financial?: ProjectProposalFinancialInput | null,
+  financial?: ProjectFinancialInput | null,
+  foundationModelId?: string | null,
   id?: string | null,
   name?: string | null,
-  procedure?: string | null,
+  procedureS3Path?: string | null,
+  reportS3Path?: string | null,
   result?: string | null,
-  status?: ProjectProposalStatus | null,
+  sourceChatSessionId?: string | null,
+  status?: ProjectStatus | null,
 };
 
-export type ProjectProposalFinancialInput = {
+export type ProjectFinancialInput = {
   NPV10?: number | null,
   cost?: number | null,
   discountedRevenue?: number | null,
-  risk?: number | null,
+  incirmentalOilRateBOPD?: number | null,
+  incrimentalGasRateMCFD?: number | null,
+  successProbability?: number | null,
 };
 
 export type DeleteChatMessageInput = {
@@ -395,7 +415,7 @@ export type DeleteDummyModelToAddIamDirectiveInput = {
   id: string,
 };
 
-export type DeleteProjectProposalInput = {
+export type DeleteProjectInput = {
   id: string,
 };
 
@@ -424,14 +444,17 @@ export type UpdateDummyModelToAddIamDirectiveInput = {
   responseStreamChunk?: ResponseStreamChunkInput | null,
 };
 
-export type UpdateProjectProposalInput = {
+export type UpdateProjectInput = {
   description?: string | null,
-  financial?: ProjectProposalFinancialInput | null,
+  financial?: ProjectFinancialInput | null,
+  foundationModelId?: string | null,
   id: string,
   name?: string | null,
-  procedure?: string | null,
+  procedureS3Path?: string | null,
+  reportS3Path?: string | null,
   result?: string | null,
-  status?: ProjectProposalStatus | null,
+  sourceChatSessionId?: string | null,
+  status?: ProjectStatus | null,
 };
 
 export type ModelSubscriptionChatMessageFilterInput = {
@@ -504,16 +527,19 @@ export type ModelSubscriptionDummyModelToAddIamDirectiveFilterInput = {
   updatedAt?: ModelSubscriptionStringInput | null,
 };
 
-export type ModelSubscriptionProjectProposalFilterInput = {
-  and?: Array< ModelSubscriptionProjectProposalFilterInput | null > | null,
+export type ModelSubscriptionProjectFilterInput = {
+  and?: Array< ModelSubscriptionProjectFilterInput | null > | null,
   createdAt?: ModelSubscriptionStringInput | null,
   description?: ModelSubscriptionStringInput | null,
+  foundationModelId?: ModelSubscriptionStringInput | null,
   id?: ModelSubscriptionIDInput | null,
   name?: ModelSubscriptionStringInput | null,
-  or?: Array< ModelSubscriptionProjectProposalFilterInput | null > | null,
+  or?: Array< ModelSubscriptionProjectFilterInput | null > | null,
   owner?: ModelStringInput | null,
-  procedure?: ModelSubscriptionStringInput | null,
+  procedureS3Path?: ModelSubscriptionStringInput | null,
+  reportS3Path?: ModelSubscriptionStringInput | null,
   result?: ModelSubscriptionStringInput | null,
+  sourceChatSessionId?: ModelSubscriptionIDInput | null,
   status?: ModelSubscriptionStringInput | null,
   updatedAt?: ModelSubscriptionStringInput | null,
 };
@@ -597,39 +623,45 @@ export type GetDummyModelToAddIamDirectiveQuery = {
   } | null,
 };
 
-export type GetProjectProposalQueryVariables = {
+export type GetProjectQueryVariables = {
   id: string,
 };
 
-export type GetProjectProposalQuery = {
-  getProjectProposal?:  {
-    __typename: "ProjectProposal",
+export type GetProjectQuery = {
+  getProject?:  {
+    __typename: "Project",
     createdAt: string,
     description?: string | null,
     financial?:  {
-      __typename: "ProjectProposalFinancial",
+      __typename: "ProjectFinancial",
       NPV10?: number | null,
       cost?: number | null,
       discountedRevenue?: number | null,
-      risk?: number | null,
+      incirmentalOilRateBOPD?: number | null,
+      incrimentalGasRateMCFD?: number | null,
+      successProbability?: number | null,
     } | null,
+    foundationModelId?: string | null,
     id: string,
     name?: string | null,
     owner?: string | null,
-    procedure?: string | null,
+    procedureS3Path?: string | null,
+    reportS3Path?: string | null,
     result?: string | null,
-    status?: ProjectProposalStatus | null,
+    sourceChatSessionId?: string | null,
+    status?: ProjectStatus | null,
     updatedAt: string,
   } | null,
 };
 
-export type InvokeAgentQueryVariables = {
+export type InvokeReActAgentQueryVariables = {
   chatSessionId: string,
-  userInput: string,
+  foundationModelId?: string | null,
+  respondToAgent?: boolean | null,
 };
 
-export type InvokeAgentQuery = {
-  invokeAgent?:  {
+export type InvokeReActAgentQuery = {
+  invokeReActAgent?:  {
     __typename: "EventInvocationResponse",
     success: boolean,
   } | null,
@@ -763,25 +795,28 @@ export type ListDummyModelToAddIamDirectivesQuery = {
   } | null,
 };
 
-export type ListProjectProposalsQueryVariables = {
-  filter?: ModelProjectProposalFilterInput | null,
+export type ListProjectsQueryVariables = {
+  filter?: ModelProjectFilterInput | null,
   limit?: number | null,
   nextToken?: string | null,
 };
 
-export type ListProjectProposalsQuery = {
-  listProjectProposals?:  {
-    __typename: "ModelProjectProposalConnection",
+export type ListProjectsQuery = {
+  listProjects?:  {
+    __typename: "ModelProjectConnection",
     items:  Array< {
-      __typename: "ProjectProposal",
+      __typename: "Project",
       createdAt: string,
       description?: string | null,
+      foundationModelId?: string | null,
       id: string,
       name?: string | null,
       owner?: string | null,
-      procedure?: string | null,
+      procedureS3Path?: string | null,
+      reportS3Path?: string | null,
       result?: string | null,
-      status?: ProjectProposalStatus | null,
+      sourceChatSessionId?: string | null,
+      status?: ProjectStatus | null,
       updatedAt: string,
     } | null >,
     nextToken?: string | null,
@@ -870,29 +905,34 @@ export type CreateDummyModelToAddIamDirectiveMutation = {
   } | null,
 };
 
-export type CreateProjectProposalMutationVariables = {
-  condition?: ModelProjectProposalConditionInput | null,
-  input: CreateProjectProposalInput,
+export type CreateProjectMutationVariables = {
+  condition?: ModelProjectConditionInput | null,
+  input: CreateProjectInput,
 };
 
-export type CreateProjectProposalMutation = {
-  createProjectProposal?:  {
-    __typename: "ProjectProposal",
+export type CreateProjectMutation = {
+  createProject?:  {
+    __typename: "Project",
     createdAt: string,
     description?: string | null,
     financial?:  {
-      __typename: "ProjectProposalFinancial",
+      __typename: "ProjectFinancial",
       NPV10?: number | null,
       cost?: number | null,
       discountedRevenue?: number | null,
-      risk?: number | null,
+      incirmentalOilRateBOPD?: number | null,
+      incrimentalGasRateMCFD?: number | null,
+      successProbability?: number | null,
     } | null,
+    foundationModelId?: string | null,
     id: string,
     name?: string | null,
     owner?: string | null,
-    procedure?: string | null,
+    procedureS3Path?: string | null,
+    reportS3Path?: string | null,
     result?: string | null,
-    status?: ProjectProposalStatus | null,
+    sourceChatSessionId?: string | null,
+    status?: ProjectStatus | null,
     updatedAt: string,
   } | null,
 };
@@ -979,29 +1019,34 @@ export type DeleteDummyModelToAddIamDirectiveMutation = {
   } | null,
 };
 
-export type DeleteProjectProposalMutationVariables = {
-  condition?: ModelProjectProposalConditionInput | null,
-  input: DeleteProjectProposalInput,
+export type DeleteProjectMutationVariables = {
+  condition?: ModelProjectConditionInput | null,
+  input: DeleteProjectInput,
 };
 
-export type DeleteProjectProposalMutation = {
-  deleteProjectProposal?:  {
-    __typename: "ProjectProposal",
+export type DeleteProjectMutation = {
+  deleteProject?:  {
+    __typename: "Project",
     createdAt: string,
     description?: string | null,
     financial?:  {
-      __typename: "ProjectProposalFinancial",
+      __typename: "ProjectFinancial",
       NPV10?: number | null,
       cost?: number | null,
       discountedRevenue?: number | null,
-      risk?: number | null,
+      incirmentalOilRateBOPD?: number | null,
+      incrimentalGasRateMCFD?: number | null,
+      successProbability?: number | null,
     } | null,
+    foundationModelId?: string | null,
     id: string,
     name?: string | null,
     owner?: string | null,
-    procedure?: string | null,
+    procedureS3Path?: string | null,
+    reportS3Path?: string | null,
     result?: string | null,
-    status?: ProjectProposalStatus | null,
+    sourceChatSessionId?: string | null,
+    status?: ProjectStatus | null,
     updatedAt: string,
   } | null,
 };
@@ -1103,29 +1148,34 @@ export type UpdateDummyModelToAddIamDirectiveMutation = {
   } | null,
 };
 
-export type UpdateProjectProposalMutationVariables = {
-  condition?: ModelProjectProposalConditionInput | null,
-  input: UpdateProjectProposalInput,
+export type UpdateProjectMutationVariables = {
+  condition?: ModelProjectConditionInput | null,
+  input: UpdateProjectInput,
 };
 
-export type UpdateProjectProposalMutation = {
-  updateProjectProposal?:  {
-    __typename: "ProjectProposal",
+export type UpdateProjectMutation = {
+  updateProject?:  {
+    __typename: "Project",
     createdAt: string,
     description?: string | null,
     financial?:  {
-      __typename: "ProjectProposalFinancial",
+      __typename: "ProjectFinancial",
       NPV10?: number | null,
       cost?: number | null,
       discountedRevenue?: number | null,
-      risk?: number | null,
+      incirmentalOilRateBOPD?: number | null,
+      incrimentalGasRateMCFD?: number | null,
+      successProbability?: number | null,
     } | null,
+    foundationModelId?: string | null,
     id: string,
     name?: string | null,
     owner?: string | null,
-    procedure?: string | null,
+    procedureS3Path?: string | null,
+    reportS3Path?: string | null,
     result?: string | null,
-    status?: ProjectProposalStatus | null,
+    sourceChatSessionId?: string | null,
+    status?: ProjectStatus | null,
     updatedAt: string,
   } | null,
 };
@@ -1212,29 +1262,34 @@ export type OnCreateDummyModelToAddIamDirectiveSubscription = {
   } | null,
 };
 
-export type OnCreateProjectProposalSubscriptionVariables = {
-  filter?: ModelSubscriptionProjectProposalFilterInput | null,
+export type OnCreateProjectSubscriptionVariables = {
+  filter?: ModelSubscriptionProjectFilterInput | null,
   owner?: string | null,
 };
 
-export type OnCreateProjectProposalSubscription = {
-  onCreateProjectProposal?:  {
-    __typename: "ProjectProposal",
+export type OnCreateProjectSubscription = {
+  onCreateProject?:  {
+    __typename: "Project",
     createdAt: string,
     description?: string | null,
     financial?:  {
-      __typename: "ProjectProposalFinancial",
+      __typename: "ProjectFinancial",
       NPV10?: number | null,
       cost?: number | null,
       discountedRevenue?: number | null,
-      risk?: number | null,
+      incirmentalOilRateBOPD?: number | null,
+      incrimentalGasRateMCFD?: number | null,
+      successProbability?: number | null,
     } | null,
+    foundationModelId?: string | null,
     id: string,
     name?: string | null,
     owner?: string | null,
-    procedure?: string | null,
+    procedureS3Path?: string | null,
+    reportS3Path?: string | null,
     result?: string | null,
-    status?: ProjectProposalStatus | null,
+    sourceChatSessionId?: string | null,
+    status?: ProjectStatus | null,
     updatedAt: string,
   } | null,
 };
@@ -1321,29 +1376,34 @@ export type OnDeleteDummyModelToAddIamDirectiveSubscription = {
   } | null,
 };
 
-export type OnDeleteProjectProposalSubscriptionVariables = {
-  filter?: ModelSubscriptionProjectProposalFilterInput | null,
+export type OnDeleteProjectSubscriptionVariables = {
+  filter?: ModelSubscriptionProjectFilterInput | null,
   owner?: string | null,
 };
 
-export type OnDeleteProjectProposalSubscription = {
-  onDeleteProjectProposal?:  {
-    __typename: "ProjectProposal",
+export type OnDeleteProjectSubscription = {
+  onDeleteProject?:  {
+    __typename: "Project",
     createdAt: string,
     description?: string | null,
     financial?:  {
-      __typename: "ProjectProposalFinancial",
+      __typename: "ProjectFinancial",
       NPV10?: number | null,
       cost?: number | null,
       discountedRevenue?: number | null,
-      risk?: number | null,
+      incirmentalOilRateBOPD?: number | null,
+      incrimentalGasRateMCFD?: number | null,
+      successProbability?: number | null,
     } | null,
+    foundationModelId?: string | null,
     id: string,
     name?: string | null,
     owner?: string | null,
-    procedure?: string | null,
+    procedureS3Path?: string | null,
+    reportS3Path?: string | null,
     result?: string | null,
-    status?: ProjectProposalStatus | null,
+    sourceChatSessionId?: string | null,
+    status?: ProjectStatus | null,
     updatedAt: string,
   } | null,
 };
@@ -1430,29 +1490,34 @@ export type OnUpdateDummyModelToAddIamDirectiveSubscription = {
   } | null,
 };
 
-export type OnUpdateProjectProposalSubscriptionVariables = {
-  filter?: ModelSubscriptionProjectProposalFilterInput | null,
+export type OnUpdateProjectSubscriptionVariables = {
+  filter?: ModelSubscriptionProjectFilterInput | null,
   owner?: string | null,
 };
 
-export type OnUpdateProjectProposalSubscription = {
-  onUpdateProjectProposal?:  {
-    __typename: "ProjectProposal",
+export type OnUpdateProjectSubscription = {
+  onUpdateProject?:  {
+    __typename: "Project",
     createdAt: string,
     description?: string | null,
     financial?:  {
-      __typename: "ProjectProposalFinancial",
+      __typename: "ProjectFinancial",
       NPV10?: number | null,
       cost?: number | null,
       discountedRevenue?: number | null,
-      risk?: number | null,
+      incirmentalOilRateBOPD?: number | null,
+      incrimentalGasRateMCFD?: number | null,
+      successProbability?: number | null,
     } | null,
+    foundationModelId?: string | null,
     id: string,
     name?: string | null,
     owner?: string | null,
-    procedure?: string | null,
+    procedureS3Path?: string | null,
+    reportS3Path?: string | null,
     result?: string | null,
-    status?: ProjectProposalStatus | null,
+    sourceChatSessionId?: string | null,
+    status?: ProjectStatus | null,
     updatedAt: string,
   } | null,
 };

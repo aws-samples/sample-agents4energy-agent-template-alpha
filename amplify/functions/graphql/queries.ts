@@ -84,40 +84,53 @@ export const getDummyModelToAddIamDirective = /* GraphQL */ `query GetDummyModel
   APITypes.GetDummyModelToAddIamDirectiveQueryVariables,
   APITypes.GetDummyModelToAddIamDirectiveQuery
 >;
-export const getProjectProposal = /* GraphQL */ `query GetProjectProposal($id: ID!) {
-  getProjectProposal(id: $id) {
+export const getProject = /* GraphQL */ `query GetProject($id: ID!) {
+  getProject(id: $id) {
     createdAt
     description
     financial {
       NPV10
       cost
       discountedRevenue
-      risk
+      incirmentalOilRateBOPD
+      incrimentalGasRateMCFD
+      successProbability
       __typename
     }
+    foundationModelId
     id
     name
     owner
-    procedure
+    procedureS3Path
+    reportS3Path
     result
+    sourceChatSessionId
     status
     updatedAt
     __typename
   }
 }
 ` as GeneratedQuery<
-  APITypes.GetProjectProposalQueryVariables,
-  APITypes.GetProjectProposalQuery
+  APITypes.GetProjectQueryVariables,
+  APITypes.GetProjectQuery
 >;
-export const invokeAgent = /* GraphQL */ `query InvokeAgent($chatSessionId: ID!, $userInput: String!) {
-  invokeAgent(chatSessionId: $chatSessionId, userInput: $userInput) {
+export const invokeReActAgent = /* GraphQL */ `query InvokeReActAgent(
+  $chatSessionId: ID!
+  $foundationModelId: String
+  $respondToAgent: Boolean
+) {
+  invokeReActAgent(
+    chatSessionId: $chatSessionId
+    foundationModelId: $foundationModelId
+    respondToAgent: $respondToAgent
+  ) {
     success
     __typename
   }
 }
 ` as GeneratedQuery<
-  APITypes.InvokeAgentQueryVariables,
-  APITypes.InvokeAgentQuery
+  APITypes.InvokeReActAgentQueryVariables,
+  APITypes.InvokeReActAgentQuery
 >;
 export const listChatMessageByChatSessionIdAndCreatedAt = /* GraphQL */ `query ListChatMessageByChatSessionIdAndCreatedAt(
   $chatSessionId: ID!
@@ -270,20 +283,23 @@ export const listDummyModelToAddIamDirectives = /* GraphQL */ `query ListDummyMo
   APITypes.ListDummyModelToAddIamDirectivesQueryVariables,
   APITypes.ListDummyModelToAddIamDirectivesQuery
 >;
-export const listProjectProposals = /* GraphQL */ `query ListProjectProposals(
-  $filter: ModelProjectProposalFilterInput
+export const listProjects = /* GraphQL */ `query ListProjects(
+  $filter: ModelProjectFilterInput
   $limit: Int
   $nextToken: String
 ) {
-  listProjectProposals(filter: $filter, limit: $limit, nextToken: $nextToken) {
+  listProjects(filter: $filter, limit: $limit, nextToken: $nextToken) {
     items {
       createdAt
       description
+      foundationModelId
       id
       name
       owner
-      procedure
+      procedureS3Path
+      reportS3Path
       result
+      sourceChatSessionId
       status
       updatedAt
       __typename
@@ -293,6 +309,6 @@ export const listProjectProposals = /* GraphQL */ `query ListProjectProposals(
   }
 }
 ` as GeneratedQuery<
-  APITypes.ListProjectProposalsQueryVariables,
-  APITypes.ListProjectProposalsQuery
+  APITypes.ListProjectsQueryVariables,
+  APITypes.ListProjectsQuery
 >;
