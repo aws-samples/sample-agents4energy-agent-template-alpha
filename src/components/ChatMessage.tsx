@@ -22,6 +22,7 @@ import RenderAssetToolComponent from './messageComponents/RenderAssetToolCompone
 import DefaultToolMessageComponent from './messageComponents/DefaultToolMessageComponent';
 import DuckDuckGoSearchToolComponent from './messageComponents/DuckDuckGoSearchToolComponent';
 import WebBrowserToolComponent from './messageComponents/WebBrowserToolComponent';
+import CreateProjectToolComponent from './messageComponents/CreateProjectToolComponent';
 
 const ChatMessage = (params: {
     message: Message,
@@ -107,6 +108,8 @@ const ChatMessage = (params: {
                     return <DuckDuckGoSearchToolComponent content={params.message.content} theme={theme} />;
                 case 'webBrowserTool':
                     return <WebBrowserToolComponent content={params.message.content} theme={theme} />;
+                case 'createProject':
+                    return <CreateProjectToolComponent content={params.message.content} theme={theme} />;
                 default:
                     return <DefaultToolMessageComponent message={params.message} />;
             }
