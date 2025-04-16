@@ -19,7 +19,9 @@ import {
     Chip,
     Collapse,
     IconButton,
-    CircularProgress
+    CircularProgress,
+    Menu,
+    MenuItem
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
@@ -53,14 +55,32 @@ const formatNumber = (value: number): string => {
     return value.toLocaleString(undefined, { maximumFractionDigits: 0 });
 };
 
-const getStatusColor = (status: string | undefined | null): 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' => {
+type ProjectStatus = NonNullable<Schema["Project"]["createType"]["status"]>;
+
+// Available status options - these should match the schema
+const STATUS_OPTIONS: ProjectStatus[] = [
+    'drafting',
+    'proposed',
+    'approved',
+    'rejected',
+    'scheduled',
+    'in_progress',
+    'completed',
+    'failed'
+];
+
+const getStatusColor = (status: ProjectStatus | null | undefined): 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' => {
     if (!status) return 'default';
     
-    switch(status.toLowerCase()) {
+    switch(status) {
         case 'proposed': return 'info';
         case 'approved': return 'success';
         case 'rejected': return 'error';
         case 'in_progress': return 'warning';
+        case 'completed': return 'success';
+        case 'failed': return 'error';
+        case 'scheduled': return 'primary';
+        case 'drafting': return 'default';
         default: return 'default';
     }
 };
@@ -68,12 +88,15 @@ const getStatusColor = (status: string | undefined | null): 'default' | 'primary
 interface ExpandableRowProps {
     project: Schema["Project"]["createType"];
     onDelete: () => void;
+    onStatusChange: (projectId: string, newStatus: ProjectStatus) => void;
 }
 
-const ExpandableRow = ({ project, onDelete }: ExpandableRowProps) => {
+const ExpandableRow = ({ project, onDelete, onStatusChange }: ExpandableRowProps) => {
     const [open, setOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [nextActionClicked, setNextActionClicked] = useState(false);
+    const [statusAnchorEl, setStatusAnchorEl] = useState<null | HTMLElement>(null);
+    const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
     const handleIframeLoad = () => {
         setIsLoading(false);
@@ -87,6 +110,32 @@ const ExpandableRow = ({ project, onDelete }: ExpandableRowProps) => {
     }, [open]);
 
     const hasNextAction = project.nextAction?.buttonTextBeforeClick && project.nextAction?.buttonTextAfterClick;
+
+    const handleStatusClick = (event: React.MouseEvent<HTMLDivElement>) => {
+        setStatusAnchorEl(event.currentTarget);
+    };
+
+    const handleStatusClose = () => {
+        setStatusAnchorEl(null);
+    };
+
+    const handleStatusChange = async (newStatus: ProjectStatus) => {
+        setIsUpdatingStatus(true);
+        handleStatusClose();
+
+        try {
+            await amplifyClient.models.Project.update({
+                id: project.id!,
+                status: newStatus
+            });
+            onStatusChange(project.id!, newStatus);
+        } catch (error) {
+            console.error('Failed to update status:', error);
+            // You might want to show an error message to the user here
+        } finally {
+            setIsUpdatingStatus(false);
+        }
+    };
 
     return (
         <>
@@ -147,15 +196,59 @@ const ExpandableRow = ({ project, onDelete }: ExpandableRowProps) => {
                     {formatPercentage(project.financial?.successProbability)}
                 </TableCell>
                 <TableCell align="center">
-                    <Chip 
-                        label={project.status || 'Unknown'} 
-                        color={getStatusColor(project.status)}
-                        size="small"
+                    <Box 
+                        onClick={handleStatusClick}
                         sx={{ 
-                            minWidth: '90px',
-                            textTransform: 'capitalize'
+                            display: 'inline-flex',
+                            cursor: 'pointer',
+                            position: 'relative'
                         }}
-                    />
+                    >
+                        <Chip 
+                            label={isUpdatingStatus ? 'Updating...' : (project.status || 'Unknown')}
+                            color={getStatusColor(project.status)}
+                            size="small"
+                            sx={{ 
+                                minWidth: '90px',
+                                textTransform: 'capitalize'
+                            }}
+                        />
+                        {isUpdatingStatus && (
+                            <CircularProgress
+                                size={16}
+                                sx={{
+                                    position: 'absolute',
+                                    top: '50%',
+                                    left: '50%',
+                                    marginTop: '-8px',
+                                    marginLeft: '-8px'
+                                }}
+                            />
+                        )}
+                    </Box>
+                    <Menu
+                        anchorEl={statusAnchorEl}
+                        open={Boolean(statusAnchorEl)}
+                        onClose={handleStatusClose}
+                    >
+                        {STATUS_OPTIONS.map((status) => (
+                            <MenuItem 
+                                key={status}
+                                onClick={() => handleStatusChange(status)}
+                                selected={status === project.status}
+                            >
+                                <Chip 
+                                    label={status}
+                                    color={getStatusColor(status)}
+                                    size="small"
+                                    sx={{ 
+                                        minWidth: '90px',
+                                        textTransform: 'capitalize'
+                                    }}
+                                />
+                            </MenuItem>
+                        ))}
+                    </Menu>
                 </TableCell>
                 <TableCell align="right" sx={{ pr: 3 }}>
                     <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', alignItems: 'center' }}>
@@ -219,9 +312,19 @@ const ExpandableRow = ({ project, onDelete }: ExpandableRowProps) => {
                 <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={6}>
                     <Collapse in={open} timeout="auto" unmountOnExit>
                         <Box sx={{ margin: 2 }}>
-                            <Typography variant="h6" gutterBottom component="div" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <DescriptionIcon /> Project Report {`file/chatSessionArtifacts/sessionId=${project.sourceChatSessionId}/` + project.reportS3Path}
-                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                                <Typography variant="h6" component="div" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <DescriptionIcon /> Project Report {`file/chatSessionArtifacts/sessionId=${project.sourceChatSessionId}/` + project.reportS3Path}
+                                </Typography>
+                                <Button
+                                    variant="outlined"
+                                    color="primary"
+                                    startIcon={<VisibilityIcon />}
+                                    onClick={() => window.open(`preview/chatSessionArtifacts/sessionId=${project.sourceChatSessionId}/${project.reportS3Path}`, '_blank')}
+                                >
+                                    Open in New Tab
+                                </Button>
+                            </Box>
                             <Box 
                                 sx={{ 
                                     width: '100%', 
@@ -322,6 +425,23 @@ const Page = () => {
         fetchProjects();
     }, [user.userId]);
 
+    const handleDeleteProject = async (projectId: string, projectName: string) => {
+        if (window.confirm(`Are you sure you want to delete the project "${projectName}"?`)) {
+            await amplifyClient.models.Project.delete({ id: projectId });
+            setProjects(projects.filter(p => p.id !== projectId));
+        }
+    };
+
+    const handleStatusChange = (projectId: string, newStatus: ProjectStatus) => {
+        setProjects(currentProjects => 
+            currentProjects.map(project => 
+                project.id === projectId 
+                    ? { ...project, status: newStatus }
+                    : project
+            )
+        );
+    };
+
     // Calculate summary statistics from valid projects
     const validProjects = projects.filter(project => project != null);
     const totalProjects = validProjects.length;
@@ -337,13 +457,6 @@ const Page = () => {
         if (!project?.financial) return sum;
         return sum + (project.financial.incrimentalGasRateMCFD || 0);
     }, 0);
-
-    const handleDeleteProject = async (projectId: string, projectName: string) => {
-        if (window.confirm(`Are you sure you want to delete the project "${projectName}"?`)) {
-            await amplifyClient.models.Project.delete({ id: projectId });
-            setProjects(projects.filter(p => p.id !== projectId));
-        }
-    };
 
     return (
         <Authenticator>
@@ -473,6 +586,7 @@ const Page = () => {
                                     key={project.id}
                                     project={project}
                                     onDelete={() => handleDeleteProject(project.id!, project.name!)}
+                                    onStatusChange={handleStatusChange}
                                 />
                             ))}
                         </TableBody>

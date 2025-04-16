@@ -114,6 +114,7 @@ When creating reports:
     - The recommended action.
     - Financial metrics describing any recommended actions.
 - Include sections descirbing any analysis performed, and a list of the source documents or data tables used in the analysis.
+- ALWAYS add footnotes to the report to reference the source documents or data tables used in the analysis.
 - Use iframes to display plots and other files in the report.
 - Use the writeFile tool to create the first draft of the report file
 - Use html formatting for the report

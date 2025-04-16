@@ -618,17 +618,32 @@ export const writeFile = tool(
             // Process HTML embeddings if this is an HTML file
             let finalContent = content;
             if (targetPath.toLowerCase().endsWith('.html')) {
-                // Add validation for iframe usage
+                // Define allowed extensions for different types of content
+                const allowedImageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp'];
+                const allowedIframeExtensions = ['.html', '.png', '.jpg', '.jpeg', '.gif', '.svg'];
+
+                // Helper function to validate file extension
+                const validateFileExtension = (src: string, allowedExts: string[], elementType: string) => {
+                    const fileExtension = path.extname(src).toLowerCase();
+                    if (!allowedExts.includes(fileExtension)) {
+                        throw new Error(
+                            `Invalid ${elementType} usage: src="${src}". ` +
+                            `${elementType} can only be used with the following file types: ${allowedExts.join(', ')}`
+                        );
+                    }
+                };
+
+                // Validate iframe sources
                 const iframeRegex = /<iframe[^>]*\ssrc="([^"]+)"[^>]*>/g;
                 let match;
                 while ((match = iframeRegex.exec(content)) !== null) {
-                    const iframeSrc = match[1];
-                    // Allow HTML and image files in iframes
-                    const allowedExtensions = ['.html', '.png', '.jpg', '.jpeg', '.gif', '.svg'];
-                    const fileExtension = path.extname(iframeSrc).toLowerCase();
-                    if (!allowedExtensions.includes(fileExtension)) {
-                        throw new Error(`Invalid iframe usage: src="${iframeSrc}". Iframes can only be used with HTML or image files.`);
-                    }
+                    validateFileExtension(match[1], allowedIframeExtensions, 'iframe');
+                }
+
+                // Validate image sources
+                const imgRegex = /<img[^>]*\ssrc="([^"]+)"[^>]*>/g;
+                while ((match = imgRegex.exec(content)) !== null) {
+                    validateFileExtension(match[1], allowedImageExtensions, 'img');
                 }
                 
                 // Process document links
