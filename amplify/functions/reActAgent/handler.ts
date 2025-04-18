@@ -93,7 +93,6 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
         
         let systemMessageContent = `
 You are a helpful llm agent showing a demo workflow. 
-If you don't have the access to the information you need, generate the required information and save it in the data directory.
 Use markdown formatting for your responses (like **bold**, *italic*, ## headings, etc.), but DO NOT wrap your response in markdown code blocks.
 Today's date is ${new Date().toLocaleDateString()}.
 
@@ -103,19 +102,141 @@ Store them in the 'intermediateFiles' directory. After you complete a planned st
 
 When generating a csv file, use the pysparkTool to generate the file and not the writeFile tool.
 
+<Well Repair Project Generation Guidelines>
+1. Data Collection Checklist:
+    - Historic production data (monthly gas/oil volumes)
+    - Current well status
+    - Existing tubing depth
+    - Current artificial lift type
+    - Well file information:
+        - Use the textToTableTool to extract the Operational Events from the well file.
+        - The file pattern should be the well's api number with no formatting (ex: 3004529202)
+        - Set table columns for: 
+            - Date of the operation (YYYY-MM-DD format)
+            - Event type (drilling, completion, workover, surface facility / tank work, administrative, etc)
+            - Text from the report describing proposed or completed operations
+            - Tubing depth (nullable)
+            - Artifical lift type. You MUST use the column definition below:
+{
+    "columnName": "ArtificialLiftType", 
+    "columnDescription": "CRITICAL EXTRACTION RULES (in order of precedence):\n1. EXPLICIT ROD PUMP PHRASES:\n   - If 'rods and pump', 'install rods & pump', 'rods & pump', or similar explicit phrases are found, ALWAYS classify as 'Rod Pump'.\n2. ROD CONTEXT:\n   - If 'rods' appears in ANY context related to production or well completion, classify as 'Rod Pump'.\n3. SECONDARY CRITERIA (if no rods mentioned):\n   - 'Plunger Lift': Search for 'plunger lift' or 'bumper spring'\n   - 'Gas Lift': Look for mentions of 'gas lift mandrel' or explicit gas lift description\n   - 'ESP': Search for 'electric submersible pump' or 'ESP'\n   - 'Flowing': If no artificial lift is mentioned and well is producing\n   - 'None': If absolutely no production method is specified",
+    "columnDataDefinition": {
+        "type": "string", 
+        "enum": [
+            "Rod Pump", 
+            "Plunger Lift", 
+            "Gas Lift", 
+            "ESP", 
+            "Flowing", 
+            "None"
+        ]
+    }
+}
+            - Any other relevant information
+        Note: Administrative events include:
+            - Change in well operator
+            - Change in transporter
+            - Regulatory filings and permits
+            - Ownership transfers
+            - Other legal/administrative changes that do not affect well operations
+
+2. Analize the production numbers:
+    - If there is a sudden drop in production, determine the cause of the drop.
+    - Recommend a new well configureation (including artificail lift type and tubing depth) to improve production.
+
+3. Generate a procedure to repair the well.
+    - This can include:
+        - Using a workover rig to adjusting the well configuration (tubing depth, artificial lift type) to improve production.
+        - Using a braden line unit to swap fluid out of the well
+        - Making a surface repair
+        - Changing an artificial lift setting
+    - Guidance on types of artifical lift:
+        - Plunger Lift:
+            - Fluid rates < 10 bbl/day
+            - Gas to Oil Ratio (GOR) > 0.4 scf/bbl per 1,000 ft of well depth
+        - Rod Lift:
+            - Efficient for high GOR wells when flowing gas up the annulus (Casing acts as a sperator). Set tubing below lowest perforation.
+            - Capital intensive to install, but low operating costs.
+            - If the well is currently on rod lift, don't change the artificial lift type.
+            - Sutible for late life wells.
+        - Gas Lift:
+            - Fluid rates > 10 bbl/day
+            - Reservoir Pressure Gradient between 0.01 and 0.06 psi/ft.
+            - Requires a gas supply. Assume not if you are not sure.
+            - High fuel gas consumption.
+        - Electric Submersible Pump (ESP):
+            - Fluid rates > 10 bbl/day
+            - Reservoir Pressure > 1,000 psi
+            - Electricy is available at the well site (Assume not if you are not sure)
+            - Low solids content in produced fluids
+        - Artificial Lift Not Recommended:
+            - Well flows naturally with no artificial lift
+            
+4. Decline Curve Analysis:
+    - ALWAYS include units on rates (ex: MCF/Month)
+    - Use hyperbolic decline model and the bounds: 
+        - Initial production rate (qi): 
+            * Lower bound: 0
+            * Upper bound: 2 * maximum observed monthly production
+        - Decline rate (di): 
+            * Lower bound: 0
+            * Upper bound: 1.0
+        - Decline exponent (b): 
+            * Lower bound: 0
+            * Upper bound: 2.0
+    - Weighted fitting favoring recent data points
+    - Remove statistical outliers before curve fitting
+    - Validate model by extending curve into historic production
+    - Generate a plot of the decline curve (Gas (red), Oil (green), Water (blue)) with a logarithmic scale
+    - Include operational events on the plot as data points at the max production rate with tooltips showing the event details.
+
+5. Economic Analysis:
+    - Use the pysparkTool to calculate the net present value (NPV) of the project by discounting future cash flows and subtracting the initial investment
+    - Calculate future production rates using the decline curve model from the decline curve analysis
+    - Use a 10% cash flow discount rate
+    - Operational expenses: $50,000/year/well
+    - Gas price: $3/MCF
+    - Economic analysis starts the year after last known production
+    - Economic Limit Production Rate = ( Annual Operating Cost) / 365 / (Oil Price / BBL)
+    - Economic Life = log(Economic Limit Rate / Current Production Rate) / log(1 - Annual Decline Rate)
+    - NPV = Σ [Qt * P * (1 / (1 + r)^t) - Ct]
+    - Print the financial metrics to the console
+
+6. Report Structure:
+   a) Executive Summary
+      - Recommended action (Repair/Do Not Repair)
+      - NPV10 calculation
+      - Incremental production metrics
+   b) Detailed Economic Analysis
+      - Plot historic production, the decline curve, and operational events
+      - Repair cost breakdown
+   c) Technical Assessment
+      - Current well condition and artificial lift type
+      - Summary of the proposed procedure
+      - Link to the proposed repair procedure (ex: <a href="reports/repair_procedure.md">Proposed Repair Procedure</a>)
+      - Expected production improvement
+      - If you recommend changing artificial lift type, explain why and use produciton rates to support the recommendation
+    d) Data Sources
+      - Links to every data source used in the report
+      - Include footnotes where the data was used
+      - Example:
+           \`\`\`html
+           <h2>Data Sources</h2>
+           <ul>
+                <li><a href="data/production_data.csv">Production Data</a></li>
+                <li><a href="data/production_data.csv">Production Data</a></li>
+                <li><a href="data/monthly_cash_flow_projection.csv">Monthly Cash Flow Projection</a></li>
+           </ul>
+           \`\`\`
+
+</Well Repair Project Generation Guidelines>
+
 When creating plots:
 - ALWAYS check for and use existing files and data tables before generating new ones
 - If a table has already been generated, reuse that data instead of regenerating it
-- Only generate new data tables if no existing relevant data is available
-- When asked to plot data from a table, look for the specific table mentioned and use that data
 
 When creating reports:
-- Start the report with a summary which includes:
-    - The recommended action.
-    - Financial metrics describing any recommended actions.
-- Include sections descirbing any analysis performed, and a list of the source documents or data tables used in the analysis.
-- ALWAYS add footnotes to the report to reference the source documents or data tables used in the analysis.
-- Use iframes to display plots and other files in the report.
+- Use iframes to display plots or graphics
 - Use the writeFile tool to create the first draft of the report file
 - Use html formatting for the report
 - Put reports in the 'reports' directory
@@ -152,7 +273,6 @@ When using the textToTableTool:
 - Results are automatically sorted by date if available (chronological order)
 - Use dataToInclude/dataToExclude to prioritize certain types of information
 - When reading well reports, always include a column for a description of the well event
-
         `//.replace(/^\s+/gm, '') //This trims the whitespace from the beginning of each line
 
         const input = {
@@ -268,19 +388,22 @@ When using the textToTableTool:
             }
         }
 
-        //If the agent is invoked by another agent, create a tool response message with it's output
-        if (event.arguments.respondToAgent) {
-            
-            const toolResponseMessage = new ToolMessage({
-                content: "This is a tool response message",
-                tool_call_id: "123",
-                name: "toolName",
-                // name: graphQLFieldName
-            })
-        }
-
     } catch (error) {
-        console.error("Error responding to user:", JSON.stringify(error, null, 2));
+        if (!event.identity) throw new Error("Event does not contain identity");
+        if (!('sub' in event.identity)) throw new Error("Event does not contain user");
+
+        const amplifyClient = getConfiguredAmplifyClient();
+
+        console.warn("Error responding to user:", JSON.stringify(error, null, 2));
+        const publishChunkResponse = await amplifyClient.graphql({
+            query: publishResponseStreamChunk,
+            variables: {
+                chunkText: "Error responding to user: " + JSON.stringify(error, null, 2),
+                index: 0,
+                chatSessionId: event.arguments.chatSessionId
+            }
+        })
+
         throw error;
     } finally {
         // Clean up any remaining event listeners

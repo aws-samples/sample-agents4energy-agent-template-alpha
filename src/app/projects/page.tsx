@@ -314,7 +314,7 @@ const ExpandableRow = ({ project, onDelete, onStatusChange }: ExpandableRowProps
                         <Box sx={{ margin: 2 }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
                                 <Typography variant="h6" component="div" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <DescriptionIcon /> Project Report {`file/chatSessionArtifacts/sessionId=${project.sourceChatSessionId}/` + project.reportS3Path}
+                                    <DescriptionIcon /> Project Report
                                 </Typography>
                                 <Button
                                     variant="outlined"

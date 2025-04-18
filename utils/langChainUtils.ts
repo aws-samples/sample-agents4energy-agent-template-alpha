@@ -132,7 +132,7 @@ export const getLangChainChatMessagesStartingWithHumanMessage = async (chatSessi
     const { data: { listChatMessageByChatSessionIdAndCreatedAt: { items: descendingChatSessionMessages } } } = await amplifyClient.graphql({ //listChatMessageByChatSessionIdAndCreatedAt
         query: listChatMessageByChatSessionIdAndCreatedAt,
         variables: {
-            limit: 20,
+            limit: 40,
             chatSessionId: chatSessionId,
             sortDirection: APITypes.ModelSortDirection.DESC,
         }

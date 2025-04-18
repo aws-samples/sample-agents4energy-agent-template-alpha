@@ -87,9 +87,9 @@ const CreateProjectToolComponent: React.FC<CreateProjectToolComponentProps> = ({
                 <Typography variant="body2">
                   Cost: {formatCurrency(project.financial.cost)}
                 </Typography>
-                <Typography variant="body2">
+                {/* <Typography variant="body2">
                   Revenue (Discounted): {formatCurrency(project.financial.discountedRevenue)}
-                </Typography>
+                </Typography> */}
                 <Typography variant="body2">
                   Success Probability: {(project.financial.successProbability * 100).toFixed(1)}%
                 </Typography>

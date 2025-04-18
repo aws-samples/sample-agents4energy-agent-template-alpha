@@ -20,6 +20,7 @@ import os
 os.makedirs('plots', exist_ok=True)
 os.makedirs('data', exist_ok=True)
 
+s3BucketName = '${process.env.STORAGE_BUCKET_NAME}'
 chatSessionS3Prefix = '${getChatSessionPrefix()}'
 # sc.addPyFile('s3://${process.env.STORAGE_BUCKET_NAME}/pypi/pypi_libs.zip')
 
@@ -56,7 +57,7 @@ def uploadDfToS3(df, file_path):
     s3_client = boto3.client('s3')
     s3_client.put_object(
         Body=csv_content,
-        Bucket='${process.env.STORAGE_BUCKET_NAME}',
+        Bucket=s3BucketName,
         Key=chatSessionS3Prefix + file_path
     )
 
@@ -71,7 +72,7 @@ def getDataFrameFromS3(file_path):
         pyspark.sql.DataFrame: A PySpark DataFrame containing the CSV data
     """
     # Construct the full S3 path
-    full_s3_path = f"s3://${process.env.STORAGE_BUCKET_NAME}/{chatSessionS3Prefix}{file_path}"
+    full_s3_path = f"s3://{s3BucketName}/{chatSessionS3Prefix}{file_path}"
     
     # Use spark.read to read the CSV file directly
     df = spark.read.option("header", "true") \
@@ -112,7 +113,7 @@ def downloadFileFromS3(s3_path):
         s3_key = s3_path if s3_path.startswith('global/') else chatSessionS3Prefix + s3_path
         
         s3_client.download_file(
-            '${process.env.STORAGE_BUCKET_NAME}', 
+            s3BucketName, 
             s3_key,
             local_path
         )
@@ -157,7 +158,7 @@ def uploadFileToS3(file_path, s3_path):
     
     s3_client.upload_file(
         file_path, 
-        '${process.env.STORAGE_BUCKET_NAME}', 
+        s3BucketName, 
         chatSessionS3Prefix + s3_path,
         ExtraArgs=extra_args
     )
@@ -165,31 +166,24 @@ def uploadFileToS3(file_path, s3_path):
 }
 
 export const getPreCodeExecutionScript = (script: string) => { 
-    // Download any files which the code tries to import using pd.read_csv('...') or open('...')
-    // Extract file paths from pd.read_csv calls, handling cases with additional parameters
-    const csvMatches = script?.match(/pd\.read_csv\(['"]([^'"]+)['"](?:\s*,\s*[^)]+)?\)/g) || [];
-    const csvFiles = csvMatches.map(match => {
-        // Extract just the file path from the full pd.read_csv call
-        const pathMatch = match.match(/pd\.read_csv\(['"]([^'"]+)['"]/);
+    // Match any quoted strings that look like file paths (ending with .xxx where xxx is 2-4 characters)
+    const filePathRegex = /['"]([^'"]+\.[a-zA-Z0-9]{2,4})['"](?:\s*[,)}]|$)/g;
+    const matches = script?.match(filePathRegex) || [];
+    
+    // Extract just the file paths from the matches
+    const filePaths = matches.map(match => {
+        const pathMatch = match.match(/['"]([^'"]+\.[a-zA-Z0-9]{2,4})['"]/);
         return pathMatch ? pathMatch[1] : null;
     }).filter(Boolean);
 
-    // Extract file paths from open() calls
-    const openMatches = script?.match(/open\(['"]([^'"]+)['"]/g) || [];
-    const openFiles = openMatches.map(match => {
-        // Extract just the file path from the open call
-        const pathMatch = match.match(/open\(['"]([^'"]+)['"]/);
-        return pathMatch ? pathMatch[1] : null;
-    }).filter(Boolean);
-
-    // Combine both sets of files
-    const filesToDownload = [...new Set([...csvFiles, ...openFiles])];
+    // Remove duplicates
+    const filesToDownload = [...new Set(filePaths)];
 
     console.log(`Files to download: ${JSON.stringify(filesToDownload)}`);
     return `
 files_to_download = ${JSON.stringify(filesToDownload)}
 
-# Download any files that are referenced in pd.read_csv or open() calls
+# Download any files that are referenced in the code
 for s3_path in files_to_download:
     downloadFileFromS3(s3_path)
 \n\n`
@@ -659,7 +653,13 @@ export const pysparkTool = (props: {additionalSetupScript?: string, additionalTo
                     Description: `Session for ${description} [ChatSessionID:${chatSessionId}]`,
                     ClientRequestToken: sessionToken,
                     EngineConfiguration: {
-                        MaxConcurrentDpus: 20
+                        MaxConcurrentDpus: 20,
+                        SparkProperties: {
+                            "spark.sql.catalog.spark_catalog": "org.apache.iceberg.spark.SparkSessionCatalog",
+                            "spark.sql.catalog.spark_catalog.catalog-impl": "org.apache.iceberg.aws.glue.GlueCatalog",
+                            "spark.sql.catalog.spark_catalog.io-impl": "org.apache.iceberg.aws.s3.S3FileIO",
+                            "spark.sql.extensions": "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
+                        }
                     }
                 });
 
@@ -848,6 +848,7 @@ Important notes:
 - Perfer saving dfs with pandas instead of with spark.
 - If you need to load a csv file from S3, use the pd.read_csv function.
 - The 'spark' session is already initialized in the execution environment
+- NEVER modify the spark configuration. It is already set up for you.
 - You don't need to import SparkSession or create a new session
 - The STDOUT and STDERR are captured and returned in the response
 - The execution results will be returned directly in the response

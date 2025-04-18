@@ -268,9 +268,9 @@ const ChatBox = (params: {
             // 1. It has a valid createdAt timestamp
             // 2. It was created before the message we're regenerating
             // 3. Its ID is not in the set of messages to delete
-            msg.createdAt && 
-            messageToRegenerate.createdAt && 
-            msg.createdAt < messageToRegenerate.createdAt && 
+            // msg.createdAt && 
+            // messageToRegenerate.createdAt && 
+            // msg.createdAt < messageToRegenerate.createdAt && 
             typeof msg.id === 'string' && 
             !messageIdsToDelete.has(msg.id)
           )

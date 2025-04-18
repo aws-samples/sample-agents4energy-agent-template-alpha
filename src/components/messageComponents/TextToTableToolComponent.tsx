@@ -255,12 +255,15 @@ const TextToTableToolComponent = ({ content, theme }: {
                                             </span>
                                         ) : (
                                             <div style={{
-                                                maxHeight: col === 'Details' ? '100px' : 'none',
-                                                overflow: col === 'Details' ? 'auto' : 'visible',
+                                                maxHeight: '100px',
+                                                overflow: 'auto',
                                                 whiteSpace: 'pre-wrap',
                                                 display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '4px'
+                                                alignItems: 'flex-start',
+                                                gap: '4px',
+                                                overflowY: 'auto',
+                                                msOverflowStyle: '-ms-autohiding-scrollbar',
+                                                scrollbarWidth: 'thin'
                                             }}>
                                                 {String(row[col] || '')}
                                                 {hasFilePath && colIndex === 0 && (
@@ -269,7 +272,8 @@ const TextToTableToolComponent = ({ content, theme }: {
                                                         style={{ 
                                                             fontSize: '14px',
                                                             opacity: 0.6,
-                                                            color: theme.palette.primary.main
+                                                            color: theme.palette.primary.main,
+                                                            flexShrink: 0
                                                         }}
                                                     />
                                                 )}

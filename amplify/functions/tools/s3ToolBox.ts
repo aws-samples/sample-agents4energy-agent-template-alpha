@@ -6,6 +6,10 @@ import { ChatBedrockConverse } from "@langchain/aws";
 import { getConfiguredAmplifyClient } from '../../../utils/amplifyUtils';
 import { publishResponseStreamChunk } from "../graphql/mutations";
 import { getChatSessionId, getChatSessionPrefix, getOrigin } from "./toolUtils";
+import { validate } from 'jsonschema';
+import { stringifyLimitStringLength } from "../../../utils/langChainUtils";
+import { BaseMessage, AIMessage, HumanMessage } from "@langchain/core/messages";
+// import { stringifyLimitStringLength } from "../../../utils/stringUtils";
 
 // Schema for listing files
 const listFilesSchema = z.object({
@@ -15,6 +19,7 @@ const listFilesSchema = z.object({
 // Schema for reading a file
 const readFileSchema = z.object({
     filename: z.string().describe("The path to the file. This can include subdirectories"),
+    startAtByte: z.number().optional().default(0).describe("The byte to start reading from. Defaults to 0."),
     // maxBytes: z.number().optional().default(1024).describe("Maximum number of bytes to read from the file. Defaults to 1KB. Set to 0 to read entire file.")
 });
 
@@ -65,6 +70,85 @@ const textToTableSchema = z.object({
     dataToInclude: z.string().optional().describe("Description of what data to prioritize inclusion of in the table."),
     dataToExclude: z.string().optional().describe("Description of what data to exclude or de-prioritize from the table."),
 });
+
+interface FieldDefinition {
+    type: string  | Array<string>;
+    description: string;
+    format?: string;
+    pattern?: string;
+    minimum?: number;
+    maximum?: number;
+    default?: any;
+    items?: any;
+}
+
+interface JsonSchema {
+    title: string | Array<string>;
+    description: string;
+    type: string;
+    properties: Record<string, FieldDefinition>;
+    required: string[];
+}
+
+export async function correctStructuredOutputResponse(model: { invoke: (arg0: any) => any; }, response: { raw: BaseMessage; parsed: Record<string, any>; }, targetJsonSchema: JsonSchema, messages: BaseMessage[]) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+
+        // if any value in the parsed response object is '<UNKNOWN>', replace that value with null
+        if (response.parsed && typeof response.parsed === 'object') {
+            Object.keys(response.parsed).forEach(key => {
+                if (response.parsed[key] === '<UNKNOWN>') {
+                    response.parsed[key] = null;
+                }
+            });
+        }
+
+        const validationReslut = validate(response.parsed, targetJsonSchema);
+
+        if (validationReslut.valid) break
+        console.log(`Data validation result (${attempt}): `, validationReslut.valid);
+
+        console.log("Data validation error:", validationReslut.errors.join('\n'));
+        console.log('Model response which caused error: \n', response.parsed);
+        messages.push(
+            new AIMessage({ content: JSON.stringify(response.parsed) }),
+            new HumanMessage({ content: `Data validation error: ${validationReslut.errors.join('\n')}. Please try again.` })
+        );
+        // console.log('Messages sent to model: \n', stringifyLimitStringLength(messages))
+
+        // Wait 1 second before retrying
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        response = await model.invoke(messages)
+    }
+
+    console.log('Parsed model response: ', response.parsed)
+
+    if (!response.parsed) throw new Error("No parsed response from model");
+
+    return response
+}
+
+export const getStructuredOutputResponse = async (props: {modelId: string, messages: BaseMessage[], outputStructure: JsonSchema}) => {
+    const chatModelWithStructuredOutput = new ChatBedrockConverse({
+        model: props.modelId || process.env.MODEL_ID,
+        temperature: 0
+    }).withStructuredOutput(
+        props.outputStructure, 
+        {includeRaw: true}
+    )
+
+    let structuredOutputResponse = await chatModelWithStructuredOutput.invoke(props.messages)
+
+    structuredOutputResponse = await correctStructuredOutputResponse(
+        chatModelWithStructuredOutput,
+        structuredOutputResponse,
+        props.outputStructure,
+        props.messages
+    )
+
+    if (!structuredOutputResponse.parsed) throw new Error(`No parsed response from model. Full response: ${structuredOutputResponse}`);
+
+    return structuredOutputResponse.parsed
+}
 
 // Helper functions for S3 operations
 function getS3Client() {
@@ -140,16 +224,17 @@ interface S3ReadResult {
     wasTruncated: boolean;
     totalBytes: number;
     bytesRead: number;
+    truncationMessage?: string;
 }
 
-export async function readS3Object(key: string, maxBytes: number = 1024): Promise<S3ReadResult> {
+export async function readS3Object(key: string, maxBytes: number = 2048, startAtByte: number = 0): Promise<S3ReadResult> {
     const s3Client = getS3Client();
     const bucketName = getBucketName();
     
     const getParams = {
         Bucket: bucketName,
         Key: key,
-        Range: maxBytes > 0 ? `bytes=0-${maxBytes - 1}` : undefined
+        Range: maxBytes > 0 ? `bytes=${startAtByte}-${startAtByte + maxBytes - 1}` : undefined
     };
     
     try {
@@ -164,15 +249,18 @@ export async function readS3Object(key: string, maxBytes: number = 1024): Promis
             }
             const content = Buffer.concat(chunks).toString('utf8');
 
-            // Check if content was truncated
+            // Check if content was truncated, accounting for startAtByte
             const contentLength = parseInt(response.ContentRange?.split('/')[1] || '0', 10);
-            const wasTruncated = maxBytes > 0 && contentLength > maxBytes;
+            const wasTruncated = maxBytes > 0 && (contentLength - startAtByte) > maxBytes;
             
             return {
                 content,
                 wasTruncated,
                 totalBytes: contentLength,
-                bytesRead: content.length
+                bytesRead: content.length,
+                truncationMessage: wasTruncated ? 
+                    `[...File truncated. Showing bytes ${startAtByte} to ${startAtByte + content.length} of ${contentLength} total bytes...]` : 
+                    undefined
             };
         } else {
             throw new Error("No content found");
@@ -199,7 +287,8 @@ export async function readS3Object(key: string, maxBytes: number = 1024): Promis
                     content,
                     wasTruncated: false,
                     totalBytes: content.length,
-                    bytesRead: content.length
+                    bytesRead: content.length,
+                    truncationMessage: undefined
                 };
             }
         }
@@ -313,7 +402,7 @@ export const listFiles = tool(
 
 // Tool to read a file from S3
 export const readFile = tool(
-    async ({ filename }) => {
+    async ({ filename, startAtByte = 0 }) => {
         const maxBytes = 2048;
         try {
             // Normalize the path to prevent path traversal attacks
@@ -326,12 +415,12 @@ export const readFile = tool(
             const s3Key = path.posix.join(prefix, targetPath);
             
             try {
-                const result = await readS3Object(s3Key, maxBytes);
+                const result = await readS3Object(s3Key, maxBytes, startAtByte);
                 let displayContent = result.content;
                 
                 // Add truncation indicator if the file was truncated
                 if (result.wasTruncated) {
-                    const truncationMessage = `\n\n[...File truncated. Showing first ${result.bytesRead} bytes of ${result.totalBytes} total bytes...]\n`;
+                    const truncationMessage = result.truncationMessage || '';
                     displayContent = displayContent + truncationMessage;
                 }
                 
@@ -489,6 +578,30 @@ export const updateFile = tool(
             // Write the updated content to S3
             await writeS3Object(s3Key, newContent);
             
+            // Read back a portion of the file to verify the update
+            const verificationResult = await readS3Object(s3Key);
+            
+            // Get lines of content for context
+            const lines = verificationResult.content.split('\n');
+            const contextLines = 3; // Number of lines to show before and after
+            
+            // Find the line number where the new content starts
+            let contentStartLine = 0;
+            if (operation === 'append') {
+                contentStartLine = Math.max(0, lines.length - contextLines);
+            } else if (operation === 'prepend') {
+                contentStartLine = 0;
+            } else if (operation === 'replace' && searchString) {
+                // Find the line containing the new content
+                contentStartLine = lines.findIndex(line => line.includes(content));
+                if (contentStartLine === -1) contentStartLine = 0;
+            }
+            
+            // Extract the relevant lines with context
+            const startLine = Math.max(0, contentStartLine - contextLines);
+            const endLine = Math.min(lines.length, contentStartLine + contextLines + 1);
+            const contentWithContext = lines.slice(startLine, endLine).join('\n');
+            
             const operationMessage = {
                 "append": "appended to",
                 "prepend": "prepended to",
@@ -499,7 +612,13 @@ export const updateFile = tool(
                 success: true, 
                 message: `Content successfully ${operationMessage} file ${filename}`,
                 operation,
-                fileExistedBefore: fileExists
+                fileExistedBefore: fileExists,
+                updatedContent: {
+                    content: contentWithContext,
+                    startLine: startLine + 1,
+                    endLine: endLine,
+                    wasTruncated: verificationResult.wasTruncated
+                }
             });
         } catch (error: any) {
             return JSON.stringify({ error: `Error updating file: ${error.message}` });
@@ -820,7 +939,7 @@ export const textToTableTool = tool(
             let enhancedTableColumns = [...params.tableColumns];
             
             if (params.dataToInclude || params.dataToExclude) {
-                enhancedTableColumns.unshift({
+                enhancedTableColumns.push({
                     columnName: 'relevanceScore',
                     columnDescription: `
                         ${params.dataToExclude ? `If the text contains information related to [${params.dataToExclude}], give a lower score.` : ''}
@@ -834,7 +953,7 @@ export const textToTableTool = tool(
                     }
                 });
 
-                enhancedTableColumns.unshift({
+                enhancedTableColumns.push({
                     columnName: 'relevanceExplanation',
                     columnDescription: `Explain why this content received its relevance score.`,
                     columnDataDefinition: {
@@ -864,12 +983,17 @@ export const textToTableTool = tool(
             //     }
             // });
 
-            // Build JSON schema for structured output
+            // Build JSON schema for structured output. Allow all columns to be nullable.
             const fieldDefinitions: Record<string, any> = {};
             for (const column of enhancedTableColumns) {
                 const normalizedColumnName = normalizeColumnName(column.columnName);
                 fieldDefinitions[normalizedColumnName] = {
-                    ...(column.columnDataDefinition ? column.columnDataDefinition : { type: 'string' }),
+                    ...(column.columnDataDefinition ? {
+                        ...column.columnDataDefinition,
+                        type: Array.isArray(column.columnDataDefinition.type) 
+                            ? [...new Set([...column.columnDataDefinition.type, 'null'])]  // Add 'null' if array
+                            : [column.columnDataDefinition.type, 'null']  // Convert to array with 'null'
+                    } : { type: ['string'] }),
                     description: column.columnDescription
                 };
             }
@@ -1006,21 +1130,24 @@ export const textToTableTool = tool(
                         `;
 
                         // Use the ChatBedrockConverse model with structured output
-                        const modelClient = new ChatBedrockConverse({
+                        const chatModelWithStructuredOutput = new ChatBedrockConverse({
                             model: process.env.TEXT_TO_TABLE_MODEL_ID,
-                            // Add some safety to avoid excessive token usage
-                            maxTokens: 4000
-                        });
-                        
-                        // Use withStructuredOutput for more reliable extraction
-                        const structuredOutput = modelClient.withStructuredOutput(jsonSchema);
-                        
+                            temperature: 0
+                        }).withStructuredOutput(
+                            jsonSchema, 
+                            {includeRaw: true}
+                        )
                         try {
                             // Create structured output extraction
-                            const structuredDataResult = await structuredOutput.invoke(messageText);
-                            
-                            // The result should be a proper object that matches the schema
-                            const structuredData: Record<string, any> = structuredDataResult;
+
+                            if (!process.env.TEXT_TO_TABLE_MODEL_ID) {
+                                throw new Error("TEXT_TO_TABLE_MODEL_ID is not set");
+                            }
+                            const structuredData = await getStructuredOutputResponse({
+                                modelId: process.env.TEXT_TO_TABLE_MODEL_ID,
+                                messages: [new HumanMessage(messageText)],
+                                outputStructure: jsonSchema
+                            })
                             
                             // Add file path if requested
                             if (params.includeFilePath !== false) {
@@ -1071,29 +1198,25 @@ export const textToTableTool = tool(
 
             console.log(`Generated ${tableRows.length} table rows`);
             
-            // Sort the table rows - primarily by date if present, otherwise by relevance score if available
+            // Sort the table rows by the first column
+            const firstColumnName = enhancedTableColumns[0].columnName;
             tableRows.sort((a, b) => {
-                // First try to sort by date if available
-                if (a['date'] && b['date']) {
-                    // Compare dates (chronologically)
-                    return new Date(a['date'] as string).getTime() - new Date(b['date'] as string).getTime();
-                } else if (a['date']) {
-                    // Items with date come before items without date
-                    return -1;
-                } else if (b['date']) {
-                    // Items with date come before items without date
-                    return 1;
-                } 
+                const valueA = a[firstColumnName];
+                const valueB = b[firstColumnName];
                 
-                // If dates are not available or equal, fall back to relevance score if available
-                if (params.dataToInclude || params.dataToExclude) {
-                    const scoreA = (a['relevanceScore'] as number) || 0;
-                    const scoreB = (b['relevanceScore'] as number) || 0;
-                    return scoreB - scoreA; // Higher scores first for secondary sorting
+                // Handle null/undefined values
+                if (valueA === null || valueA === undefined) return 1;
+                if (valueB === null || valueB === undefined) return -1;
+                
+                // Compare based on type
+                if (typeof valueA === 'number' && typeof valueB === 'number') {
+                    return valueA - valueB;
+                } else if (typeof valueA === 'string' && typeof valueB === 'string') {
+                    return valueA.localeCompare(valueB);
+                } else {
+                    // Convert to strings for comparison if types don't match
+                    return String(valueA).localeCompare(String(valueB));
                 }
-                
-                // No sorting criteria available
-                return 0;
             });
 
             // Save the table as CSV
