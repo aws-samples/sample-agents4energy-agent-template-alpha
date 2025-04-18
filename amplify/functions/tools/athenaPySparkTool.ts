@@ -603,7 +603,7 @@ export const pysparkTool = (props: {additionalSetupScript?: string, additionalTo
                 console.log(`Saved code to file: ${scriptPath}`);
             } else {
                 // Load the code from a file
-                const scriptContent = await readS3File(scriptPath);
+                const scriptContent = await readS3File(`s3://${process.env.STORAGE_BUCKET_NAME}/${getChatSessionPrefix()}${scriptPath}`);
                 codeToExecute =  getPreCodeExecutionScript(scriptContent) + scriptContent; //Saved scripts will always have the post execution script
                 console.log(`Loaded code from file: ${scriptPath}`);
             }

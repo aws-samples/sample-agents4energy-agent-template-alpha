@@ -115,17 +115,16 @@ When generating a csv file, use the pysparkTool to generate the file and not the
             - Date of the operation (YYYY-MM-DD format)
             - Event type (drilling, completion, workover, surface facility / tank work, administrative, etc)
             - Text from the report describing proposed or completed operations
-            - Tubing depth (nullable)
+            - Tubing depth
             - Artifical lift type. You MUST use the column definition below:
 {
     "columnName": "ArtificialLiftType", 
-    "columnDescription": "CRITICAL EXTRACTION RULES (in order of precedence):\n1. EXPLICIT ROD PUMP PHRASES:\n   - If 'rods and pump', 'install rods & pump', 'rods & pump', or similar explicit phrases are found, ALWAYS classify as 'Rod Pump'.\n2. ROD CONTEXT:\n   - If 'rods' appears in ANY context related to production or well completion, classify as 'Rod Pump'.\n3. SECONDARY CRITERIA (if no rods mentioned):\n   - 'Plunger Lift': Search for 'plunger lift' or 'bumper spring'\n   - 'Gas Lift': Look for mentions of 'gas lift mandrel' or explicit gas lift description\n   - 'ESP': Search for 'electric submersible pump' or 'ESP'\n   - 'Flowing': If no artificial lift is mentioned and well is producing\n   - 'None': If absolutely no production method is specified",
+    "columnDescription": "CRITICAL EXTRACTION RULES (in order of precedence):\n1. EXPLICIT ROD PUMP PHRASES:\n   - If 'rods', 'Rods & pump', 'RIH W/ PUMP & RODS', or similar phrases are found, ALWAYS classify as 'Rod Pump'.\n2. ROD CONTEXT:\n   - If 'rods' or 'RODS' appears in ANY context related to production or well completion, classify as 'Rod Pump'.\n3. SECONDARY CRITERIA (if no rods mentioned):\n   - 'Plunger Lift': Search for 'plunger lift' or 'bumper spring'\n   - 'ESP': Search for 'electric submersible pump' or 'ESP'",
     "columnDataDefinition": {
         "type": "string", 
         "enum": [
             "Rod Pump", 
             "Plunger Lift", 
-            "Gas Lift", 
             "ESP", 
             "Flowing", 
             "None"
@@ -145,6 +144,10 @@ When generating a csv file, use the pysparkTool to generate the file and not the
     - Recommend a new well configureation (including artificail lift type and tubing depth) to improve production.
 
 3. Generate a procedure to repair the well.
+    - Use the well file information table to determine the tubing depth and artificial lift type.
+    - Don't use rows with the administrative event type for artificial lift type.
+    - The last row with an artificial lift type is the current artificial lift type.
+    - If any row shows "Rod Pump" as the artificial lift type, use that as the artificial lift type.
     - This can include:
         - Using a workover rig to adjusting the well configuration (tubing depth, artificial lift type) to improve production.
         - Using a braden line unit to swap fluid out of the well
@@ -205,7 +208,7 @@ When generating a csv file, use the pysparkTool to generate the file and not the
 6. Report Structure:
    a) Executive Summary
       - Recommended action (Repair/Do Not Repair)
-      - NPV10 calculation
+      - NPV10 calculation (If the pysparkTool response didn't print this output, look for an economic analysis file and read it with the readFile tool)
       - Incremental production metrics
    b) Detailed Economic Analysis
       - Plot historic production, the decline curve, and operational events

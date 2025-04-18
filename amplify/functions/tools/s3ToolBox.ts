@@ -61,7 +61,8 @@ const textToTableSchema = z.object({
                 format: z.string().optional().describe("Optional format for the data, e.g., 'date', 'email', etc."),
                 pattern: z.string().optional().describe("Optional regex pattern that the value must match."),
                 minimum: z.number().optional().describe("Optional minimum value for number types."),
-                maximum: z.number().optional().describe("Optional maximum value for number types.")
+                maximum: z.number().optional().describe("Optional maximum value for number types."),
+                enum: z.array(z.string()).optional().describe("Optional array of allowed values for the column.")
             }).optional().describe("Schema definition for the column data.")
         })
     ).describe("Array of column definitions for the table."),
@@ -259,7 +260,7 @@ export async function readS3Object(key: string, maxBytes: number = 2048, startAt
                 totalBytes: contentLength,
                 bytesRead: content.length,
                 truncationMessage: wasTruncated ? 
-                    `[...File truncated. Showing bytes ${startAtByte} to ${startAtByte + content.length} of ${contentLength} total bytes...]` : 
+                    `\n[...File truncated. Showing bytes ${startAtByte} to ${startAtByte + content.length} of ${contentLength} total bytes...]` : 
                     undefined
             };
         } else {
@@ -1046,7 +1047,7 @@ export const textToTableTool = tool(
             console.log(`Found ${matchingFiles.length} matching files`);
 
             // Filter out files which are not text files based on the suffix
-            const textExtensions = ['.txt', '.md', '.csv', '.json', '.html', '.jsonl', '.jsonl.gz', '.yaml', '.yml'];
+            const textExtensions = ['.txt', '.md', '.json', '.html', '.jsonl', '.jsonl.gz', '.yaml', '.yml'];
             const filteredFiles = matchingFiles.filter(file => {
                 const lowerCaseFile = file.toLowerCase();
                 return textExtensions.some(ext => lowerCaseFile.endsWith(ext.toLowerCase()));

@@ -5,6 +5,7 @@ import FileViewer from '@/components/FileViewer';
 import { Button, Typography, Box, Paper, Stack } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 
 interface PageProps {
   params: {
@@ -15,6 +16,8 @@ interface PageProps {
 export default function FilePage({ params }: PageProps) {
   const s3Key = params.s3Key.join('/');
   const [fileUrl, setFileUrl] = useState<URL>();
+  const isPdfYaml = s3Key.endsWith('.pdf.yaml');
+  const pdfS3Key = isPdfYaml ? s3Key.replace('.yaml', '') : '';
   
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -51,6 +54,16 @@ export default function FilePage({ params }: PageProps) {
               >
                 Open in New Tab
               </Button>
+              {isPdfYaml && (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  startIcon={<PictureAsPdfIcon />}
+                  onClick={() => window.open(`/preview/${pdfS3Key}`, '_blank')}
+                >
+                  Open PDF
+                </Button>
+              )}
             </Stack>
           )}
         </Box>

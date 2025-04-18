@@ -13,7 +13,7 @@ import { Amplify } from 'aws-amplify';
 import { Schema } from '@/../amplify/data/resource';
 
 // Function to safely load outputs
-const loadOutputs = () => {
+export const loadOutputs = () => {
   try {
     return require('@/../amplify_outputs.json');
   } catch (error) {
