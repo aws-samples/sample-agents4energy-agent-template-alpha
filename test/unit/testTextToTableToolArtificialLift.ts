@@ -14,7 +14,8 @@ describe('Text to Table Tool', function () {
 
     const outputs = loadOutputs();
     process.env.STORAGE_BUCKET_NAME = outputs?.storage?.bucket_name;
-    process.env.TEXT_TO_TABLE_MODEL_ID = 'anthropic.claude-3-haiku-20240307-v1:0';
+    // process.env.TEXT_TO_TABLE_MODEL_ID = 'anthropic.claude-3-haiku-20240307-v1:0';
+    process.env.TEXT_TO_TABLE_MODEL_ID = 'amazon.nova-pro-v1:0';
   });
 
   it('should convert text files to a structured table', async function() {
@@ -31,20 +32,41 @@ describe('Text to Table Tool', function () {
           }
         },
         {
-          columnName: 'ArtificialLiftType',
-          columnDescription: `CRITICAL EXTRACTION RULES (in order of precedence):
-          1. EXPLICIT ROD PUMP PHRASES:
-            - If 'rods', 'Rods & pump', 'RIH W/ PUMP & RODS', or similar phrases are found, ALWAYS classify as 'Rod Pump'.
-          2. ROD CONTEXT:
-            - If 'rods' or 'RODS' appears in ANY context related to production or well completion, classify as 'Rod Pump'.
-          3. SECONDARY CRITERIA (if no rods mentioned):
-            - 'Plunger Lift': Search for 'plunger lift' or 'bumper spring'
-            - 'ESP': Search for 'electric submersible pump' or 'ESP'
-            - 'Flowing': If no artificial lift is mentioned and well is producing
-            - 'None': If absolutely no production method is specified`,
+          // columnName: 'Rods yes or no',
+          columnName: 'Artificial Lift Method',
+          // columnDescription: `Does the word rods appear in the text?`,
+          columnDescription: `ARTIFICIAL LIFT TYPE CLASSIFICATION RULES:
+
+          IMPORTANT: This classification is ONLY about the artificial lift method used to produce the well.
+          Do NOT consider the well type (Coal Bed Methane, Gas, Oil) or formation type in the classification.
+          
+          STEP 1 - CHECK FOR ROD PUMP:
+          If ANY of these conditions are met, the artificial lift type MUST be 'Rod Pump':
+            - Text contains ANY mention of 'rods', 'Rods & pump', 'RIH W/ PUMP & RODS'
+            - Text mentions plans to 'install rods & pump' or states 'rods and pump will be installed'
+            - Text shows existing 'Rods & pump' in tubing or completion details
+            - Word 'rods' or 'RODS' appears in context of production, completion, installation plans, or equipment
+            - Text contains phrases like 'Install rods & pump' in a procedure or job steps
+            - Text mentions 'Rods and pump will likely be installed' or similar future plans
+          
+          STEP 2 - ONLY if NO Rod Pump indicators found above, check for:
+            - 'Plunger Lift': Look for 'plunger lift' or 'bumper spring'
+            - 'ESP': Look for 'electric submersible pump' or 'ESP'
+            - 'Flowing': If no artificial lift mentioned and well is producing
+            - 'None': If no production method specified
+          
+          Only use None if the text rods does not appear in the text.
+          `,
           columnDataDefinition: {
             type: 'string',
-            enum: [ "Rod Pump", "Plunger Lift", "ESP", "Flowing", "None" ] 
+            enum: [ "Rod Pump", "Plunger Lift", "ESP", "Flowing"] 
+          }
+        },
+        {
+          columnName: 'Explanation',
+          columnDescription: 'A detailed explanation of the choice for artificial lift method',
+          columnDataDefinition: {
+            type: 'string',
           }
         }
       ]
@@ -52,7 +74,9 @@ describe('Text to Table Tool', function () {
 
     console.log('result:\n', JSON.stringify(JSON.parse(result), null, 2));
 
-    const artificialLiftType = JSON.parse(result).data[0].ArtificialLiftType;
+    const parsedResult = JSON.parse(result);
+    const targetRow = parsedResult.data.find((row: any) => row.FilePath === "global/well_api_number=3004529202/30045292020000_13_wf.pdf.yaml");
+    const artificialLiftType = targetRow ? targetRow.ArtificialLiftType : null;
     expect(artificialLiftType).to.equal('Rod Pump');
   });
 });

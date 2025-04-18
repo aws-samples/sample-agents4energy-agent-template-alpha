@@ -228,7 +228,8 @@ interface S3ReadResult {
     truncationMessage?: string;
 }
 
-export async function readS3Object(key: string, maxBytes: number = 2048, startAtByte: number = 0): Promise<S3ReadResult> {
+export async function readS3Object(props: {key: string, maxBytes: number, startAtByte: number}): Promise<S3ReadResult> {
+    const { key, maxBytes = 2048, startAtByte = 0 } = props;
     const s3Client = getS3Client();
     const bucketName = getBucketName();
     
@@ -416,7 +417,7 @@ export const readFile = tool(
             const s3Key = path.posix.join(prefix, targetPath);
             
             try {
-                const result = await readS3Object(s3Key, maxBytes, startAtByte);
+                const result = await readS3Object({key: s3Key, maxBytes, startAtByte});
                 let displayContent = result.content;
                 
                 // Add truncation indicator if the file was truncated
@@ -480,7 +481,7 @@ export const updateFile = tool(
             let fileExists = true;
             
             try {
-                const result = await readS3Object(s3Key, 0); // Read entire file for updates
+                const result = await readS3Object({key: s3Key, maxBytes: 0, startAtByte: 0}); // Read entire file for updates
                 existingContent = result.content;
             } catch (error: any) {
                 if (error.name === 'NoSuchKey') {
@@ -580,7 +581,7 @@ export const updateFile = tool(
             await writeS3Object(s3Key, newContent);
             
             // Read back a portion of the file to verify the update
-            const verificationResult = await readS3Object(s3Key);
+            const verificationResult = await readS3Object({key: s3Key, maxBytes: 0, startAtByte: 0});
             
             // Get lines of content for context
             const lines = verificationResult.content.split('\n');
@@ -631,37 +632,6 @@ export const updateFile = tool(
         schema: updateFileSchema,
     }
 );
-
-// Helper function to process HTML embeddings
-async function processHtmlEmbeddings(content: string, prefix: string): Promise<string> {
-    // Regular expression to match <!-- embed:filename --> patterns
-    const embedRegex = /<!--\s*embed:(.*?)\s*-->/g;
-    
-    // Process all embeddings
-    const processedContent = await Promise.all(
-        content.split('\n').map(async (line) => {
-            // Check if line contains an embedding
-            const match = line.match(/<!--\s*embed:(.*?)\s*-->/);
-            if (!match) return line;
-            
-            const embeddedFilePath = match[1].trim();
-            try {
-                // Determine if the embedded file is from global storage or session storage
-                const embeddedPrefix = getS3KeyPrefix(embeddedFilePath);
-                const s3Key = path.posix.join(embeddedPrefix, embeddedFilePath);
-                
-                // Read the embedded file
-                const result = await readS3Object(s3Key);
-                return result.content;
-            } catch (error: any) {
-                console.error(`Error processing HTML embedding ${embeddedFilePath}:`, error);
-                return `<!-- Error embedding ${embeddedFilePath}: ${error.message} -->`;
-            }
-        })
-    );
-    
-    return processedContent.join('\n');
-}
 
 // Helper function to process document links
 async function processDocumentLinks(content: string, chatSessionId: string): Promise<string> {
@@ -999,6 +969,9 @@ export const textToTableTool = tool(
                 };
             }
 
+            const enumValues = enhancedTableColumns.filter(column => column.columnDataDefinition?.enum).flatMap(column => column.columnDataDefinition?.enum) as string[];
+            console.log('enumValues:', enumValues);
+
             const jsonSchema = {
                 title: "extractTableData",
                 description: "Extract structured data from text content",
@@ -1114,7 +1087,7 @@ export const textToTableTool = tool(
                 const batch = filteredFiles.slice(i, i + concurrencyLimit);
                 const batchPromises = batch.map(async (fileKey) => {
                     try {
-                        const result = await readS3Object(fileKey);
+                        const result = await readS3Object({key: fileKey, maxBytes: 0, startAtByte: 0});
                         const fileContent = result.content;
                         
                         // Extract file path for display
@@ -1122,22 +1095,43 @@ export const textToTableTool = tool(
                             ? fileKey.replace(GLOBAL_PREFIX, 'global/') 
                             : fileKey.replace(getUserPrefix(), '');
 
+                        // Find each time one of the enum values appears in the file content. Extract 100 characters before and after the enum matches. 
+                        const enumMatches = enumValues.map(enumValue => {
+                            // Split enum value into words and create regex pattern to match any of them
+                            const words = enumValue.split(/\s+/);
+                            const regexPattern = words.map(word => `\\b${word}\\b`).join('|');
+                            const regex = new RegExp(regexPattern, 'gi');  // 'g' for global, 'i' for case-insensitive
+                            const matches = [];
+                            let match;
+                            
+                            while ((match = regex.exec(fileContent)) !== null) {
+                                matches.push({
+                                    value: enumValue,
+                                    matchedWord: match[0],
+                                    index: match.index,
+                                    context: fileContent.slice(Math.max(0, match.index - 100), match.index + 100 + match[0].length)
+                                });
+                            }
+                            
+                            return matches.length > 0 ? matches : [];
+                        });
+
+                        console.log('enumMatches:', enumMatches);
+
+                        //Create a message with the enum matches. Show 100 characters before and after the enum matches.
+                        const enumMatchesMessage = `Enum matches found in the file: ${enumMatches.flat().map(m => m.value).join(', ')}. Showing 100 characters before and after each match.`;
+                        console.log('enumMatchesMessage:', enumMatchesMessage);
+                        
                         // Build the message for AI processing
                         const messageText = `
                         Extract structured data from the following text content according to the provided schema.
                         <TextContent>
                         ${fileContent}
                         </TextContent>
+                        <EnumMatches>
+                        ${enumMatchesMessage}
+                        </EnumMatches>
                         `;
-
-                        // Use the ChatBedrockConverse model with structured output
-                        const chatModelWithStructuredOutput = new ChatBedrockConverse({
-                            model: process.env.TEXT_TO_TABLE_MODEL_ID,
-                            temperature: 0
-                        }).withStructuredOutput(
-                            jsonSchema, 
-                            {includeRaw: true}
-                        )
                         try {
                             // Create structured output extraction
 
