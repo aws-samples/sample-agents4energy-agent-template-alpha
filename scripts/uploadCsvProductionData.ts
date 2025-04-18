@@ -1,25 +1,40 @@
 import { JSDOM } from 'jsdom';
 import * as path from 'path';
-import { writeFile, mkdir } from 'fs/promises';
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 
-// const wellApiNumber = `30-015-27892`
-const wellApiNumber = `30-045-29202`
+import outputs from '../amplify_outputs.json'
 
-const productionUrl = `https://wwwapps.emnrd.nm.gov/OCD/OCDPermitting/Data/ProductionSummaryPrint.aspx?report=csv&api=${wellApiNumber}`
+interface UploadConfig {
+    wellApiNumber: string;
+    bucketName: string;
+    prefix?: string;
+}
 
-console.log("Production URL: ", productionUrl)
-const wellFileUrl = `https://ocdimage.emnrd.nm.gov/imaging/WellFileView.aspx?RefType=WF&RefID=${wellApiNumber.replaceAll("-","")}0000`
-console.log('Well File URL: ', wellFileUrl)
-
-async function saveStringToFile(content: string, filename: string) {
+async function uploadToS3(content: string, key: string, bucketName: string) {
+    const s3Client = new S3Client({});
     try {
-        await mkdir(path.dirname(filename), { recursive: true });
-        await writeFile(filename, content, 'utf8');
-        console.log('File has been saved successfully');
+        const command = new PutObjectCommand({
+            Bucket: bucketName,
+            Key: key,
+            Body: content,
+            ContentType: 'text/csv'
+        });
+        await s3Client.send(command);
+        console.log(`Successfully uploaded to s3://${bucketName}/${key}`);
     } catch (error) {
-        console.error('Error writing to file:', error);
+        console.error('Error uploading to S3:', error);
+        throw error;
     }
 }
+
+// // const wellApiNumber = `30-015-27892`
+// const wellApiNumber = `30-045-29202`
+// const productionUrl = `https://wwwapps.emnrd.nm.gov/OCD/OCDPermitting/Data/ProductionSummaryPrint.aspx?report=csv&api=${wellApiNumber}`
+
+// console.log("Production URL: ", productionUrl)
+// const wellFileUrl = `https://ocdimage.emnrd.nm.gov/imaging/WellFileView.aspx?RefType=WF&RefID=${wellApiNumber.replaceAll("-","")}0000`
+// console.log('Well File URL: ', wellFileUrl)
+
 
 async function parseHtmlTableToArrays(htmlContent: string): Promise<string[][] | void> {
     // Create a DOM using jsdom
@@ -64,8 +79,11 @@ async function parseHtmlTableToArrays(htmlContent: string): Promise<string[][] |
     return csvRows;
 }
 
-
-const main = async () => {
+export const uploadCsvProductionData = async (config: UploadConfig) => {  
+    const { wellApiNumber, bucketName, prefix = '' } = config;
+    const productionUrl = `https://wwwapps.emnrd.nm.gov/OCD/OCDPermitting/Data/ProductionSummaryPrint.aspx?report=csv&api=${wellApiNumber}`
+    console.log("Production URL: ", productionUrl)
+    
     const response = await fetch(productionUrl)
     const htmlContent = await response.text()
 
@@ -75,28 +93,43 @@ const main = async () => {
     const csvContentWithDate = [["FirstDayOfMonth", ...csvContent[0]]]
 
     csvContentWithDate.push(
-        ...csvContent.slice(1).map(row => ([
-            new Date(`${row[2]} 1, ${row[0]}`).toISOString().split('T')[0],
-            ...row,
-        ]))
+        ...csvContent.slice(1).map(row => {
+            // Clean up the year value by removing any non-numeric characters
+            const year = row[0].replace(/[^\d]/g, '');
+            return [
+                new Date(`${row[2]} 1, ${year}`).toISOString().split('T')[0],
+                ...row,
+            ];
+        })
     )
 
     const csvContentString = csvContentWithDate.map(row => row.join(',')).join('\n')
     
-    const productionFilePath = path.join(
-        '.',
-        'tmp',
-        'production-agent',
-        'structured-data-files',
-        'monthly_produciton',
-        `api=${wellApiNumber}`,
+    const s3Key = path.join(
+        prefix,
+        'monthly_production',
+        `api=${wellApiNumber.replaceAll('-', '')}`,
         'production.csv'
-    )
+    ).replace(/\\/g, '/') // Ensure forward slashes for S3 keys
 
-    await saveStringToFile(csvContentString, productionFilePath)
-    
-    // console.log(csvContentString);
-
+    await uploadToS3(csvContentString, s3Key, bucketName)
 }
 
-main()
+// Example usage:
+if (require.main === module) {
+    const config: UploadConfig = {
+        wellApiNumber: '30-045-29202',
+        bucketName: outputs.storage.bucket_name,
+        prefix: 'global/test/production-data'
+    };
+
+    if (!config.bucketName) {
+        console.error('BUCKET_NAME environment variable is required');
+        process.exit(1);
+    }
+
+    uploadCsvProductionData(config).catch(error => {
+        console.error('Error:', error);
+        process.exit(1);
+    });
+}
