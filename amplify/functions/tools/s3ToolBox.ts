@@ -1020,7 +1020,7 @@ export const textToTableTool = tool(
             console.log(`Found ${matchingFiles.length} matching files`);
 
             // Filter out files which are not text files based on the suffix
-            const textExtensions = ['.txt', '.md', '.json', '.html', '.jsonl', '.jsonl.gz', '.yaml', '.yml'];
+            const textExtensions = ['.txt', '.md', '.json', '.html', '.jsonl', '.jsonl.gz', '.yaml', '.yml', '.xml', 'ml'];
             const filteredFiles = matchingFiles.filter(file => {
                 const lowerCaseFile = file.toLowerCase();
                 return textExtensions.some(ext => lowerCaseFile.endsWith(ext.toLowerCase()));
