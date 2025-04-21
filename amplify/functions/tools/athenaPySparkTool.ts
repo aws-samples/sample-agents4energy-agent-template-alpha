@@ -230,6 +230,18 @@ def upload_working_directory():
                     with open(local_path, 'r', encoding='utf-8') as f:
                         content = f.read()
                     
+                    # Check if Plotly script is already present
+                    plotly_script = '<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>'
+                    if plotly_script not in content:
+                        # Add Plotly script before the closing head tag, or at the start of the body if no head tag
+                        if '</head>' in content:
+                            content = content.replace('</head>', f'''{plotly_script}\n</head>''')
+                        elif '<body>' in content:
+                            content = content.replace('<body>', f'''<body>\n{plotly_script}''')
+                        else:
+                            # If neither head nor body tag exists, add it at the start of the file
+                            content = f'''{plotly_script}\n{content}'''
+                    
                     # Function to process a path and return the full URL
                     def get_full_url(file_path):
                         # Only process relative paths that don't start with http/https/files
