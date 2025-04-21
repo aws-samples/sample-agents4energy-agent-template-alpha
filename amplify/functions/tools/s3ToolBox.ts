@@ -1079,7 +1079,7 @@ export const textToTableTool = tool(
 
             // Process each file with concurrency limit
             const tableRows = [];
-            const concurrencyLimit = 3; // Process x files at a time
+            const concurrencyLimit = 1; // Process x files at a time
             let processedCount = 0;
             
             // Process files in batches to avoid hitting limits

@@ -76,6 +76,27 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
                 foundationModelId: foundationModelId
             }),
             pysparkTool({
+                additionalSetupScript:`
+import plotly.io as pio
+import plotly.graph_objects as go
+
+# Create a custom layout
+custom_layout = go.Layout(
+    paper_bgcolor='white',
+    plot_bgcolor='white',
+    xaxis=dict(showgrid=False),
+    yaxis=dict(
+        showgrid=True,
+        gridcolor='lightgray',
+        type='log'  # <-- Set y-axis to logarithmic
+    )
+)
+
+# Create and register the template
+custom_template = go.layout.Template(layout=custom_layout)
+pio.templates["white_clean_log"] = custom_template
+pio.templates.default = "white_clean_log"
+                `,
                 additionalToolDescription: `
                 When fitting a hyperbolic decline curve to well production data:
                 - You MUST weight the most recent points more x20 more heavily when fitting the curve.
