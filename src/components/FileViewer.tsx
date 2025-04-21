@@ -48,6 +48,8 @@ export default function FileViewer({ s3Key, onUrlChange }: FileViewerProps) {
           ) {
           const text = await fileResponse.text();
           setFileContent(text);
+        } else {
+          setFileContent(null);
         }
       } catch (error) {
         console.error('Error fetching file content:', error);
@@ -76,6 +78,7 @@ export default function FileViewer({ s3Key, onUrlChange }: FileViewerProps) {
 
   // If we have text content, display it
   if (fileContent) {
+    console.log('Rendering text content');
     return (
       <div className="relative w-full h-full flex flex-col">
         <pre

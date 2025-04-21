@@ -291,7 +291,7 @@ export const SearchFilesToolComponent = ({ content, theme, chatSessionId }: {
                         }}
                         onClick={() => {
                             const encodedPath = filePath.split('/').map((segment: string) => encodeURIComponent(segment)).join('/');
-                            window.open(`/file/${encodedPath}`, '_blank');
+                            window.open(`/preview/${encodedPath}`, '_blank');
                         }}
                         onMouseEnter={(e) => {
                             e.currentTarget.style.backgroundColor = theme.palette.action.hover;

@@ -248,8 +248,9 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ chatSessionId, onFileSelect
 
           let url = '';
           try {
-            const fileUrl = await getUrl({ path: itemPath });
-            url = fileUrl.url.toString();
+            // const fileUrl = await getUrl({ path: itemPath });
+            // url = fileUrl.url.toString();
+            url = '/preview/' + itemPath;
           } catch (e) {
             console.error(`Error getting URL for ${itemPath}:`, e);
           }

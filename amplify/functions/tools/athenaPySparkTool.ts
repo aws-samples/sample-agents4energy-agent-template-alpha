@@ -9,7 +9,7 @@ import { getChatSessionId, getChatSessionPrefix, getOrigin } from "./toolUtils";
 import { writeFile } from "./s3ToolBox";
 
 // Environment variables
-const ATHENA_WORKGROUP = process.env.ATHENA_WORKGROUP_NAME || 'pyspark-workgroup';
+const getAthenaWorkgroup = () => process.env.ATHENA_WORKGROUP_NAME;
 const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
 
 export const getSessionSetupScript = () => { 
@@ -238,10 +238,10 @@ def upload_working_directory():
                         
                         # Handle global files differently
                         if file_path.startswith('global/'):
-                            return f"{origin}/file/{file_path}"
+                            return f"${origin}/file/{file_path}"
                         
                         # Construct the full asset path for session-specific files
-                        return f"{origin}/file/{chatSessionS3Prefix}{file_path}"
+                        return f"${origin}/file/{chatSessionS3Prefix}{file_path}"
                     
                     import re
                     
@@ -567,7 +567,7 @@ async function findExistingSession(athenaClient: AthenaClient, chatSessionId: st
         console.log(`Looking for existing session for chat session: ${chatSessionId}`);
 
         const listSessionsCommand = new ListSessionsCommand({
-            WorkGroup: ATHENA_WORKGROUP,
+            WorkGroup: getAthenaWorkgroup(),
             // Only look for recent sessions that might be active
             StateFilter: 'IDLE'
         });
@@ -701,7 +701,7 @@ export const pysparkTool = (props: {additionalSetupScript?: string, additionalTo
                 console.log('New session token: ', sessionToken);
 
                 const startSessionCommand = new StartSessionCommand({
-                    WorkGroup: ATHENA_WORKGROUP,
+                    WorkGroup: getAthenaWorkgroup(),
                     Description: `Session for ${description} [ChatSessionID:${chatSessionId}]`,
                     ClientRequestToken: sessionToken,
                     EngineConfiguration: {
@@ -715,7 +715,7 @@ export const pysparkTool = (props: {additionalSetupScript?: string, additionalTo
                     }
                 });
 
-                console.log(`Starting Athena session in workgroup: ${ATHENA_WORKGROUP}`);
+                console.log(`Starting Athena session in workgroup: ${getAthenaWorkgroup()}`);
                 const sessionResponse = await athenaClient.send(startSessionCommand);
 
                 if (!sessionResponse.SessionId) {
@@ -892,6 +892,8 @@ execute the provided PySpark code, and return the execution results.
 
 Important notes:
 - When fitting curves, ALWAYS check the curve fit quality!
+- The function downloadFileFromS3 is already defined in the execution environment. ALWAYS use it to load files into the execution environment.
+    * Ex: downloadFileFromS3('relative/path/to/file.csv');
 - Before loading a csv file from S3, read the file to check the column names and data types.
 - Any files saved to the working directory will be uploaded to the user's chat session's artifacts in S3.
 - The file hiearchy will be perserved when uploading files from the working directory to S3 (ex: data/dataframe.csv will be uploaded as data/dataframe.csv in the chat session's S3 prefix).

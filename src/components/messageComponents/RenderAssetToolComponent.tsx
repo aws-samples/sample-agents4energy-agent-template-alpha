@@ -63,7 +63,7 @@ const RenderAssetToolComponent: React.FC<RenderAssetToolComponentProps> = ({ con
             <IconButton
               size="small"
               onClick={() => {
-                window.open(`/file/${s3Key}`, '_blank');
+                window.open(`/preview/${s3Key}`, '_blank');
               }}
               sx={{
                 opacity: 0.7,
