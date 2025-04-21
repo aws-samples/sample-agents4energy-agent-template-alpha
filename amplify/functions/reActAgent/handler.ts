@@ -434,6 +434,17 @@ When using the textToTableTool:
             }
         }
 
+        //If the agent is invoked by another agent, create a tool response message with it's output
+        if (event.arguments.respondToAgent) {
+            
+            const toolResponseMessage = new ToolMessage({
+                content: "This is a tool response message",
+                tool_call_id: "123",
+                name: "toolName",
+                // name: graphQLFieldName
+            })
+        }
+
     } catch (error) {
         if (!event.identity) throw new Error("Event does not contain identity");
         if (!('sub' in event.identity)) throw new Error("Event does not contain user");
