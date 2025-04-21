@@ -237,6 +237,7 @@ function processResults(results: GetDocumentAnalysisCommandOutput[]) {
 
 export const handler: SQSHandler = async (event: SQSEvent) => {
     console.log('event:\n', JSON.stringify(event, null, 2))
+    const s3Client = new S3Client();
     try {
         // Process each record in the event
         for (const sqsRecord of event.Records) {
@@ -265,11 +266,23 @@ export const handler: SQSHandler = async (event: SQSEvent) => {
 
                 // If we get here, the document wasn't split and we should process it
                 console.log(`Processing file: ${documentKeys[0]} from bucket: ${bucket}`);
+                const newS3Key = documentKeys[0] + '.yaml'
+                // Check if the file already exists
+                try {
+                    const existingFile = await s3Client.send(new HeadObjectCommand({ Bucket: bucket, Key: newS3Key }))
+                    if (existingFile) {
+                        console.log(`File ${newS3Key} already exists in bucket ${bucket}. Skipping...`)
+                        return
+                    }
+                } catch (error) {
+                    console.error(`Error checking if file ${newS3Key} exists in bucket ${bucket}:`, error)
+                }
+
                 const documentContent = await startAndWaitForDocumentAnalysis(bucket, documentKeys[0]) || "No contents found in file"
 
                 await uploadStringToS3({
                     bucket: bucket,
-                    key: documentKeys[0] + '.yaml',
+                    key: newS3Key,
                     content: stringify(documentContent)
                 })
 
