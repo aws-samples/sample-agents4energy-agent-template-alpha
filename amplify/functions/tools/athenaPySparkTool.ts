@@ -5,7 +5,7 @@ import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
 import { getConfiguredAmplifyClient } from '../../../utils/amplifyUtils';
 import { publishResponseStreamChunk } from "../graphql/mutations";
-import { getChatSessionId, getChatSessionPrefix } from "./toolUtils";
+import { getChatSessionId, getChatSessionPrefix, getOrigin } from "./toolUtils";
 import { writeFile } from "./s3ToolBox";
 
 // Environment variables
@@ -189,7 +189,9 @@ for s3_path in files_to_download:
 \n\n`
 }
 
-export const getPostCodeExecutionScript = () => { return `
+export const getPostCodeExecutionScript = (props?: {origin?: string}) => { 
+    const origin = props?.origin || '';
+    return `
 import os
 
 def upload_working_directory():
@@ -222,6 +224,56 @@ def upload_working_directory():
             if rel_path.startswith('global'):
                 continue
             
+            # If the file is an html file, open the file, and replace any src attributes with reletive paths with the full path, including the origin.
+            if local_path.lower().endswith('.html'):
+                try:
+                    with open(local_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    
+                    # Function to process a path and return the full URL
+                    def get_full_url(file_path):
+                        # Only process relative paths that don't start with http/https/files
+                        if file_path.startswith(('http://', 'https://')):
+                            return file_path
+                        
+                        # Handle global files differently
+                        if file_path.startswith('global/'):
+                            return f"{origin}/file/{file_path}"
+                        
+                        # Construct the full asset path for session-specific files
+                        return f"{origin}/file/{chatSessionS3Prefix}{file_path}"
+                    
+                    import re
+                    
+                    # Regular expression to match href="path/to/file" patterns
+                    link_regex = r'href="([^"]+)"'
+                    # Regular expression to match src="path/to/file" patterns in iframes
+                    iframe_src_regex = r'<iframe[^>]*\ssrc="([^"]+)"[^>]*>'
+                    
+                    # First replace all href matches
+                    def replace_href(match):
+                        file_path = match.group(1)
+                        full_path = get_full_url(file_path)
+                        return f'href="{full_path}"'
+                    
+                    content = re.sub(link_regex, replace_href, content)
+                    
+                    # Then replace all iframe src matches
+                    def replace_src(match):
+                        full_match = match.group(0)
+                        file_path = re.search(r'src="([^"]+)"', full_match).group(1)
+                        full_path = get_full_url(file_path)
+                        return full_match.replace(f'src="{file_path}"', f'src="{full_path}"')
+                    
+                    content = re.sub(iframe_src_regex, replace_src, content)
+                    
+                    # Write the processed content back to the file
+                    with open(local_path, 'w', encoding='utf-8') as f:
+                        f.write(content)
+                    
+                except Exception as e:
+                    print(f"Error processing HTML links in {local_path}: {str(e)}")
+
             # Upload the file to S3 preserving the directory structure
             print(f"Uploading {local_path} to S3...")
             uploadFileToS3(local_path, rel_path)
@@ -595,7 +647,7 @@ export const pysparkTool = (props: {additionalSetupScript?: string, additionalTo
             // Save the script file
             if (code && scriptPath) {
                 // Save the code to a file
-                codeToExecute = getPreCodeExecutionScript(code) + code + getPostCodeExecutionScript();
+                codeToExecute = getPreCodeExecutionScript(code) + code + getPostCodeExecutionScript({origin: getOrigin() || ''});
                 await writeFile.invoke({
                     filename: scriptPath,
                     content: getSessionSetupScript() + additionalSetupScript + '\n' + codeToExecute

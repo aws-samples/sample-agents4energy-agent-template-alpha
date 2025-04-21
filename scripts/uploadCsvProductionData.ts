@@ -93,14 +93,12 @@ export const uploadCsvProductionData = async (config: UploadConfig) => {
     const csvContentWithDate = [["FirstDayOfMonth", ...csvContent[0]]]
 
     csvContentWithDate.push(
-        ...csvContent.slice(1).map(row => {
-            // Clean up the year value by removing any non-numeric characters
-            const year = row[0].replace(/[^\d]/g, '');
-            return [
-                new Date(`${row[2]} 1, ${year}`).toISOString().split('T')[0],
+        ...csvContent.slice(1)
+            .filter(row => /^\d+$/.test(row[0])) // Only keep rows where year is purely numeric
+            .map(row => ([
+                new Date(`${row[2]} 1, ${row[0]}`).toISOString().split('T')[0],
                 ...row,
-            ];
-        })
+            ]))
     )
 
     const csvContentString = csvContentWithDate.map(row => row.join(',')).join('\n')

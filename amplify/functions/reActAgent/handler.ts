@@ -220,7 +220,12 @@ When generating a csv file, use the pysparkTool to generate the file and not the
       - Link to the proposed repair procedure (ex: <a href="reports/repair_procedure.md">Proposed Repair Procedure</a>)
       - Expected production improvement
       - If you recommend changing artificial lift type, explain why and use produciton rates to support the recommendation
-    d) Data Sources
+    d) Steps performed to generate the report
+      - List all of the steps performed to generate the report
+      - Include the reasoning for each step
+      - Summmarize output of each step
+      - If there are supporting files, plots, or tables, include a link to them.
+    e) Data Sources
       - Links to every data source used in the report
       - Include footnotes where the data was used
       - Example:
