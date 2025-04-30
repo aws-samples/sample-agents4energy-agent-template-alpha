@@ -1,14 +1,15 @@
 "use client"
 import React, { useEffect, useState } from 'react';
 // import { stringify } from 'yaml';
-import { Authenticator, useAuthenticator } from '@aws-amplify/ui-react';
+// import { Authenticator, useAuthenticator } from '@aws-amplify/ui-react';
 import { generateClient } from "aws-amplify/data";
+import { fetchAuthSession } from 'aws-amplify/auth';
 import { type Schema } from "@/../amplify/data/resource";
-import { 
-    Box, 
-    Button, 
-    Paper, 
-    Typography, 
+import {
+    Box,
+    Button,
+    Paper,
+    Typography,
     Grid,
     Table,
     TableBody,
@@ -18,13 +19,13 @@ import {
     TableRow,
     Chip,
     Collapse,
-    IconButton,
+    // IconButton,
     CircularProgress,
     Menu,
     MenuItem
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
-import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+// import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import OilBarrelIcon from '@mui/icons-material/LocalGasStation';
 import GasIcon from '@mui/icons-material/Waves';
@@ -34,7 +35,7 @@ import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import ChatIcon from '@mui/icons-material/Chat';
 const amplifyClient = generateClient<Schema>();
 
-import { withAuth } from '@/components/WithAuth';
+// import { withAuth } from '@/components/WithAuth';
 
 // Format large numbers with commas and handle millions/billions
 const formatCurrency = (value: number): string => {
@@ -71,8 +72,8 @@ const STATUS_OPTIONS: ProjectStatus[] = [
 
 const getStatusColor = (status: ProjectStatus | null | undefined): 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' => {
     if (!status) return 'default';
-    
-    switch(status) {
+
+    switch (status) {
         case 'proposed': return 'info';
         case 'approved': return 'success';
         case 'rejected': return 'error';
@@ -140,22 +141,22 @@ const ExpandableRow = ({ project, onDelete, onStatusChange }: ExpandableRowProps
     return (
         <>
             <TableRow
-                sx={{ 
+                sx={{
                     '&:hover': { bgcolor: 'grey.50' }
                 }}
             >
-                <TableCell 
-                    component="th" 
+                <TableCell
+                    component="th"
                     scope="row"
-                    sx={{ 
+                    sx={{
                         fontWeight: 500,
                         pl: 3
                     }}
                 >
                     {project.name}
                 </TableCell>
-                <TableCell 
-                    sx={{ 
+                <TableCell
+                    sx={{
                         maxWidth: '300px',
                         color: 'text.secondary',
                         fontSize: '0.875rem'
@@ -163,52 +164,52 @@ const ExpandableRow = ({ project, onDelete, onStatusChange }: ExpandableRowProps
                 >
                     {project.description}
                 </TableCell>
-                <TableCell 
+                <TableCell
                     align="right"
-                    sx={{ 
+                    sx={{
                         fontFamily: 'monospace',
                         fontWeight: 500
                     }}
                 >
                     {formatCurrency(project.financial?.NPV10 || 0)}
                 </TableCell>
-                <TableCell 
+                <TableCell
                     align="right"
-                    sx={{ 
+                    sx={{
                         fontFamily: 'monospace',
                         fontWeight: 500
                     }}
                 >
                     {formatCurrency(project.financial?.cost || 0)}
                 </TableCell>
-                <TableCell 
+                <TableCell
                     align="right"
-                    sx={{ 
+                    sx={{
                         fontFamily: 'monospace',
                         fontWeight: 500,
-                        color: project.financial?.successProbability ? 
+                        color: project.financial?.successProbability ?
                             project.financial.successProbability >= 0.7 ? 'success.main' :
-                            project.financial.successProbability >= 0.4 ? 'warning.main' :
-                            'error.main'
+                                project.financial.successProbability >= 0.4 ? 'warning.main' :
+                                    'error.main'
                             : 'text.secondary'
                     }}
                 >
                     {formatPercentage(project.financial?.successProbability)}
                 </TableCell>
                 <TableCell align="center">
-                    <Box 
+                    <Box
                         onClick={handleStatusClick}
-                        sx={{ 
+                        sx={{
                             display: 'inline-flex',
                             cursor: 'pointer',
                             position: 'relative'
                         }}
                     >
-                        <Chip 
+                        <Chip
                             label={isUpdatingStatus ? 'Updating...' : (project.status || 'Unknown')}
                             color={getStatusColor(project.status)}
                             size="small"
-                            sx={{ 
+                            sx={{
                                 minWidth: '90px',
                                 textTransform: 'capitalize'
                             }}
@@ -232,16 +233,16 @@ const ExpandableRow = ({ project, onDelete, onStatusChange }: ExpandableRowProps
                         onClose={handleStatusClose}
                     >
                         {STATUS_OPTIONS.map((status) => (
-                            <MenuItem 
+                            <MenuItem
                                 key={status}
                                 onClick={() => handleStatusChange(status)}
                                 selected={status === project.status}
                             >
-                                <Chip 
+                                <Chip
                                     label={status}
                                     color={getStatusColor(status)}
                                     size="small"
-                                    sx={{ 
+                                    sx={{
                                         minWidth: '90px',
                                         textTransform: 'capitalize'
                                     }}
@@ -268,7 +269,7 @@ const ExpandableRow = ({ project, onDelete, onStatusChange }: ExpandableRowProps
                                     })
                                 }}
                             >
-                                {nextActionClicked ? 
+                                {nextActionClicked ?
                                     project.nextAction?.buttonTextAfterClick :
                                     project.nextAction?.buttonTextBeforeClick}
                             </Button>
@@ -325,19 +326,19 @@ const ExpandableRow = ({ project, onDelete, onStatusChange }: ExpandableRowProps
                                     Open in New Tab
                                 </Button>
                             </Box>
-                            <Box 
-                                sx={{ 
-                                    width: '100%', 
-                                    height: '600px', 
-                                    border: '1px solid', 
-                                    borderColor: 'grey.300', 
+                            <Box
+                                sx={{
+                                    width: '100%',
+                                    height: '600px',
+                                    border: '1px solid',
+                                    borderColor: 'grey.300',
                                     borderRadius: 1,
                                     position: 'relative'
                                 }}
                             >
                                 {isLoading && (
-                                    <Box 
-                                        sx={{ 
+                                    <Box
+                                        sx={{
                                             position: 'absolute',
                                             top: 0,
                                             left: 0,
@@ -351,8 +352,8 @@ const ExpandableRow = ({ project, onDelete, onStatusChange }: ExpandableRowProps
                                             zIndex: 1
                                         }}
                                     >
-                                        <Box 
-                                            sx={{ 
+                                        <Box
+                                            sx={{
                                                 textAlign: 'center',
                                                 bgcolor: 'background.paper',
                                                 p: 2,
@@ -361,9 +362,9 @@ const ExpandableRow = ({ project, onDelete, onStatusChange }: ExpandableRowProps
                                             }}
                                         >
                                             <CircularProgress size={30} />
-                                            <Typography 
-                                                variant="body2" 
-                                                color="text.secondary" 
+                                            <Typography
+                                                variant="body2"
+                                                color="text.secondary"
                                                 sx={{ mt: 1 }}
                                             >
                                                 Loading report...
@@ -371,11 +372,11 @@ const ExpandableRow = ({ project, onDelete, onStatusChange }: ExpandableRowProps
                                         </Box>
                                     </Box>
                                 )}
-                                <iframe 
+                                <iframe
                                     src={`file/chatSessionArtifacts/sessionId=${project.sourceChatSessionId}/` + project.reportS3Path}
-                                    style={{ 
-                                        width: '100%', 
-                                        height: '100%', 
+                                    style={{
+                                        width: '100%',
+                                        height: '100%',
                                         border: 'none'
                                     }}
                                     title={`Report for ${project.name}`}
@@ -391,39 +392,49 @@ const ExpandableRow = ({ project, onDelete, onStatusChange }: ExpandableRowProps
 };
 
 const Page = () => {
-    const { user } = useAuthenticator((context) => [context.user]);
+    // const { user } = useAuthenticator((context) => [context.user]);
     const [projects, setProjects] = useState<Schema["Project"]["createType"][]>([]);
 
     useEffect(() => {
         const fetchProjects = async () => {
+            //First fetch the Auth Session to load the user's credentials (including guest credentials)
+            const { userSub } = await fetchAuthSession();
+            console.log('user sub: ', userSub);
+
+            // const result = await amplifyClient.models.Project.list({
+            //     // filter: {
+            //     //     owner: {
+            //     //         contains: user.userId
+            //     //     }
+            //     // }
+            // });
+
             const result = await amplifyClient.models.Project.list({
-                // filter: {
-                //     owner: {
-                //         contains: user.userId
-                //     }
-                // }
+                authMode: userSub ? "userPool" : "identityPool", //This allows unauthenticated users to read projects
             });
             // Filter out null/undefined projects before sorting
             const validProjects = result.data.filter(project => project != null);
             const sortedProjects = validProjects.sort((a, b) => {
                 // Handle null/undefined projects
                 if (!a || !b) return 0;
-                
+
                 // If either project lacks a createdAt, sort it to the end
                 const dateA = a?.createdAt;
                 const dateB = b?.createdAt;
-                
+
                 if (!dateA && !dateB) return 0;
                 if (!dateA) return 1;
                 if (!dateB) return -1;
-                
+
                 // Normal date comparison for projects with createdAt
                 return new Date(dateB).getTime() - new Date(dateA).getTime();
             });
             setProjects(sortedProjects);
         };
+        
         fetchProjects();
-    }, [user.userId]);
+        // }, [user.userId]);
+    }, []);
 
     const handleDeleteProject = async (projectId: string, projectName: string) => {
         if (window.confirm(`Are you sure you want to delete the project "${projectName}"?`)) {
@@ -433,9 +444,9 @@ const Page = () => {
     };
 
     const handleStatusChange = (projectId: string, newStatus: ProjectStatus) => {
-        setProjects(currentProjects => 
-            currentProjects.map(project => 
-                project.id === projectId 
+        setProjects(currentProjects =>
+            currentProjects.map(project =>
+                project.id === projectId
                     ? { ...project, status: newStatus }
                     : project
             )
@@ -459,15 +470,15 @@ const Page = () => {
     }, 0);
 
     return (
-        <Authenticator>
+        // <Authenticator>
             <Box p={3}>
                 {/* Summary Statistics */}
                 <Grid container spacing={3} mb={4}>
                     <Grid item xs={12} sm={6} md={3}>
-                        <Paper 
-                            elevation={3} 
-                            sx={{ 
-                                p: 3, 
+                        <Paper
+                            elevation={3}
+                            sx={{
+                                p: 3,
                                 bgcolor: 'primary.main',
                                 color: 'white',
                                 borderRadius: 2
@@ -478,10 +489,10 @@ const Page = () => {
                         </Paper>
                     </Grid>
                     <Grid item xs={12} sm={6} md={3}>
-                        <Paper 
-                            elevation={3} 
-                            sx={{ 
-                                p: 3, 
+                        <Paper
+                            elevation={3}
+                            sx={{
+                                p: 3,
                                 bgcolor: 'warning.main',
                                 color: 'white',
                                 borderRadius: 2
@@ -492,10 +503,10 @@ const Page = () => {
                         </Paper>
                     </Grid>
                     <Grid item xs={12} sm={6} md={3}>
-                        <Paper 
-                            elevation={3} 
-                            sx={{ 
-                                p: 3, 
+                        <Paper
+                            elevation={3}
+                            sx={{
+                                p: 3,
                                 bgcolor: 'success.main',
                                 color: 'white',
                                 borderRadius: 2,
@@ -514,10 +525,10 @@ const Page = () => {
                         </Paper>
                     </Grid>
                     <Grid item xs={12} sm={6} md={3}>
-                        <Paper 
-                            elevation={3} 
-                            sx={{ 
-                                p: 3, 
+                        <Paper
+                            elevation={3}
+                            sx={{
+                                p: 3,
                                 bgcolor: 'info.main',
                                 color: 'white',
                                 borderRadius: 2,
@@ -538,9 +549,9 @@ const Page = () => {
                 </Grid>
 
                 {/* Projects Table */}
-                <TableContainer 
-                    component={Paper} 
-                    sx={{ 
+                <TableContainer
+                    component={Paper}
+                    sx={{
                         borderRadius: 2,
                         '& .MuiTableCell-head': {
                             fontWeight: 'bold',
@@ -582,7 +593,7 @@ const Page = () => {
                         </TableHead>
                         <TableBody>
                             {validProjects.map((project) => (
-                                <ExpandableRow 
+                                <ExpandableRow
                                     key={project.id}
                                     project={project}
                                     onDelete={() => handleDeleteProject(project.id!, project.name!)}
@@ -593,7 +604,7 @@ const Page = () => {
                     </Table>
                 </TableContainer>
             </Box>
-        </Authenticator>
+        // </Authenticator>
     );
 }
 
@@ -603,4 +614,4 @@ const formatPercentage = (value: number | undefined | null): string => {
     return `${(value * 100).toFixed(1)}%`;
 };
 
-export default withAuth(Page);
+export default Page;
