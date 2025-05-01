@@ -38,10 +38,10 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
     const foundationModelId = event.arguments.foundationModelId || process.env.AGENT_MODEL_ID
     if (!foundationModelId) throw new Error("AGENT_MODEL_ID is not set");
 
+    const userId = event.arguments.userId || (event.identity && 'sub' in event.identity ? event.identity.sub : null);
+    if (!userId) throw new Error("userId is required");
     try {
         if (event.arguments.chatSessionId === null) throw new Error("chatSessionId is required");
-        if (!event.identity) throw new Error("Event does not contain identity");
-        if (!('sub' in event.identity)) throw new Error("Event does not contain user");
 
         // Set the chat session ID for use by the S3 tools
         setChatSessionId(event.arguments.chatSessionId);
@@ -160,10 +160,7 @@ When generating a csv file, use the pysparkTool to generate the file and not the
             - Ownership transfers
             - Other legal/administrative changes that do not affect well operations
 
-2. Analize the production numbers:
-    - If there is a sudden drop in production, determine the cause of the drop.
-    - Recommend a new well configureation (including artificail lift type and tubing depth) to improve production.
-
+2. Analyze the well events and production data to determine the cause of the production drop.
 3. Generate a procedure to repair the well.
     - Use the well file information table to determine the tubing depth and artificial lift type.
     - Don't use rows with the administrative event type for artificial lift type.
@@ -195,38 +192,9 @@ When generating a csv file, use the pysparkTool to generate the file and not the
             - Low solids content in produced fluids
         - Artificial Lift Not Recommended:
             - Well flows naturally with no artificial lift
-            
-4. Decline Curve Analysis:
-    - ALWAYS include units on rates (ex: MCF/Month)
-    - Use hyperbolic decline model and the bounds: 
-        - Initial production rate (qi): 
-            * Lower bound: 0
-            * Upper bound: 2 * maximum observed monthly production
-        - Decline rate (di): 
-            * Lower bound: 0
-            * Upper bound: 1.0
-        - Decline exponent (b): 
-            * Lower bound: 0
-            * Upper bound: 2.0
-    - Weighted fitting favoring recent data points
-    - Remove statistical outliers before curve fitting
-    - Validate model by extending curve into historic production
-    - Generate a plot of the decline curve (Gas (red), Oil (green), Water (blue)) with a logarithmic scale
-    - Include operational events on the plot as data points at the max production rate with tooltips showing the event details.
-
-5. Economic Analysis:
-    - Use the pysparkTool to calculate the net present value (NPV) of the project by discounting future cash flows and subtracting the initial investment
-    - Calculate future production rates using the decline curve model from the decline curve analysis
-    - Use a 10% cash flow discount rate
-    - Operational expenses: $50,000/year/well
-    - Gas price: $3/MCF
-    - Economic analysis starts the year after last known production
-    - Economic Limit Production Rate = ( Annual Operating Cost) / 365 / (Oil Price / BBL)
-    - Economic Life = log(Economic Limit Rate / Current Production Rate) / log(1 - Annual Decline Rate)
-    - NPV = Σ [Qt * P * (1 / (1 + r)^t) - Ct]
-    - Print the financial metrics to the console
-
-6. Report Structure:
+      
+4. Estimate the cost of repairing the well.
+5. Report Structure:
    a) Executive Summary
       - Recommended action (Repair/Do Not Repair)
       - NPV10 calculation (If the pysparkTool response didn't print this output, look for an economic analysis file and read it with the readFile tool)
@@ -300,10 +268,6 @@ When using the file management tools:
 - To read a file, use the readFile tool with the complete path including the filename
 - Global files are shared across sessions and are read-only
 - When saving reports to file, use the writeFile tool with html formatting
-
-When using the PySpark tool:
-- After fitting a curve, ALWAYS check the residuals to ensure the fit is good. 
-- If the residuals are not normally distributed, try a different model or transformation.
 
 When using the textToTableTool:
 - IMPORTANT: For simple file searches, just use the identifying text (e.g., "15_9_19_A") as the pattern
@@ -422,7 +386,7 @@ When using the textToTableTool:
                                 await publishMessage({
                                     chatSessionId: event.arguments.chatSessionId,
                                     fieldName: graphQLFieldName,
-                                    owner: event.identity.sub,
+                                    owner: userId,
                                     message: streamChunk
                                 })
                                 break;
@@ -446,9 +410,6 @@ When using the textToTableTool:
         }
 
     } catch (error) {
-        if (!event.identity) throw new Error("Event does not contain identity");
-        if (!('sub' in event.identity)) throw new Error("Event does not contain user");
-
         const amplifyClient = getConfiguredAmplifyClient();
 
         console.warn("Error responding to user:", JSON.stringify(error, null, 2));

@@ -876,6 +876,44 @@ async function publishProgressUpdate(processedCount: number, totalCount: number,
     }
 }
 
+// Helper function for exponential backoff retry logic
+async function retryWithExponentialBackoff<T>(
+    operation: () => Promise<T>,
+    maxRetries: number = 3,
+    initialDelayMs: number = 1000,
+    maxDelayMs: number = 10000
+): Promise<T> {
+    let lastError: any;
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+            return await operation();
+        } catch (error: any) {
+            lastError = error;
+            
+            // Check if it's a throttling error
+            const isThrottlingError = error.message?.toLowerCase().includes('too many tokens') ||
+                                    error.message?.toLowerCase().includes('rate limit') ||
+                                    error.message?.toLowerCase().includes('throttle');
+            
+            if (!isThrottlingError) {
+                throw error; // If it's not a throttling error, throw immediately
+            }
+            
+            if (attempt === maxRetries - 1) {
+                break; // On last attempt, break to throw the error
+            }
+            
+            // Calculate delay with exponential backoff and jitter
+            const delayMs = Math.min(initialDelayMs * Math.pow(2, attempt) * (0.5 + Math.random()), maxDelayMs);
+            console.log(`Throttling detected, retrying in ${Math.round(delayMs)}ms (attempt ${attempt + 1}/${maxRetries})`);
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+    }
+    
+    throw lastError;
+}
+
 // Convert textToTableTool to use the tool function from langchain
 export const textToTableTool = tool(
     async (params: TextToTableParams) => {
@@ -895,6 +933,85 @@ export const textToTableTool = tool(
             });
 
             console.log("textToTableTool params:", JSON.stringify(params, null, 2));
+
+            // Search for matching files
+            const matchingFiles: string[] = [];
+            
+            // Search in user files
+            const userFiles = await findFilesMatchingPattern(
+                getUserPrefix(),
+                params.filePattern
+            );
+            matchingFiles.push(...userFiles);
+            
+            // Search in global files
+            const globalFiles = await findFilesMatchingPattern(
+                GLOBAL_PREFIX,
+                params.filePattern
+            );
+            matchingFiles.push(...globalFiles);
+            
+            console.log(`Found ${matchingFiles.length} matching files`);
+
+            // Filter out files which are not text files based on the suffix
+            const textExtensions = ['.txt', '.md', '.json', '.html', '.jsonl', '.jsonl.gz', '.yaml', '.yml', '.xml', 'ml'];
+            const filteredFiles = matchingFiles.filter(file => {
+                const lowerCaseFile = file.toLowerCase();
+                return textExtensions.some(ext => lowerCaseFile.endsWith(ext.toLowerCase()));
+            });
+
+            // Check for no matches and provide helpful feedback
+            if (filteredFiles.length === 0) {
+                // If no files found, return a helpful error message
+                const searchSuggestions = [
+                    "Try a simpler search pattern (e.g., just use a distinctive part of the filename)",
+                    "Check if the files exist using the listFiles tool first",
+                    "For global files, you can omit the 'global/' prefix",
+                    "Try using a broader pattern (e.g., '.*' for all files)"
+                ];
+                
+                let errorMessage: {
+                    error: string;
+                    suggestions: string[];
+                    availableFiles?: {
+                        message: string;
+                        global: string[];
+                        user: string[];
+                    };
+                } = {
+                    error: `No files found matching pattern: ${params.filePattern}`,
+                    suggestions: searchSuggestions
+                };
+                
+                // Try to do a broader search to suggest available files
+                try {
+                    const sampleGlobalFiles = await listAvailableFiles(GLOBAL_PREFIX, 5);
+                    const sampleUserFiles = await listAvailableFiles(getUserPrefix(), 5);
+                    
+                    if (sampleGlobalFiles.length > 0 || sampleUserFiles.length > 0) {
+                        errorMessage.availableFiles = {
+                            message: "Here are some files that are available:",
+                            global: sampleGlobalFiles,
+                            user: sampleUserFiles
+                        };
+                    }
+                } catch (error) {
+                    console.error("Error getting sample files:", error);
+                }
+                
+                return JSON.stringify(errorMessage);
+            }
+
+            // Limit the number of files
+            const maxFiles = params.maxFiles || 50;
+            if (filteredFiles.length > maxFiles) {
+                console.log(`Found ${filteredFiles.length} matching files, limiting to ${maxFiles}`);
+                filteredFiles.splice(maxFiles);
+            }
+            
+            console.log(`Processing ${filteredFiles.length} files`);
+
+            
             
             // Remove filePath column if it already exists
             params.tableColumns = params.tableColumns.filter(column => column.columnName.toLowerCase() !== 'filepath');
@@ -982,104 +1099,11 @@ export const textToTableTool = tool(
 
             console.log('Target JSON schema for row:', JSON.stringify(jsonSchema, null, 2));
 
-            // Search for matching files
-            const matchingFiles: string[] = [];
             
-            // Correct the pattern if needed
-            let correctedPattern = params.filePattern;
-            
-            // If pattern starts with 'global/' and basePrefix already contains 'global/',
-            // remove the redundant 'global/' from the pattern
-            if (correctedPattern.startsWith('global/')) {
-                // Keep original for user feedback but use corrected for searching
-                console.log(`Corrected pattern from ${params.filePattern} to ${correctedPattern.replace('global/', '')}`);
-            }
-            
-            // If pattern doesn't have any wildcards, treat it as a contains search
-            if (!correctedPattern.includes('*') && !correctedPattern.includes('?') && 
-                !correctedPattern.includes('[') && !correctedPattern.includes('(') && 
-                !correctedPattern.includes('|')) {
-                correctedPattern = `.*${correctedPattern}.*`;
-                console.log(`Added wildcards to pattern: ${correctedPattern}`);
-            }
-            
-            // Search in user files
-            const userFiles = await findFilesMatchingPattern(
-                getUserPrefix(),
-                correctedPattern
-            );
-            matchingFiles.push(...userFiles);
-            
-            // Search in global files
-            const globalFiles = await findFilesMatchingPattern(
-                GLOBAL_PREFIX,
-                correctedPattern
-            );
-            matchingFiles.push(...globalFiles);
-            
-            console.log(`Found ${matchingFiles.length} matching files`);
-
-            // Filter out files which are not text files based on the suffix
-            const textExtensions = ['.txt', '.md', '.json', '.html', '.jsonl', '.jsonl.gz', '.yaml', '.yml', '.xml', 'ml'];
-            const filteredFiles = matchingFiles.filter(file => {
-                const lowerCaseFile = file.toLowerCase();
-                return textExtensions.some(ext => lowerCaseFile.endsWith(ext.toLowerCase()));
-            });
-
-            // Check for no matches and provide helpful feedback
-            if (filteredFiles.length === 0) {
-                // If no files found, return a helpful error message
-                const searchSuggestions = [
-                    "Try a simpler search pattern (e.g., just use a distinctive part of the filename)",
-                    "Check if the files exist using the listFiles tool first",
-                    "For global files, you can omit the 'global/' prefix",
-                    "Try using a broader pattern (e.g., '.*' for all files)"
-                ];
-                
-                let errorMessage: {
-                    error: string;
-                    suggestions: string[];
-                    availableFiles?: {
-                        message: string;
-                        global: string[];
-                        user: string[];
-                    };
-                } = {
-                    error: `No files found matching pattern: ${params.filePattern}`,
-                    suggestions: searchSuggestions
-                };
-                
-                // Try to do a broader search to suggest available files
-                try {
-                    const sampleGlobalFiles = await listAvailableFiles(GLOBAL_PREFIX, 5);
-                    const sampleUserFiles = await listAvailableFiles(getUserPrefix(), 5);
-                    
-                    if (sampleGlobalFiles.length > 0 || sampleUserFiles.length > 0) {
-                        errorMessage.availableFiles = {
-                            message: "Here are some files that are available:",
-                            global: sampleGlobalFiles,
-                            user: sampleUserFiles
-                        };
-                    }
-                } catch (error) {
-                    console.error("Error getting sample files:", error);
-                }
-                
-                return JSON.stringify(errorMessage);
-            }
-
-            // Limit the number of files
-            const maxFiles = params.maxFiles || 50;
-            if (filteredFiles.length > maxFiles) {
-                console.log(`Found ${filteredFiles.length} matching files, limiting to ${maxFiles}`);
-                filteredFiles.splice(maxFiles);
-            }
-            
-            console.log(`Processing ${filteredFiles.length} files`);
 
             // Process each file with concurrency limit
             const tableRows = [];
-            const concurrencyLimit = 1; // Process x files at a time
+            const concurrencyLimit = 2; // Process x files at a time
             let processedCount = 0;
             
             // Process files in batches to avoid hitting limits
@@ -1095,7 +1119,7 @@ export const textToTableTool = tool(
                             ? fileKey.replace(GLOBAL_PREFIX, 'global/') 
                             : fileKey.replace(getUserPrefix(), '');
 
-                        // Find each time one of the enum values appears in the file content. Extract 100 characters before and after the enum matches. 
+                        // Find each time one of the enum values appears in the file content
                         const enumMatches = enumValues.map(enumValue => {
                             // Split enum value into words and create regex pattern to match any of them
                             const words = enumValue.split(/\s+/);
@@ -1132,17 +1156,24 @@ export const textToTableTool = tool(
                         ${enumMatchesMessage}
                         </EnumMatches>
                         `;
+                        
                         try {
-                            // Create structured output extraction
-
-                            if (!process.env.TEXT_TO_TABLE_MODEL_ID) {
-                                throw new Error("TEXT_TO_TABLE_MODEL_ID is not set");
-                            }
-                            const structuredData = await getStructuredOutputResponse({
-                                modelId: process.env.TEXT_TO_TABLE_MODEL_ID,
-                                messages: [new HumanMessage(messageText)],
-                                outputStructure: jsonSchema
-                            })
+                            // Wrap the structured output extraction in retry logic
+                            const structuredData = await retryWithExponentialBackoff(
+                                async () => {
+                                    if (!process.env.TEXT_TO_TABLE_MODEL_ID) {
+                                        throw new Error("TEXT_TO_TABLE_MODEL_ID is not set");
+                                    }
+                                    return await getStructuredOutputResponse({
+                                        modelId: process.env.TEXT_TO_TABLE_MODEL_ID,
+                                        messages: [new HumanMessage(messageText)],
+                                        outputStructure: jsonSchema
+                                    });
+                                },
+                                10, // max retries
+                                10000, // initial delay in ms
+                                20000 // max delay in ms
+                            );
                             
                             // Add file path if requested
                             if (params.includeFilePath !== false) {

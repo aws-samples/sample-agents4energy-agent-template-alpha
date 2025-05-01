@@ -171,7 +171,7 @@ const ExpandableRow = ({ project, onDelete, onStatusChange }: ExpandableRowProps
                         fontWeight: 500
                     }}
                 >
-                    {formatCurrency(project.financial?.NPV10 || 0)}
+                    {formatCurrency(project.financial?.revenuePresentValue || 0)}
                 </TableCell>
                 <TableCell
                     align="right"
@@ -462,7 +462,7 @@ const Page = () => {
     }, 0);
     const totalOilRate = validProjects.reduce((sum, project) => {
         if (!project?.financial) return sum;
-        return sum + (project.financial.incirmentalOilRateBOPD || 0);
+        return sum + (project.financial.incrimentalOilRateBOPD || 0);
     }, 0);
     const totalGasRate = validProjects.reduce((sum, project) => {
         if (!project?.financial) return sum;
@@ -584,7 +584,7 @@ const Page = () => {
                             <TableRow>
                                 <TableCell sx={{ pl: 3 }}>Name</TableCell>
                                 <TableCell>Description</TableCell>
-                                <TableCell align="right">NPV10</TableCell>
+                                <TableCell align="right">PV10</TableCell>
                                 <TableCell align="right">Cost</TableCell>
                                 <TableCell align="right">Success Probability</TableCell>
                                 <TableCell align="center">Status</TableCell>

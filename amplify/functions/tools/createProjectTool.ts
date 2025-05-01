@@ -14,12 +14,12 @@ const createProjectToolSchema = z.object({
     procedureS3Path: z.string().optional(),
     reportS3Path: z.string().describe("The path to the executive report for the project. Should always be an .html file."),
     financial: z.object({
-        // discountedRevenue: z.number().describe("Over the economic life of the project, the discounted revenue is the sum of the discounted cash flows."),
-        cost: z.number(),
-        NPV10: z.number().describe("The net present value of the project at a 10% discount rate."),
-        successProbability: z.number(),
+        revenuePresentValue: z.number().describe("Over the economic life of the project, the present value of the revenue is the sum of the discounted cash flows."),
+        cost: z.number().describe("The cost of the project."),
+        NPV10: z.number().describe("Subtract the cost from the present value of the revenue to get the NPV10."),
+        successProbability: z.number().describe("The probability that the project will be successful."),
         incrimentalGasRateMCFD: z.number().optional(),
-        incirmentalOilRateBOPD: z.number().optional(),
+        incrimentalOilRateBOPD: z.number().optional(),
     }).describe("This information should ALWAYS come from outputs of the pysparkTool or files which the pysparkTool created."),
     nextAction: z.object({
         buttonTextBeforeClick: z.string(),
@@ -68,7 +68,7 @@ export const createProjectToolBuilder = (props: {
     },
     {
         name: "createProject",
-        description: "Creates a new project with the specified details",
+        description: "Creates a new project with the specified details. Use the drafting status if more information is needed.",
         schema: createProjectToolSchema
     }
 );

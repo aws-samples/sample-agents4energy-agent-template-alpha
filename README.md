@@ -12,16 +12,20 @@ cd amplify-langgraph-template
 
 2. Install dependencies:
 ```bash
-cd workshop
 npm install
 ```
 
-3. Start the development server:
+3. Deploy the sandbox environment:
+```bash
+npx ampx sandbox --stream-function-logs
+```
+
+4. Start the development server:
 ```bash
 npm run dev
 ```
 
-4. Open your browser to [http://localhost:3000](http://localhost:3000)
+5. Open your browser to the local URL (ex: localhost:3000)
 
 The interactive environment includes:
 - TypeScript/JavaScript support
@@ -44,10 +48,6 @@ Before starting this workshop, you'll need:
 
 ## Workshop Labs
 
-### Lab 1: Setting Up Your Development Environment
-- Configure authentication
-- Clone this repository
-- Deploy sandbox environmnt
 
 ### Lab 2: Building Your First LangGraph Agent
 - Introduction to LangGraph concepts
@@ -55,35 +55,21 @@ Before starting this workshop, you'll need:
 - Implementing agent state management
 - Testing the agent locally
 
-### Lab 3: Persisting Agent State with AWS Amplify
-- Setting up DynamoDB through Amplify
-- Designing the state persistence schema
-- Implementing state storage and retrieval
-- Managing agent memory across sessions
-
-### Lab 4: Creating Custom Tools for Your Agent
+### Lab 2: Creating Custom Tools for Your Agent
 - Understanding the LangGraph tool architecture
 - Building REST API tools with AWS Lambda
 - Implementing file handling tools
 - Creating database interaction tools
 
-### Lab 5: Deploying Agents to AWS Lambda
-- Preparing your agent for Lambda deployment
-- Configuring Lambda functions through Amplify
-- Setting up API Gateway
-- Handling agent requests and responses
-
-### Lab 6: Building Interactive UI Components
+### Lab 3: Rendering Custom UI Elements 
 - Creating React components for agent interaction
-- Implementing real-time updates
 - Building tool response visualizations
-- Adding loading states and error handling
 
-### Lab 7: Advanced Features and Best Practices
-- Implementing conversation history
-- Managing API keys and secrets
-- Optimizing Lambda performance
-- Handling rate limiting and quotas
+### Lab 4: Persisting Agent State with AWS Amplify
+- Setting up DynamoDB through Amplify
+- Designing the state persistence schema
+- Implementing state storage and retrieval
+- Managing agent memory across sessions
 
 ## Getting Started
 

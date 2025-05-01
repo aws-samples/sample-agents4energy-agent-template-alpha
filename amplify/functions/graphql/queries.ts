@@ -91,15 +91,20 @@ export const getProject = /* GraphQL */ `query GetProject($id: ID!) {
     financial {
       NPV10
       cost
-      discountedRevenue
-      incirmentalOilRateBOPD
       incrimentalGasRateMCFD
+      incrimentalOilRateBOPD
+      revenuePresentValue
       successProbability
       __typename
     }
     foundationModelId
     id
     name
+    nextAction {
+      buttonTextAfterClick
+      buttonTextBeforeClick
+      __typename
+    }
     owner
     procedureS3Path
     reportS3Path
@@ -118,11 +123,13 @@ export const invokeReActAgent = /* GraphQL */ `query InvokeReActAgent(
   $chatSessionId: ID!
   $foundationModelId: String
   $respondToAgent: Boolean
+  $userId: String
 ) {
   invokeReActAgent(
     chatSessionId: $chatSessionId
     foundationModelId: $foundationModelId
     respondToAgent: $respondToAgent
+    userId: $userId
   ) {
     success
     __typename

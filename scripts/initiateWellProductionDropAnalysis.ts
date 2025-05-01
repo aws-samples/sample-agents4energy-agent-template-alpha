@@ -5,18 +5,21 @@ import fs from 'fs';
 import { S3Client } from "@aws-sdk/client-s3";
 
 import { setAmplifyEnvVars, getConfiguredAmplifyClient } from '../utils/amplifyUtils';
-import { setChatSessionId } from '../amplify/functions/tools/toolUtils';
+import { setChatSessionId, setOrigin } from '../amplify/functions/tools/toolUtils';
 import { loadOutputs } from '../test/utils';
 import { stringify } from 'yaml';
 
 // Import tools after setting environment variables
 import { pysparkTool } from '../amplify/functions/tools/athenaPySparkTool';
-import { createChatSession } from '../amplify/functions/graphql/mutations';
+import { createChatSession, createChatMessage } from '../amplify/functions/graphql/mutations';
+// import { listChatMessageByChatSessionIdAndCreatedAt } from '../amplify/functions/graphql/queries';
+import { invokeReActAgent, listChatMessageByChatSessionIdAndCreatedAt } from "../utils/graphqlStatements";
+import * as APITypes from "../amplify/functions/graphql/API";
 import { readFile } from "../amplify/functions/tools/s3ToolBox";
 
-// Set environment variables first
+// Set environment variables first`
 const outputs = loadOutputs();
-process.env.STORAGE_BUCKET_NAME = outputs?.storage?.bucket_name;
+process.env.STORAGE_BUCKET_NAME = outputs?.storage?.bucket_name;    
 process.env.ATHENA_WORKGROUP_NAME = outputs?.custom?.athenaWorkgroupName;
 console.log("Storage Bucket: ", process.env.STORAGE_BUCKET_NAME);
 console.log("Athena Workgroup: ", process.env.ATHENA_WORKGROUP_NAME);
@@ -67,17 +70,31 @@ function generateAnalysisPrompt(props: {well: ProductionRecord, wellParameters: 
     return `On ${date}, the well with API number ${well.api} experienced a production rate drop of ${formatNumber(dropRate)} MCF/Day
 Production dropped from ${formatNumber(initialRate)} to ${formatNumber(finalRate)} MCF/Day
 The present value (10% discount rate) of returning produciton to the previous decline curve is $${formatNumber(presentValue)} USD
-1. Search for well files and create en operational events table
-2. Develop a detailed repair procedure and cost estimate. Save these to a file
-3. Generate an executive report.
-4. If the project is economically attractive, create the project.
+1. Search for well files and create an operational events table.
+2. Analyze the well's informaton and determine the cause of the production drop. Likely candidates are:
+    - Hole in the tubing
+    - Artifical lift system failure
+    - Debris in the well from the perforations
+3. Develop a detailed repair procedure and save it to a file
+4. Estimate the cost of the repair and save it to a file
+5. Generate an executive report.
+    - Include the plot located at 'plots/${well.api}_hyperbolic_decline.html'
+    - Include the operational events table. Filter out administrative type events.
+6. If the project is economically attractive or more information is needed, create the project.
+
+If you don't have enough information to recommend a project, ask the user for more information or to run a test.
+Common tests are:
+- Run a fluid shot to determine if there's a hole in the tubing
+- If the well is on rod pump, check the dynomonometer card for an indication of downhole pump problems.
 `;
 }
 
 const main = async () => {
+    setOrigin('http://localhost:3001');//This is requred so that reports will correctly link to the other files
+
     await setAmplifyEnvVars();
     const amplifyClient = getConfiguredAmplifyClient();
-
+    
     // Read and parse CSV
     const productionDropTablePath = path.join(__dirname, '../tmp/productionDropTable.csv');
     const fileContent = fs.readFileSync(productionDropTablePath, 'utf-8');
@@ -130,6 +147,27 @@ production_drop_rate_MCFD = float('${well.rate_drop}')
 well_api_number = '${wellApiNumber}'
 
 path_to_production_data = 'global/production-data/api=${wellApiNumber}/production.csv'
+
+import plotly.io as pio
+import plotly.graph_objects as go
+
+# Create a custom layout
+custom_layout = go.Layout(
+    paper_bgcolor='white',
+    plot_bgcolor='white',
+    xaxis=dict(showgrid=False),
+    yaxis=dict(
+        showgrid=True,
+        gridcolor='lightgray',
+        type='log'  # <-- Set y-axis to logarithmic
+    )
+)
+
+# Create and register the template
+custom_template = go.layout.Template(layout=custom_layout)
+pio.templates["white_clean_log"] = custom_template
+pio.templates.default = "white_clean_log"
+
             \n` // this part is done here to dynamically insert the wellApiNumber and production drop off date
                 + declineAndEconomicAnalysisContent,
             description: 'Fit a hyperbolic decline curve to the production data',
@@ -153,11 +191,79 @@ path_to_production_data = 'global/production-data/api=${wellApiNumber}/productio
             wellParameters: wellParameters
         });
 
+        // const prompt = 'What is 2+2?';
+
         console.log(`Generated analysis prompt for well ${wellApiNumber} (${index + 1}/${highDropWells.length})`);
 
         console.log(prompt, '\n\n');
 
-        break;// for testing, only process the first well
+        const {errors: newChatMessageErrors } = await amplifyClient.graphql({
+            query: createChatMessage,
+            variables: {
+                input: {
+                    chatSessionId: newChatSession.createChatSession.id,
+                    content: {
+                        text: prompt
+                    },
+                    role: APITypes.ChatMessageRole.human
+                }
+            }
+        });
+
+        if (newChatMessageErrors) {
+            console.error(newChatMessageErrors);
+            process.exit(1);
+        }
+
+        const invokeReActAgentResponse = await amplifyClient.graphql({
+            query: invokeReActAgent,
+            variables: {
+                chatSessionId: newChatSession.createChatSession.id,
+                userId: 'test-user'
+            },
+        });
+
+        console.log('Invoke ReAct Agent Response: ', invokeReActAgentResponse);
+
+        if (invokeReActAgentResponse.errors) {
+            console.error(invokeReActAgentResponse.errors);
+            process.exit(1);
+        }
+
+        console.log('Chat session id: ', newChatSession.createChatSession.id);
+
+        // Get the last message and check if it's from the assistant and has completed. Loop until we get a complete response.
+        let responseComplete = false;
+        const waitStartTime = Date.now();
+        while (!responseComplete) {
+            const { data, errors: lastMessageErrors } = await amplifyClient.graphql({
+                query: listChatMessageByChatSessionIdAndCreatedAt,
+                variables: {
+                    chatSessionId: newChatSession.createChatSession.id,
+                    sortDirection: APITypes.ModelSortDirection.DESC,
+                    limit: 1
+                }
+            });
+            if (lastMessageErrors) {
+                console.error(lastMessageErrors);
+                process.exit(1);
+            }
+
+            const messages = data.listChatMessageByChatSessionIdAndCreatedAt.items;
+            if (messages.length > 0) {
+                const lastMessage = messages[0];
+                responseComplete = lastMessage.responseComplete || false;
+                if (responseComplete) console.log('Assistant response complete. Final response: \n', lastMessage.content?.text);
+            }
+
+            if (!responseComplete) {
+                const elapsedSeconds = Math.floor((Date.now() - waitStartTime) / 1000);
+                console.log(`Waiting for assistant response... (${elapsedSeconds} seconds)`);
+                // Wait 20 seconds before checking again
+                await new Promise(resolve => setTimeout(resolve, 20000));
+            }
+        }
+        // break; // for testing, only process the first well
     }
 };
 

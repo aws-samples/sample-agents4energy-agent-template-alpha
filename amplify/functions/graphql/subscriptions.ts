@@ -103,15 +103,20 @@ export const onCreateProject = /* GraphQL */ `subscription OnCreateProject(
     financial {
       NPV10
       cost
-      discountedRevenue
-      incirmentalOilRateBOPD
       incrimentalGasRateMCFD
+      incrimentalOilRateBOPD
+      revenuePresentValue
       successProbability
       __typename
     }
     foundationModelId
     id
     name
+    nextAction {
+      buttonTextAfterClick
+      buttonTextBeforeClick
+      __typename
+    }
     owner
     procedureS3Path
     reportS3Path
@@ -221,15 +226,20 @@ export const onDeleteProject = /* GraphQL */ `subscription OnDeleteProject(
     financial {
       NPV10
       cost
-      discountedRevenue
-      incirmentalOilRateBOPD
       incrimentalGasRateMCFD
+      incrimentalOilRateBOPD
+      revenuePresentValue
       successProbability
       __typename
     }
     foundationModelId
     id
     name
+    nextAction {
+      buttonTextAfterClick
+      buttonTextBeforeClick
+      __typename
+    }
     owner
     procedureS3Path
     reportS3Path
@@ -339,15 +349,20 @@ export const onUpdateProject = /* GraphQL */ `subscription OnUpdateProject(
     financial {
       NPV10
       cost
-      discountedRevenue
-      incirmentalOilRateBOPD
       incrimentalGasRateMCFD
+      incrimentalOilRateBOPD
+      revenuePresentValue
       successProbability
       __typename
     }
     foundationModelId
     id
     name
+    nextAction {
+      buttonTextAfterClick
+      buttonTextBeforeClick
+      __typename
+    }
     owner
     procedureS3Path
     reportS3Path

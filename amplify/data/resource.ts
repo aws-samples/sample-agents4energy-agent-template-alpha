@@ -27,12 +27,12 @@ export const schema = a.schema({
     reportS3Path: a.string().required(),
     sourceChatSessionId: a.id(),
     financial: a.customType({
-      discountedRevenue: a.float(),
+      revenuePresentValue: a.float(),
       cost: a.float(),
       NPV10: a.float(),
       successProbability: a.float(),
       incrimentalGasRateMCFD: a.float(),
-      incirmentalOilRateBOPD: a.float(),
+      incrimentalOilRateBOPD: a.float(),
     }),
     foundationModelId: a.string(),
     nextAction: a.customType({
@@ -119,6 +119,7 @@ export const schema = a.schema({
       chatSessionId: a.id().required(), 
       foundationModelId: a.string(), // Optionally, chose the foundation model to use for the agent
       respondToAgent: a.boolean(), //When an agent is invoked by another agent, the agent will create a tool response message with it's output
+      userId: a.string(), //When invoking the agent programatically, specify which user should be the owner of the message
     })
     .handler(a.handler.function(reActAgentFunction).async())
     .authorization((allow) => [allow.authenticated()]),

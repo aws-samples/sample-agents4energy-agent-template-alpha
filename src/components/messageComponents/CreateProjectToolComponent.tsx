@@ -7,8 +7,8 @@ import { Message } from '@/../utils/types';
 interface ProjectFinancial {
   NPV10: number;
   cost: number;
-  discountedRevenue: number;
-  incirmentalOilRateBOPD: number | null;
+  revenuePresentValue: number;
+  incrimentalOilRateBOPD: number | null;
   incrimentalGasRateMCFD: number | null;
   successProbability: number;
   __typename: string;

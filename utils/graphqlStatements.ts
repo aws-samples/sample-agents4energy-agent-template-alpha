@@ -55,6 +55,29 @@ export const publishResponseStreamChunk = /* GraphQL */ `mutation PublishRespons
   APITypes.PublishResponseStreamChunkMutation
 >;
 
+export type ListChatMessageByChatSessionIdAndCreatedAtOutputType = Omit<APITypes.ListChatMessageByChatSessionIdAndCreatedAtQuery, 'listChatMessageByChatSessionIdAndCreatedAt'> & {
+  listChatMessageByChatSessionIdAndCreatedAt?: {
+    __typename: "ModelChatMessageConnection",
+    items: Array<{
+      __typename: "ChatMessage",
+      chatSessionId?: string | null,
+      content?: {
+        text?: string | null,
+      } | null,
+      createdAt?: string | null,
+      id: string,
+      owner?: string | null,
+      responseComplete?: boolean | null,
+      role?: APITypes.ChatMessageRole | null,
+      toolCallId?: string | null,
+      toolCalls?: string | null,
+      toolName?: string | null,
+      updatedAt: string,
+    } | null>,
+    nextToken?: string | null,
+  } | null
+};
+
 export const listChatMessageByChatSessionIdAndCreatedAt = /* GraphQL */ `query ListChatMessageByChatSessionIdAndCreatedAt(
   $chatSessionId: ID!
   $createdAt: ModelStringKeyConditionInput
@@ -91,7 +114,27 @@ export const listChatMessageByChatSessionIdAndCreatedAt = /* GraphQL */ `query L
     __typename
   }
 }
-` as GeneratedQuery<
+` as GeneratedQuery<  
   APITypes.ListChatMessageByChatSessionIdAndCreatedAtQueryVariables,
-  APITypes.ListChatMessageByChatSessionIdAndCreatedAtQuery
+  ListChatMessageByChatSessionIdAndCreatedAtOutputType
+>;
+
+export const invokeReActAgent = /* GraphQL */ `query InvokeReActAgent(
+  $chatSessionId: ID!
+  $foundationModelId: String
+  $respondToAgent: Boolean
+  $userId: String
+) {
+  invokeReActAgent(
+    chatSessionId: $chatSessionId
+    foundationModelId: $foundationModelId
+    respondToAgent: $respondToAgent
+    userId: $userId
+  ) {
+    __typename
+  }
+}
+` as GeneratedQuery<
+  APITypes.InvokeReActAgentQueryVariables,
+  APITypes.InvokeReActAgentQuery
 >;
