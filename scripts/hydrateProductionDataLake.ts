@@ -33,30 +33,36 @@ async function processWellsFile(filePath: string) {
     const totalWells = records.length;
     console.log(`Starting to process ${totalWells} wells...`);
 
-    for (let i = 0; i < records.length; i++) {
-        const wellData = records[i] as WellData;
-        if (!wellData.API) continue;
+    // Process wells in chunks of 10
+    const CHUNK_SIZE = 10;
+    for (let i = 0; i < records.length; i += CHUNK_SIZE) {
+        const chunk = records.slice(i, i + CHUNK_SIZE);
+        const chunkPromises = chunk.map(async (wellData: WellData, index: number) => {
+            if (!wellData.API) return;
 
-        const progress = `[${i + 1}/${totalWells}]`;
-        console.log(`${progress} Processing well: ${wellData['Well Name']} (${wellData.API})`);
-        
-        try {
-            await uploadCsvProductionData({
-                wellApiNumber: wellData.API,
-                bucketName,
-                prefix: 'global/production-data'
-            });
-            console.log(`${progress} Successfully processed well: ${wellData.API}`);
-        } catch (error) {
-            console.error(`${progress} Error processing well ${wellData.API}:`, error);
-            // Continue with next well even if one fails
+            const progress = `[${i + index + 1}/${totalWells}]`;
+            console.log(`${progress} Processing well: ${wellData['Well Name']} (${wellData.API})`);
+            
+            try {
+                const result = await uploadCsvProductionData({
+                    wellApiNumber: wellData.API,
+                    bucketName,
+                    prefix: 'global/production-data'
+                });
+                console.log(`${progress} Successfully processed well: ${wellData.API} (${result.rowCount} rows uploaded)`);
+            } catch (error) {
+                console.error(`${progress} Error processing well ${wellData.API}:`, error);
+                // Continue with next well even if one fails
+            }
+        });
+
+        // Process chunk concurrently
+        await Promise.all(chunkPromises);
+
+        // Wait 1 second between chunks to avoid overwhelming the system
+        if (i + CHUNK_SIZE < records.length) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
         }
-
-        // //exit for loop for testing
-        // break;
-
-        //Wait 1 second between wells
-        await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     console.log(`\nCompleted processing all ${totalWells} wells!`);
@@ -64,7 +70,7 @@ async function processWellsFile(filePath: string) {
 
 // Run the script
 if (require.main === module) {
-    const wellsFilePath = path.join(__dirname, '../tmp/wellsIn30N6W.csv');
+    const wellsFilePath = path.join(__dirname, '../tmp/NM_wells.csv');
     processWellsFile(wellsFilePath).catch(error => {
         console.error('Error:', error);
         process.exit(1);

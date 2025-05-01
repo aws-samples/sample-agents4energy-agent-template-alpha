@@ -10,6 +10,10 @@ interface UploadConfig {
     prefix?: string;
 }
 
+interface UploadResult {
+    rowCount: number;
+}
+
 async function uploadToS3(content: string, key: string, bucketName: string) {
     const s3Client = new S3Client({});
     try {
@@ -35,6 +39,9 @@ async function uploadToS3(content: string, key: string, bucketName: string) {
 // const wellFileUrl = `https://ocdimage.emnrd.nm.gov/imaging/WellFileView.aspx?RefType=WF&RefID=${wellApiNumber.replaceAll("-","")}0000`
 // console.log('Well File URL: ', wellFileUrl)
 
+async function delay(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 async function parseHtmlTableToArrays(htmlContent: string): Promise<string[][] | void> {
     // Create a DOM using jsdom
@@ -79,27 +86,44 @@ async function parseHtmlTableToArrays(htmlContent: string): Promise<string[][] |
     return csvRows;
 }
 
-export const uploadCsvProductionData = async (config: UploadConfig) => {  
+export const uploadCsvProductionData = async (config: UploadConfig): Promise<UploadResult> => {  
     const { wellApiNumber, bucketName, prefix = '' } = config;
     const productionUrl = `https://wwwapps.emnrd.nm.gov/OCD/OCDPermitting/Data/ProductionSummaryPrint.aspx?report=csv&api=${wellApiNumber}`
     console.log("Production URL: ", productionUrl)
     
-    const response = await fetch(productionUrl)
-    const htmlContent = await response.text()
+    let htmlContent = '';
+    let retries = 3; // Maximum number of retries
+    
+    while (retries > 0) {
+        const response = await fetch(productionUrl);
+        htmlContent = await response.text();
+        
+        if (htmlContent.toLowerCase().includes("rate limit reached")) {
+            console.log("Rate limit reached, waiting 10 seconds before retry...");
+            await delay(10000); // Wait 10 seconds
+            retries--;
+            continue;
+        }
+        break; // If we get here, we have valid content
+    }
+
+    if (retries === 0 && htmlContent.toLowerCase().includes("rate limit reached")) {
+        throw new Error("Failed to fetch data after multiple retries due to rate limiting");
+    }
 
     const csvContent = await parseHtmlTableToArrays(htmlContent);
-    if (!csvContent) return
+    if (!csvContent) return { rowCount: 0 }
 
     const csvContentWithDate = [["Date", ...csvContent[0]]]
 
-    csvContentWithDate.push(
-        ...csvContent.slice(1)
-            .filter(row => /^\d+$/.test(row[0])) // Only keep rows where year is purely numeric
-            .map(row => ([
-                new Date(`${row[2]} 1, ${row[0]}`).toISOString().split('T')[0],
-                ...row,
-            ]))
-    )
+    const dataRows = csvContent.slice(1)
+        .filter(row => /^\d+$/.test(row[0])) // Only keep rows where year is purely numeric
+        .map(row => ([
+            new Date(`${row[2]} 1, ${row[0]}`).toISOString().split('T')[0],
+            ...row,
+        ]))
+    
+    csvContentWithDate.push(...dataRows)
 
     const csvContentString = csvContentWithDate.map(row => row.join(',')).join('\n')
     
@@ -110,6 +134,8 @@ export const uploadCsvProductionData = async (config: UploadConfig) => {
     ).replace(/\\/g, '/') // Ensure forward slashes for S3 keys
 
     await uploadToS3(csvContentString, s3Key, bucketName)
+    
+    return { rowCount: dataRows.length }
 }
 
 // Example usage:

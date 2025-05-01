@@ -114,10 +114,10 @@ const main = async () => {
 
     // Process each well
     for await (const [index, well] of highDropWells.entries()) {
-        //for testing, only process the first 10 wells
-        if (index > 5) {
-            break;
-        }
+        // //for testing, only process the first 10 wells
+        // if (index > 5) {
+        //     break;
+        // }
         const wellApiNumber = well.api;
 
         // Create a new chat session

@@ -43,7 +43,8 @@ const main = async () => {
   setChatSessionId(newChatSession.id);
   
   const result = await pysparkTool({}).invoke({
-    code: readCsvFileContent,
+    code: `s3BucketName = '${process.env.STORAGE_BUCKET_NAME}'
+    ` + readCsvFileContent,
     description: 'Read the wells CSV file',
     scriptPath: path.join('scripts', 'fitStepFunctionScript.py')
   });

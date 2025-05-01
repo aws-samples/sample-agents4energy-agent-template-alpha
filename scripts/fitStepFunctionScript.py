@@ -7,8 +7,8 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import os
 
-s3BucketName = 'amplify-digitalassistant--workshopstoragebucketd9b-2z0q9is3uty7'
-base_path = f's3://{s3BucketName}/global/production-data/monthly_production'
+
+base_path = f's3://{s3BucketName}/global/production-data/'
 
 production_df = spark.read.format('csv') \
     .option('header', 'true') \
