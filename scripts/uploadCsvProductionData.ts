@@ -90,7 +90,7 @@ export const uploadCsvProductionData = async (config: UploadConfig) => {
     const csvContent = await parseHtmlTableToArrays(htmlContent);
     if (!csvContent) return
 
-    const csvContentWithDate = [["FirstDayOfMonth", ...csvContent[0]]]
+    const csvContentWithDate = [["Date", ...csvContent[0]]]
 
     csvContentWithDate.push(
         ...csvContent.slice(1)
@@ -105,7 +105,6 @@ export const uploadCsvProductionData = async (config: UploadConfig) => {
     
     const s3Key = path.join(
         prefix,
-        'monthly_production',
         `api=${wellApiNumber.replaceAll('-', '')}`,
         'production.csv'
     ).replace(/\\/g, '/') // Ensure forward slashes for S3 keys

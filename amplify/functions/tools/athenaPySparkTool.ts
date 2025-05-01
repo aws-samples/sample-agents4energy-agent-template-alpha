@@ -167,7 +167,7 @@ def uploadFileToS3(file_path, s3_path):
 
 export const getPreCodeExecutionScript = (script: string) => { 
     // Match any quoted strings that look like file paths (ending with .xxx where xxx is 2-4 characters)
-    const filePathRegex = /['"]([^'"]+\.[a-zA-Z0-9]{2,4})['"](?:\s*[,)}]|$)/g;
+    const filePathRegex = /['"]([^'"]+\.[a-zA-Z0-9]{2,4})['"](?:\s*[,)}]|\s*$|\s*\n|$)/g;
     const matches = script?.match(filePathRegex) || [];
     
     // Extract just the file paths from the matches

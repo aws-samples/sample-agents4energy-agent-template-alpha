@@ -1,10 +1,6 @@
 import { AthenaClient, StartCalculationExecutionCommand, GetCalculationExecutionCommand, StartSessionCommand, GetSessionStatusCommand } from '@aws-sdk/client-athena';
 import { expect } from 'chai';
 import { v4 as uuidv4 } from 'uuid';
-import * as fs from 'fs';
-import * as path from 'path';
-import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
-import { Readable } from 'stream';
 import { executeCalculation, fetchCalculationOutputs } from '../../amplify/functions/tools/athenaPySparkTool';
 
 // Function to safely load outputs
