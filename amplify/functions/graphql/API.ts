@@ -676,6 +676,7 @@ export type GetProjectQuery = {
 export type InvokeReActAgentQueryVariables = {
   chatSessionId: string,
   foundationModelId?: string | null,
+  origin?: string | null,
   respondToAgent?: boolean | null,
   userId?: string | null,
 };

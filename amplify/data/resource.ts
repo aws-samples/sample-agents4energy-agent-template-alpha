@@ -120,6 +120,7 @@ export const schema = a.schema({
       foundationModelId: a.string(), // Optionally, chose the foundation model to use for the agent
       respondToAgent: a.boolean(), //When an agent is invoked by another agent, the agent will create a tool response message with it's output
       userId: a.string(), //When invoking the agent programatically, specify which user should be the owner of the message
+      origin: a.string(), //When invoking the agent programatically, specify the host origin for serving files
     })
     .handler(a.handler.function(reActAgentFunction).async())
     .authorization((allow) => [allow.authenticated()]),

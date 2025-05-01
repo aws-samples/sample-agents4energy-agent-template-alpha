@@ -677,6 +677,7 @@ async function processDocumentLinks(content: string, chatSessionId: string): Pro
 // Tool to write a file to S3
 export const writeFile = tool(
     async ({ filename, content }) => {
+        console.log('writeFile tool called with filename:', filename, '. Origin: ', getOrigin());
         try {
             // Normalize the path to prevent path traversal attacks
             const targetPath = path.normalize(filename);
@@ -737,7 +738,7 @@ export const writeFile = tool(
                 }
                 
                 // Process document links
-                finalContent = await processDocumentLinks(finalContent, getChatSessionId() || '');
+                finalContent = await processDocumentLinks(content, getChatSessionId() || '');
             }
             
             // Write the file to S3
@@ -1003,15 +1004,13 @@ export const textToTableTool = tool(
             }
 
             // Limit the number of files
-            const maxFiles = params.maxFiles || 50;
+            const maxFiles = params.maxFiles || 20;
             if (filteredFiles.length > maxFiles) {
                 console.log(`Found ${filteredFiles.length} matching files, limiting to ${maxFiles}`);
                 filteredFiles.splice(maxFiles);
             }
             
             console.log(`Processing ${filteredFiles.length} files`);
-
-            
             
             // Remove filePath column if it already exists
             params.tableColumns = params.tableColumns.filter(column => column.columnName.toLowerCase() !== 'filepath');
@@ -1170,9 +1169,9 @@ export const textToTableTool = tool(
                                         outputStructure: jsonSchema
                                     });
                                 },
-                                10, // max retries
-                                10000, // initial delay in ms
-                                20000 // max delay in ms
+                                1, // max retries
+                                5000, // initial delay in ms
+                                10000 // max delay in ms
                             );
                             
                             // Add file path if requested

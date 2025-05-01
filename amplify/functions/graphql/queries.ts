@@ -122,12 +122,14 @@ export const getProject = /* GraphQL */ `query GetProject($id: ID!) {
 export const invokeReActAgent = /* GraphQL */ `query InvokeReActAgent(
   $chatSessionId: ID!
   $foundationModelId: String
+  $origin: String
   $respondToAgent: Boolean
   $userId: String
 ) {
   invokeReActAgent(
     chatSessionId: $chatSessionId
     foundationModelId: $foundationModelId
+    origin: $origin
     respondToAgent: $respondToAgent
     userId: $userId
   ) {

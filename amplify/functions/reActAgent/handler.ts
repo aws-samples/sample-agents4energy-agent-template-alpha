@@ -40,16 +40,18 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
 
     const userId = event.arguments.userId || (event.identity && 'sub' in event.identity ? event.identity.sub : null);
     if (!userId) throw new Error("userId is required");
+
+    const origin = event.arguments.origin || (event.request?.headers?.origin || null);
+    if (!origin) throw new Error("origin is required");
+    console.log('origin:', origin);
     try {
         if (event.arguments.chatSessionId === null) throw new Error("chatSessionId is required");
 
         // Set the chat session ID for use by the S3 tools
         setChatSessionId(event.arguments.chatSessionId);
 
-        // Set the origin from the request headers
-        if (event.request?.headers?.origin) {
-            setOrigin(event.request.headers.origin);
-        }
+        // Set the origin from the event arguments or request headers
+        setOrigin(origin);
 
         // Define the S3 prefix for this chat session (needed for env vars)
         const bucketName = process.env.STORAGE_BUCKET_NAME;
@@ -322,9 +324,6 @@ When using the textToTableTool:
                     content: systemMessageContent
                 }),
                 ...chatSessionMessages,
-                // new HumanMessage({
-                //     content: event.arguments.userInput || " " // Ensure user input is never empty
-                // })
             ].filter((message): message is BaseMessage => message !== undefined)
         }
 

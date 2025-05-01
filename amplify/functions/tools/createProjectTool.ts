@@ -16,8 +16,8 @@ const createProjectToolSchema = z.object({
     financial: z.object({
         revenuePresentValue: z.number().describe("Over the economic life of the project, the present value of the revenue is the sum of the discounted cash flows."),
         cost: z.number().describe("The cost of the project."),
-        NPV10: z.number().describe("Subtract the cost from the present value of the revenue to get the NPV10."),
-        successProbability: z.number().describe("The probability that the project will be successful."),
+        // NPV10: z.number().optional().describe("Subtract the cost from the present value of the revenue to get the NPV10."),
+        successProbability: z.number().optional().describe("The probability that the project will be successful."),
         incrimentalGasRateMCFD: z.number().optional(),
         incrimentalOilRateBOPD: z.number().optional(),
     }).describe("This information should ALWAYS come from outputs of the pysparkTool or files which the pysparkTool created."),

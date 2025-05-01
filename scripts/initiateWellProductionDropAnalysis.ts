@@ -114,8 +114,8 @@ const main = async () => {
 
     // Process each well
     for await (const [index, well] of highDropWells.entries()) {
-        // //for testing, only process the first 10 wells
-        // if (index > 5) {
+        // //for testing, only process the first x wells
+        // if (index > 3) {
         //     break;
         // }
         const wellApiNumber = well.api;
@@ -184,14 +184,14 @@ pio.templates.default = "white_clean_log"
 
         const wellParameters: WellParameters = JSON.parse(wellParametersFile.content);
 
-        // console.log('Well parameters: ', wellParameters);
+        console.log('Well parameters: ', wellParameters);
 
         const prompt = generateAnalysisPrompt({
             well: well,
             wellParameters: wellParameters
         });
 
-        // const prompt = 'What is 2+2?';
+        // const prompt = `Create a report with the the plot located at 'plots/${well.api}_hyperbolic_decline.html'`;
 
         console.log(`Generated analysis prompt for well ${wellApiNumber} (${index + 1}/${highDropWells.length})`);
 
@@ -219,7 +219,8 @@ pio.templates.default = "white_clean_log"
             query: invokeReActAgent,
             variables: {
                 chatSessionId: newChatSession.createChatSession.id,
-                userId: 'test-user'
+                userId: 'test-user',
+                origin: 'http://localhost:3001'
             },
         });
 
@@ -258,9 +259,9 @@ pio.templates.default = "white_clean_log"
 
             if (!responseComplete) {
                 const elapsedSeconds = Math.floor((Date.now() - waitStartTime) / 1000);
-                console.log(`Waiting for assistant response... (${elapsedSeconds} seconds)`);
-                // Wait 20 seconds before checking again
-                await new Promise(resolve => setTimeout(resolve, 20000));
+                console.log(`Waiting for assistant to finish analysis... (${elapsedSeconds} seconds)`);
+                // Wait x seconds before checking again
+                await new Promise(resolve => setTimeout(resolve, 30000));
             }
         }
         // break; // for testing, only process the first well
