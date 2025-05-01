@@ -3,7 +3,7 @@ import { stringify } from "yaml";
 import { getConfiguredAmplifyClient } from '../../../utils/amplifyUtils';
 
 import { ChatBedrockConverse } from "@langchain/aws";
-import { HumanMessage, ToolMessage, BaseMessage, SystemMessage, AIMessageChunk } from "@langchain/core/messages";
+import { HumanMessage, ToolMessage, BaseMessage, SystemMessage, AIMessageChunk, AIMessage } from "@langchain/core/messages";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { Calculator } from "@langchain/community/tools/calculator";
 import { DuckDuckGoSearch } from "@langchain/community/tools/duckduckgo_search";
@@ -61,6 +61,8 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
         // by ensuring no message content is empty when sent to Bedrock
         const chatSessionMessages = await getLangChainChatMessagesStartingWithHumanMessage(event.arguments.chatSessionId)
 
+       
+
         const agentModel = new ChatBedrockConverse({
             model: process.env.AGENT_MODEL_ID,
             // temperature: 0
@@ -96,12 +98,7 @@ custom_layout = go.Layout(
 custom_template = go.layout.Template(layout=custom_layout)
 pio.templates["white_clean_log"] = custom_template
 pio.templates.default = "white_clean_log"
-                `,
-                additionalToolDescription: `
-                When fitting a hyperbolic decline curve to well production data:
-                - You MUST weight the most recent points more x20 more heavily when fitting the curve.
-                - Filter out any points that do not reflect the well's production decline, such as sudden drop offs or spikes.
-            `}),
+                `,}),
             ...s3FileManagementTools,
             renderAssetTool
         ]
@@ -110,6 +107,40 @@ pio.templates.default = "white_clean_log"
             llm: agentModel,
             tools: agentTools,
         });
+
+         // If the last message is an assistant message with a tool call, call the tool with the arguments
+         if (
+            chatSessionMessages.length > 0 && 
+            chatSessionMessages[chatSessionMessages.length - 1] instanceof AIMessage && 
+            (chatSessionMessages[chatSessionMessages.length - 1] as AIMessage).tool_calls
+        ) {
+            console.log('Chat messages end with a tool call but no tool response. Invoking tool...')
+            const toolCall = (chatSessionMessages[chatSessionMessages.length - 1] as AIMessage).tool_calls![0]
+            const toolName = toolCall.name
+            const toolArgs = toolCall.args
+            const selectedTool = agentTools.find(tool => tool.name === toolName)
+            if (selectedTool) {
+                try {
+                    const toolResult = await selectedTool.invoke(toolArgs as any)
+                    console.log('toolResult:\n', JSON.stringify(toolResult, null, 2))
+                    const toolMessage = new ToolMessage({
+                        content: JSON.stringify(toolResult),
+                        name: toolName,
+                        tool_call_id: toolCall.id!
+                    })
+                    chatSessionMessages.push(toolMessage)
+                    await publishMessage({
+                        chatSessionId: event.arguments.chatSessionId,
+                        fieldName: graphQLFieldName,
+                        owner: userId,
+                        message: toolMessage
+                    })
+                } catch (error) {
+                    console.error('Tool invocation error:', error)
+                    throw error
+                }
+            }
+        }
 
         
         let systemMessageContent = `
@@ -413,10 +444,14 @@ When using the textToTableTool:
         const amplifyClient = getConfiguredAmplifyClient();
 
         console.warn("Error responding to user:", JSON.stringify(error, null, 2));
+        
+        // Send the complete error message to the client
+        const errorMessage = error instanceof Error ? error.stack || error.message : String(error);
+
         const publishChunkResponse = await amplifyClient.graphql({
             query: publishResponseStreamChunk,
             variables: {
-                chunkText: "Error responding to user: " + JSON.stringify(error, null, 2),
+                chunkText: errorMessage,
                 index: 0,
                 chatSessionId: event.arguments.chatSessionId
             }

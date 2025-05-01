@@ -35,7 +35,7 @@ async function processWellsFile(filePath: string) {
 
     // Process wells in chunks of 10
     const CHUNK_SIZE = 10;
-    for (let i = 0; i < records.length; i += CHUNK_SIZE) {
+    for (let i = 1125; i < records.length; i += CHUNK_SIZE) {
         const chunk = records.slice(i, i + CHUNK_SIZE);
         const chunkPromises = chunk.map(async (wellData: WellData, index: number) => {
             if (!wellData.API) return;
