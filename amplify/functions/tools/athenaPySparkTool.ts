@@ -259,8 +259,8 @@ def upload_working_directory():
                     
                     # Regular expression to match href="path/to/file" patterns
                     link_regex = r'href="([^"]+)"'
-                    # Regular expression to match src="path/to/file" patterns in iframes
-                    iframe_src_regex = r'<iframe[^>]*\ssrc="([^"]+)"[^>]*>'
+                    # Regular expression to match src="path/to/file" patterns
+                    img_src_regex = r'src="([^"]+)"'
                     
                     # First replace all href matches
                     def replace_href(match):
@@ -270,14 +270,13 @@ def upload_working_directory():
                     
                     content = re.sub(link_regex, replace_href, content)
                     
-                    # Then replace all iframe src matches
+                    # Then replace all src matches
                     def replace_src(match):
-                        full_match = match.group(0)
-                        file_path = re.search(r'src="([^"]+)"', full_match).group(1)
+                        file_path = match.group(1)
                         full_path = get_full_url(file_path)
-                        return full_match.replace(f'src="{file_path}"', f'src="{full_path}"')
+                        return f'src="{full_path}"'
                     
-                    content = re.sub(iframe_src_regex, replace_src, content)
+                    content = re.sub(img_src_regex, replace_src, content)
                     
                     # Write the processed content back to the file
                     with open(local_path, 'w', encoding='utf-8') as f:
