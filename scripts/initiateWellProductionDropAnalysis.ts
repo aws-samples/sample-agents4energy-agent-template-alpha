@@ -184,7 +184,7 @@ pio.templates.default = "white_clean_log"
 
         const wellParameters: WellParameters = JSON.parse(wellParametersFile.content);
 
-        console.log('Well parameters: ', wellParameters);
+        // console.log('Well parameters: ', wellParameters);
 
         const prompt = generateAnalysisPrompt({
             well: well,

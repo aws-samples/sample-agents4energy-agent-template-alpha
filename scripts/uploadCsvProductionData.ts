@@ -133,7 +133,9 @@ export const uploadCsvProductionData = async (config: UploadConfig): Promise<Upl
         'production.csv'
     ).replace(/\\/g, '/') // Ensure forward slashes for S3 keys
 
-    await uploadToS3(csvContentString, s3Key, bucketName)
+    if (dataRows.length > 5) { // Only upload if there is data
+        await uploadToS3(csvContentString, s3Key, bucketName)
+    }
     
     return { rowCount: dataRows.length }
 }

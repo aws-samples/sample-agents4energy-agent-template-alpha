@@ -62,7 +62,7 @@ try:
     
     # Calculate the economic life of the well based on the decline model
     economic_limit_producition_rate_MCFD=operating_cost_USD_per_year/365.25/gas_price_MCF # Assume $50k/yr operating cost and $3/MCF gas sales    
-    economic_life_years = time_to_rate(qi_opt, di_opt, b_opt, economic_limit_producition_rate_MCFD)
+    economic_life_years = min(50, time_to_rate(qi_opt, di_opt, b_opt, economic_limit_producition_rate_MCFD))
     print(f"Economic Life of the Well: {economic_life_years:,.2f} years")
     
     # Generate prediction points
@@ -84,14 +84,14 @@ try:
     # Calculate the present value of the fitted decline curve, starting from the production drop date
     
     present_value_of_fitted_decline_curve = sum([
-        365.25*gas_price_MCF*hyperbolic_decline(t_economic_evaluation_years[i], qi_opt, di_opt, b_opt) * np.exp(-present_value_discount_rate * i) 
-        for i in range(len(t_economic_evaluation_years))
+        gas_price_MCF * gas_rate_MCFM * 12 * np.exp(-present_value_discount_rate * i) 
+        for i, gas_rate_MCFM in enumerate(gas_rate_pred_MCFM[int(max(t_years)):])
         ])
     print(f"Present Value of the Fitted Decline Curve: ${present_value_of_fitted_decline_curve:,.2f}")
     # Calculate the present value of the production drop
     present_value_of_lower_production_rate = sum([
-        max(0,365.25*gas_price_MCF*(hyperbolic_decline(t_economic_evaluation_years[i], qi_opt, di_opt, b_opt) - production_drop_rate_MCFD) * np.exp(-present_value_discount_rate * i)) 
-        for i in range(len(t_economic_evaluation_years))
+        gas_price_MCF * gas_rate_MCFM * 12 * np.exp(-present_value_discount_rate * i) 
+        for i, gas_rate_MCFM in enumerate(gas_rate_pred_MCFM_lower[int(max(t_years)):])
         ])
     print(f"Present Value of the Production Drop: ${present_value_of_lower_production_rate:,.2f}")
     present_value_of_production_wedge = present_value_of_fitted_decline_curve - present_value_of_lower_production_rate
