@@ -5,7 +5,7 @@ import { formatCurrency } from '../../utils/formatters';
 import { Message } from '@/../utils/types';
 
 interface ProjectFinancial {
-  NPV10: number;
+  // NPV10: number;
   cost: number;
   revenuePresentValue: number;
   incrimentalOilRateBOPD: number | null;
@@ -82,7 +82,7 @@ const CreateProjectToolComponent: React.FC<CreateProjectToolComponentProps> = ({
               </Typography>
               <Box sx={{ mt: 1 }}>
                 <Typography variant="body2">
-                  NPV10: {formatCurrency(project.financial.NPV10)}
+                  PV10: {formatCurrency(project.financial.revenuePresentValue)}
                 </Typography>
                 <Typography variant="body2">
                   Cost: {formatCurrency(project.financial.cost)}

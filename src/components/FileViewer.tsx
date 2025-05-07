@@ -2,18 +2,40 @@
 import React, { useState, useEffect } from 'react';
 import { getUrl } from 'aws-amplify/storage';
 import { CircularProgress } from '@mui/material';
+import AceEditor from 'react-ace';
+
+import 'ace-builds/src-noconflict/mode-javascript';
+import 'ace-builds/src-noconflict/mode-json';
+import 'ace-builds/src-noconflict/mode-yaml';
+import 'ace-builds/src-noconflict/mode-html';
+import 'ace-builds/src-noconflict/mode-text';
+import 'ace-builds/src-noconflict/theme-github';
 
 interface FileViewerProps {
   s3Key: string;
   onUrlChange?: (url: URL | undefined) => void;
+  isEditMode?: boolean;
+  onContentChange?: (content: string) => void;
+  onContentTypeChange?: (contentType: string | null) => void;
+  content?: string;
 }
 
-export default function FileViewer({ s3Key, onUrlChange }: FileViewerProps) {
+export default function FileViewer({ 
+  s3Key, 
+  onUrlChange, 
+  isEditMode = false, 
+  onContentChange, 
+  onContentTypeChange,
+  content 
+}: FileViewerProps) {
   const [selectedFileUrl, setSelectedFileUrl] = useState<URL>();
   const [loading, setLoading] = useState<boolean>(true);
   const [iframeLoading, setIframeLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [fileContent, setFileContent] = useState<string | null>(null);
+
+  const fileExtension = s3Key.split('.').pop()?.toLowerCase() || 'text';
+  const isHtmlFile = fileExtension === 'html';
 
   useEffect(() => {
     console.log('s3Key: ', s3Key);
@@ -41,13 +63,20 @@ export default function FileViewer({ s3Key, onUrlChange }: FileViewerProps) {
         const fileResponse = await fetch(response.url);
         const contentType = fileResponse.headers.get('Content-Type');
         
-        // If it's a text-based file or CSV/XML, display as text
-        if ((!s3KeyDecoded.toLowerCase().endsWith('.html') && contentType?.startsWith('text/')) || 
+        // Pass content type back to parent
+        onContentTypeChange?.(contentType);
+        
+        // If it's a text-based file or CSV/XML/HTML, display as text
+        if (contentType?.startsWith('text/') || 
             contentType === 'application/octet-stream' ||
-            ['csv', 'xml', 'json', 'txt', 'md'].includes(s3KeyDecoded.split('.').pop()?.toLowerCase() || '')
+            ['csv', 'xml', 'json', 'txt', 'md', 'html'].includes(s3KeyDecoded.split('.').pop()?.toLowerCase() || '')
           ) {
           const text = await fileResponse.text();
           setFileContent(text);
+          // If content is not already set, set it for edit mode
+          if (!content) {
+            onContentChange?.(text);
+          }
         } else {
           setFileContent(null);
         }
@@ -76,9 +105,99 @@ export default function FileViewer({ s3Key, onUrlChange }: FileViewerProps) {
     return <div className="flex justify-center items-center h-full">No file selected</div>;
   }
 
-  // If we have text content, display it
+  // For HTML files, render differently based on edit mode
+  if (isHtmlFile) {
+    if (isEditMode) {
+      return (
+        <div className="relative w-full h-full flex flex-col">
+          <AceEditor
+            mode="html"
+            theme="github"
+            name="file-editor"
+            value={content || fileContent || ''}
+            onChange={onContentChange}
+            width="100%"
+            height="100%"
+            fontSize={14}
+            showPrintMargin={false}
+            showGutter={true}
+            highlightActiveLine={true}
+            setOptions={{
+              enableBasicAutocompletion: true,
+              enableLiveAutocompletion: true,
+              enableSnippets: true,
+              showLineNumbers: true,
+              tabSize: 2,
+            }}
+          />
+        </div>
+      );
+    }
+    
+    // Render HTML files in iframe when not in edit mode
+    return (
+      <div className="w-full h-full relative">
+        {iframeLoading && (
+          <div className="absolute inset-0 flex justify-center items-center bg-white bg-opacity-75 z-10">
+            <CircularProgress />
+          </div>
+        )}
+        <iframe
+          src={selectedFileUrl?.toString()}
+          className="w-full h-full"
+          style={{
+            border: 'none',
+            margin: 0,
+            padding: 0,
+          }}
+          title="File Viewer"
+          onLoad={() => setIframeLoading(false)}
+        />
+      </div>
+    );
+  }
+
+  // If we have text content for non-HTML files, display it
   if (fileContent) {
     console.log('Rendering text content');
+
+    // Determine the editor mode based on file extension
+    let editorMode = 'text';
+    if (fileExtension === 'js' || fileExtension === 'jsx' || fileExtension === 'ts' || fileExtension === 'tsx') {
+      editorMode = 'javascript';
+    } else if (fileExtension === 'json') {
+      editorMode = 'json';
+    } else if (fileExtension === 'yaml' || fileExtension === 'yml') {
+      editorMode = 'yaml';
+    }
+
+    if (isEditMode) {
+      return (
+        <div className="relative w-full h-full flex flex-col">
+          <AceEditor
+            mode={editorMode}
+            theme="github"
+            name="file-editor"
+            value={content || fileContent || ''}
+            onChange={onContentChange}
+            width="100%"
+            height="100%"
+            fontSize={14}
+            showPrintMargin={false}
+            showGutter={true}
+            highlightActiveLine={true}
+            setOptions={{
+              enableBasicAutocompletion: true,
+              enableLiveAutocompletion: true,
+              enableSnippets: true,
+              showLineNumbers: true,
+              tabSize: 2,
+            }}
+          />
+        </div>
+      );
+    }
+
     return (
       <div className="relative w-full h-full flex flex-col">
         <pre

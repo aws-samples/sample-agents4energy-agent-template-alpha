@@ -152,7 +152,7 @@ Today's date is ${new Date().toLocaleDateString()}.
 
 List the files in the global/notes directory for guidance on how to respond to the user.
 Create intermediate files to store your planned actions, thoughts and work. Use the writeFile tool to create these files. 
-Store them in the 'intermediateFiles' directory. After you complete a planned step, record the results in the file.
+Store them in the 'intermediate' directory. After you complete a planned step, record the results in the file.
 
 When generating a csv file, use the pysparkTool to generate the file and not the writeFile tool.
 

@@ -17,6 +17,9 @@ import { invokeReActAgent, listChatMessageByChatSessionIdAndCreatedAt } from "..
 import * as APITypes from "../amplify/functions/graphql/API";
 import { readFile } from "../amplify/functions/tools/s3ToolBox";
 
+// const ORIGIN = 'https://main.d2jrc1knzjqt63.amplifyapp.com'
+const ORIGIN = 'http://localhost:3001'
+
 // Set environment variables first`
 const outputs = loadOutputs();
 process.env.STORAGE_BUCKET_NAME = outputs?.storage?.bucket_name;    
@@ -28,9 +31,10 @@ const s3Client = new S3Client({ region: outputs.storage.aws_region });
 
 interface ProductionRecord {
     api: string;
-    rate_drop: string;
-    initial_rate: string;
-    final_rate: string;
+    pool: string;
+    rate_drop_MCFD: string;
+    initial_rate_MCFD: string;
+    final_rate_MCFD: string;
     step_date: string;
 }
 
@@ -61,11 +65,11 @@ function formatNumber(num: number): string {
 
 function generateAnalysisPrompt(props: {well: ProductionRecord, wellParameters: WellParameters}): string {
     const {well, wellParameters} = props;
-    const dropRate = parseFloat(well.rate_drop);
-    const initialRate = parseFloat(well.initial_rate);
-    const finalRate = parseFloat(well.final_rate);
+    const dropRate = parseFloat(well.rate_drop_MCFD);
+    const initialRate = parseFloat(well.initial_rate_MCFD);
+    const finalRate = parseFloat(well.final_rate_MCFD);
     const date = well.step_date;
-    const presentValue = wellParameters.economic_parameters.present_value_fitted_decline_curve_usd;
+    const presentValue = wellParameters.economic_parameters.present_value_production_wedge_usd;
 
     return `On ${date}, the well with API number ${well.api} experienced a production rate drop of ${formatNumber(dropRate)} MCF/Day
 Production dropped from ${formatNumber(initialRate)} to ${formatNumber(finalRate)} MCF/Day
@@ -90,13 +94,15 @@ Common tests are:
 }
 
 const main = async () => {
-    setOrigin('http://localhost:3001');//This is requred so that reports will correctly link to the other files
+    // setOrigin('http://localhost:3001');//This is requred so that reports will correctly link to the other files
+    setOrigin(ORIGIN)
 
     await setAmplifyEnvVars();
     const amplifyClient = getConfiguredAmplifyClient();
     
     // Read and parse CSV
-    const productionDropTablePath = path.join(__dirname, '../tmp/productionDropTable.csv');
+    // const productionDropTablePath = path.join(__dirname, '../tmp/productionDropTable.csv');
+    const productionDropTablePath = path.join(__dirname, '../tmp/fittedProductionDrops.csv');
     const fileContent = fs.readFileSync(productionDropTablePath, 'utf-8');
     const parser = csv.parse(fileContent, {
         columns: true,
@@ -109,16 +115,17 @@ const main = async () => {
         records.push(record);
     }
 
-    const highDropWells = records.filter(record => parseFloat(record.rate_drop) > 50);
+    const highDropWells = records.filter(record => parseFloat(record.rate_drop_MCFD) > 50);
     console.log(`Found ${highDropWells.length} wells with rate drop > 50`);
 
     // Process each well
     for await (const [index, well] of highDropWells.entries()) {
-        // //for testing, only process the first x wells
-        // if (index > 3) {
-        //     break;
-        // }
-        const wellApiNumber = well.api;
+        console.log('#'.repeat(20),`\nProcessing well ${well.api}, index ${index}`)
+        //for testing, only process the first x wells
+        if (index < 10) continue
+        if (index > 20) {
+            break;
+        }
 
         // Create a new chat session
         console.log('Creating new chat session');
@@ -126,7 +133,7 @@ const main = async () => {
             query: createChatSession,
             variables: {
                 input: {
-                    name: `Well ${wellApiNumber} Production Drop Analysis`
+                    name: `Well ${well.api} Production Drop Analysis`
                 }
             }
         });
@@ -141,12 +148,13 @@ const main = async () => {
         const result = await pysparkTool({}).invoke({
             code: `
 production_drop_date = '${well.step_date}'
-initial_production_rate_MCFD = float('${well.initial_rate}')
-final_production_rate_MCFD = float('${well.final_rate}')
-production_drop_rate_MCFD = float('${well.rate_drop}')
-well_api_number = '${wellApiNumber}'
+initial_production_rate_MCFD = float('${well.initial_rate_MCFD}')
+final_production_rate_MCFD = float('${well.final_rate_MCFD}')
+production_drop_rate_MCFD = float('${well.rate_drop_MCFD}')
+well_api_number = '${well.api}'
+pool = '${well.pool}'
 
-path_to_production_data = 'global/production-data/api=${wellApiNumber}/production.csv'
+path_to_production_data = 'global/production-data/api=${well.api}/pool=${well.pool}/production.csv'
 
 import plotly.io as pio
 import plotly.graph_objects as go
@@ -177,7 +185,7 @@ pio.templates.default = "white_clean_log"
         console.log(stringify(JSON.parse(result)));
 
         const wellParametersFile = JSON.parse(await readFile.invoke({
-            filename: `intermediate/well_${wellApiNumber}_parameters.json`,
+            filename: `intermediate/well_${well.api}_parameters.json`,
             startAtByte: -1
         }));
         console.log('Well parameters file: ', wellParametersFile);
@@ -193,7 +201,7 @@ pio.templates.default = "white_clean_log"
 
         // const prompt = `Create a report with the the plot located at 'plots/${well.api}_hyperbolic_decline.html'`;
 
-        console.log(`Generated analysis prompt for well ${wellApiNumber} (${index + 1}/${highDropWells.length})`);
+        console.log(`Generated analysis prompt for well ${well.api} (${index + 1}/${highDropWells.length})`);
 
         console.log(prompt, '\n\n');
 
@@ -220,7 +228,7 @@ pio.templates.default = "white_clean_log"
             variables: {
                 chatSessionId: newChatSession.createChatSession.id,
                 userId: 'test-user',
-                origin: 'http://localhost:3001'
+                origin: ORIGIN
             },
         });
 

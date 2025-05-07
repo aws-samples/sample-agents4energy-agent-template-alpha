@@ -1,6 +1,6 @@
 // Download data from a subset of wells in New Mexico from the following dataset: https://ocd-hub-nm-emnrd.hub.arcgis.com/search?collection=Dataset
 
-import { uploadCsvProductionData } from './uploadCsvProductionData'
+import { uploadCsvProductionData } from './uploadCsvProductionDataFromAPI'
 import * as fs from 'fs'
 import * as path from 'path'
 import * as csv from 'csv-parse'
@@ -10,13 +10,28 @@ interface WellData {
     API: string;
     'Well Name': string;
     'PLSS Location (ULSTR)': string;
+    'Associated Pools': string;
 }
 
 async function processWellsFile(filePath: string) {
+    // Check for required environment variables
     const bucketName = outputs.storage.bucket_name;
+    const apiUsername = process.env.EMNRD_API_USERNAME;
+    const apiPassword = process.env.EMNRD_API_PASSWORD;
+
     if (!bucketName) {
         throw new Error('Bucket name not found in amplify outputs');
     }
+
+    if (!apiUsername || !apiPassword) {
+        throw new Error('EMNRD_API_USERNAME and EMNRD_API_PASSWORD environment variables are required');
+    }
+
+    // Create credentials object once
+    const credentials = {
+        UserName: apiUsername,
+        Password: apiPassword
+    };
 
     // Read and parse the CSV file
     const fileContent = fs.readFileSync(filePath, 'utf-8');
@@ -33,10 +48,11 @@ async function processWellsFile(filePath: string) {
     const totalWells = records.length;
     console.log(`Starting to process ${totalWells} wells...`);
 
-    // Process wells in chunks
-    const CHUNK_SIZE = 5;
-    for (let i = 39781; i < records.length; i += CHUNK_SIZE) {
+    // Process wells in chunks (10 wells every 2 seconds ≈ 300 wells/minute)
+    const CHUNK_SIZE = 10;
+    for (let i = 0; i < records.length; i += CHUNK_SIZE) {
         const chunk = records.slice(i, i + CHUNK_SIZE);
+        const minimumWeightPromise = new Promise(resolve => setTimeout(resolve, 2000))
         const chunkPromises = chunk.map(async (wellData: WellData, index: number) => {
             if (!wellData.API) return;
 
@@ -46,8 +62,10 @@ async function processWellsFile(filePath: string) {
             try {
                 const result = await uploadCsvProductionData({
                     wellApiNumber: wellData.API,
+                    associatedPools: wellData['Associated Pools'],
                     bucketName,
-                    prefix: 'global/production-data'
+                    prefix: 'global/production-data',
+                    credentials
                 });
                 console.log(`${progress} Successfully processed well: ${wellData.API} (${result.rowCount} rows uploaded)`);
             } catch (error) {
@@ -57,12 +75,9 @@ async function processWellsFile(filePath: string) {
         });
 
         // Process chunk concurrently
-        await Promise.all(chunkPromises);
+        await Promise.all([...chunkPromises, minimumWeightPromise]);
 
-        // Wait 1 second between chunks to avoid overwhelming the system
-        if (i + CHUNK_SIZE < records.length) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        }
+        // break; // For testing just process one chunk
     }
 
     console.log(`\nCompleted processing all ${totalWells} wells!`);
@@ -70,7 +85,7 @@ async function processWellsFile(filePath: string) {
 
 // Run the script
 if (require.main === module) {
-    const wellsFilePath = path.join(__dirname, '../tmp/NM_wells.csv');
+    const wellsFilePath = path.join(__dirname, '../tmp/San_Juan_active_wells.csv');
     processWellsFile(wellsFilePath).catch(error => {
         console.error('Error:', error);
         process.exit(1);
