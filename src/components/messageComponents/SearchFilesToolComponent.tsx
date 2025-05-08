@@ -289,10 +289,6 @@ export const SearchFilesToolComponent = ({ content, theme, chatSessionId }: {
                             transition: 'background-color 0.2s ease',
                             backgroundColor: index % 2 === 0 ? theme.palette.common.white : theme.palette.grey[50]
                         }}
-                        onClick={() => {
-                            const encodedPath = filePath.split('/').map((segment: string) => encodeURIComponent(segment)).join('/');
-                            window.open(`/preview/${encodedPath}`, '_blank');
-                        }}
                         onMouseEnter={(e) => {
                             e.currentTarget.style.backgroundColor = theme.palette.action.hover;
                         }}
@@ -313,7 +309,18 @@ export const SearchFilesToolComponent = ({ content, theme, chatSessionId }: {
                         </div>
                         <VisibilityIcon 
                             fontSize="small" 
-                            style={{ color: theme.palette.primary.main, opacity: 0.7 }} 
+                            style={{ 
+                                color: theme.palette.primary.main, 
+                                opacity: 0.7,
+                                cursor: 'pointer'
+                            }}
+                            onClick={() => {
+                                const encodedPath = filePath.split('/').map((segment: string) => encodeURIComponent(segment)).join('/');
+                                const previewPath = encodedPath.startsWith('global') 
+                                    ? `/preview/${encodedPath}` 
+                                    : `/preview/chatSessionArtifacts/sessionId=${chatSessionId}/${encodedPath}`;
+                                window.open(previewPath, '_blank');
+                            }}
                         />
                     </div>
                 ))}
@@ -361,4 +368,4 @@ export const SearchFilesToolComponent = ({ content, theme, chatSessionId }: {
             </div>
         </div>
     );
-}; 
+};

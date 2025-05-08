@@ -6,7 +6,6 @@ import { AppBar, Toolbar, Typography, Button, Menu, MenuItem, IconButton } from 
 import AccountCircle from '@mui/icons-material/AccountCircle';
 
 import { useAuthenticator } from '@aws-amplify/ui-react';
-// import { useUserAttributes } from '@/components/UserAttributesProvider';
 import { useUserAttributes } from '@/components/UserAttributesProvider';
 
 import { type Schema } from "@/../amplify/data/resource";
@@ -69,12 +68,6 @@ const TopNavBar: React.FC = () => {
                 onClick={handleMenu}
                 color="inherit"
               >
-
-                {userAttributes?.email && (
-                  <Typography variant="body2" color="inherit" sx={{ ml: 1, mr: 2 }}>
-                    {userAttributes.email}
-                  </Typography>
-                )}
                 <AccountCircle />
               </IconButton>
 
@@ -93,6 +86,13 @@ const TopNavBar: React.FC = () => {
                 open={Boolean(anchorEl)}
                 onClose={handleClose}
               >
+                {userAttributes?.email && (
+                  <MenuItem disabled>
+                    <Typography variant="body2" color="inherit">
+                      {userAttributes.email}
+                    </Typography>
+                  </MenuItem>
+                )}
                 <MenuItem onClick={signOut}>Logout</MenuItem>
               </Menu>
             </>

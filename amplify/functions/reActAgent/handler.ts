@@ -237,6 +237,8 @@ When generating a csv file, use the pysparkTool to generate the file and not the
         - Ex: <iframe src="plots/production_and_decline_curve_plot.html" width="100%" height="500px" frameborder="0"></iframe>
       - Repair cost breakdown
    c) Technical Assessment
+      - Operational events table:
+        - Include when the well was drilled, completed, worked-over, and any other non-administrative type events.
       - Current well condition and artificial lift type
       - Summary of the proposed procedure
       - Link to the proposed repair procedure (ex: <a href="reports/repair_procedure.md">Proposed Repair Procedure</a>)
