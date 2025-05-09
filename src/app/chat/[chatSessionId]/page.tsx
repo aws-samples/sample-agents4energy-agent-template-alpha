@@ -106,38 +106,45 @@ function Page({
                         justifyContent: 'space-between',
                         alignItems: 'center'
                     }}>
+
                         <EditableTextBox
                             object={activeChatSession}
                             fieldPath="name"
                             onUpdate={setActiveChatSessionAndUpload}
                             typographyVariant="h3"
                         />
-                        <Tooltip title={showChainOfThought ? "Hide Chain of Thought" : "Show Chain of Thought"}>
-                            <IconButton 
-                                onClick={() => setShowChainOfThought(!showChainOfThought)}
-                                color="primary"
-                                size="large"
-                                sx={{
-                                    bgcolor: showChainOfThought ? 'rgba(25, 118, 210, 0.08)' : 'transparent',
-                                    zIndex: 1300 // Ensure button is above drawer
-                                }}
-                            >
-                                <PsychologyIcon />
-                            </IconButton>
-                        </Tooltip>
-                        <Tooltip title={fileDrawerOpen ? "Hide Files" : "View Files"}>
-                            <IconButton 
-                                onClick={() => setFileDrawerOpen(!fileDrawerOpen)}
-                                color="primary"
-                                size="large"
-                                sx={{
-                                    bgcolor: fileDrawerOpen ? 'rgba(25, 118, 210, 0.08)' : 'transparent',
-                                    zIndex: 1300 // Ensure button is above drawer
-                                }}
-                            >
-                                <FolderIcon />
-                            </IconButton>
-                        </Tooltip>
+                        <Box sx={{
+                            display: 'flex',
+                            gap: 1,
+                            justifyContent: 'flex-end'
+                        }}>
+                            <Tooltip title={showChainOfThought ? "Hide Chain of Thought" : "Show Chain of Thought"}>
+                                <IconButton
+                                    onClick={() => setShowChainOfThought(!showChainOfThought)}
+                                    color="primary"
+                                    size="large"
+                                    sx={{
+                                        bgcolor: showChainOfThought ? 'rgba(25, 118, 210, 0.08)' : 'transparent',
+                                        zIndex: 1300 // Ensure button is above drawer
+                                    }}
+                                >
+                                    <PsychologyIcon />
+                                </IconButton>
+                            </Tooltip>
+                            <Tooltip title={fileDrawerOpen ? "Hide Files" : "View Files"}>
+                                <IconButton
+                                    onClick={() => setFileDrawerOpen(!fileDrawerOpen)}
+                                    color="primary"
+                                    size="large"
+                                    sx={{
+                                        bgcolor: fileDrawerOpen ? 'rgba(25, 118, 210, 0.08)' : 'transparent',
+                                        zIndex: 1300 // Ensure button is above drawer
+                                    }}
+                                >
+                                    <FolderIcon />
+                                </IconButton>
+                            </Tooltip>
+                        </Box>
                     </Box>
 
                     <Divider />
@@ -157,10 +164,10 @@ function Page({
                     </Box>
                 </Paper>
             </Box>
-            
+
             {/* Floating file button for mobile - only show when drawer is closed */}
             {isMobile && !fileDrawerOpen && (
-                <Box 
+                <Box
                     sx={{
                         position: 'fixed',
                         bottom: 16,
@@ -186,11 +193,11 @@ function Page({
                     </Tooltip>
                 </Box>
             )}
-            
+
             {/* File Drawer - completely different handling for mobile vs desktop */}
-            <FileDrawer 
-                open={fileDrawerOpen} 
-                onClose={() => setFileDrawerOpen(false)} 
+            <FileDrawer
+                open={fileDrawerOpen}
+                onClose={() => setFileDrawerOpen(false)}
                 chatSessionId={activeChatSession.id}
                 variant={drawerVariant}
             />
