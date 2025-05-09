@@ -5,6 +5,7 @@ import { generateClient } from "aws-amplify/data";
 import { type Schema } from "@/../amplify/data/resource";
 import { Box, Typography, Paper, Divider, IconButton, Tooltip, useTheme, useMediaQuery } from '@mui/material';
 import FolderIcon from '@mui/icons-material/Folder';
+import PsychologyIcon from '@mui/icons-material/Psychology';
 
 import ChatBox from "@/components/ChatBox"
 import EditableTextBox from '@/components/EditableTextBox';
@@ -20,12 +21,9 @@ function Page({
 }) {
     const [activeChatSession, setActiveChatSession] = useState<Schema["ChatSession"]["createType"]>();
     const [fileDrawerOpen, setFileDrawerOpen] = useState(false);
+    const [showChainOfThought, setShowChainOfThought] = useState(false);
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-    
-    const toggleFileDrawer = () => {
-        setFileDrawerOpen(!fileDrawerOpen);
-    };
 
     const setActiveChatSessionAndUpload = async (newChatSession: Schema["ChatSession"]["createType"]) => {
         const { data: updatedChatSession } = await amplifyClient.models.ChatSession.update({
@@ -114,9 +112,22 @@ function Page({
                             onUpdate={setActiveChatSessionAndUpload}
                             typographyVariant="h3"
                         />
+                        <Tooltip title={showChainOfThought ? "Hide Chain of Thought" : "Show Chain of Thought"}>
+                            <IconButton 
+                                onClick={() => setShowChainOfThought(!showChainOfThought)}
+                                color="primary"
+                                size="large"
+                                sx={{
+                                    bgcolor: showChainOfThought ? 'rgba(25, 118, 210, 0.08)' : 'transparent',
+                                    zIndex: 1300 // Ensure button is above drawer
+                                }}
+                            >
+                                <PsychologyIcon />
+                            </IconButton>
+                        </Tooltip>
                         <Tooltip title={fileDrawerOpen ? "Hide Files" : "View Files"}>
                             <IconButton 
-                                onClick={toggleFileDrawer}
+                                onClick={() => setFileDrawerOpen(!fileDrawerOpen)}
                                 color="primary"
                                 size="large"
                                 sx={{
@@ -141,6 +152,7 @@ function Page({
                     }}>
                         <ChatBox
                             chatSessionId={activeChatSession.id}
+                            showChainOfThought={showChainOfThought}
                         />
                     </Box>
                 </Paper>
@@ -158,7 +170,7 @@ function Page({
                 >
                     <Tooltip title="View Files">
                         <IconButton
-                            onClick={toggleFileDrawer}
+                            onClick={() => setFileDrawerOpen(!fileDrawerOpen)}
                             color="primary"
                             size="large"
                             sx={{

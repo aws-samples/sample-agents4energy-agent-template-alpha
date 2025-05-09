@@ -41,7 +41,9 @@ const DefaultPrompts = ({ onSelectPrompt }: { onSelectPrompt: (prompt: string) =
 
 const ChatBox = (params: {
   chatSessionId: string,
+  showChainOfThought: boolean
 }) => {
+  const {chatSessionId, showChainOfThought} = params
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [, setResponseStreamChunks] = useState<(Schema["recieveResponseStreamChunk"]["returnType"] | null)[]>([]);
@@ -55,7 +57,7 @@ const ChatBox = (params: {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [isScrolledToBottom, setIsScrolledToBottom] = useState(true);
-  const [showChainOfThought, setShowChainOfThought] = useState(false);
+  // const [showChainOfThought, setShowChainOfThought] = useState(false);
   // const [selectedAgent, setSelectedAgent] = useState<('reActAgent' | 'planAndExecuteAgent' | 'projectGenerationAgent')>("reActAgent");
 
   //Subscribe to the chat messages for the garden
