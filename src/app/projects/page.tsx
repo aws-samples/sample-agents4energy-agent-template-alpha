@@ -10,14 +10,16 @@ import {
     Button,
     Paper,
     Typography,
-    Grid2 as Grid,
+    Grid2 as Grid, //MUI v6
     Chip,
     CircularProgress,
     Menu,
     MenuItem,
     Card,
     CardContent,
-    Divider
+    Divider,
+    CardActions,
+    CardHeader
 } from '@mui/material';
 
 // Register Chart.js components
@@ -92,6 +94,9 @@ const Page = () => {
     const [selectedProject, setSelectedProject] = useState<Schema["Project"]["createType"] | null>(null);
     const [statusAnchorEl, setStatusAnchorEl] = useState<null | HTMLElement>(null);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+    const [reportIsOpen, setReportIsOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [nextActionClicked, setNextActionClicked] = useState(false);
     const hasNextAction = selectedProject?.nextAction?.buttonTextBeforeClick && selectedProject.nextAction?.buttonTextAfterClick;
 
     const handleStatusClick = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -227,7 +232,8 @@ const Page = () => {
                 },
                 // min: 1,
                 ticks: {
-                    callback: (value: number) => formatCurrency(value)
+                    callback: (value: number) => formatCurrency(value),
+                    maxTicksLimit: 8 // Limit the number of ticks displayed
                 }
             }
         },
@@ -236,6 +242,9 @@ const Page = () => {
                 const dataIndex = elements[0].index;
                 const selectedProjectData = scatterData.datasets[0].data[dataIndex];
                 setSelectedProject(selectedProjectData.project);
+                setIsLoading(false);
+                setReportIsOpen(false);
+                setNextActionClicked(false);
             }
         }
     };
@@ -319,27 +328,29 @@ const Page = () => {
             </Grid>
 
             {/* Projects Scatter Plot and Details */}
-            <Grid container spacing={3} mt='20px'>
-                <Grid>
-                    <Paper elevation={3} sx={{ p: 2, paddingBottom: 5, height: '700px', width: '500px' }}>
+            <Grid container spacing={3} mt='20px' sx={{ display: 'flex', flexDirection: 'row' }}>
+                <Grid size={3}>
+                    <Paper elevation={3} sx={{ p: 2, paddingBottom: 5, height: '700px' }}>
                         <Typography variant="h6" gutterBottom>
                             Project Portfolio Visualization
                         </Typography>
                         <Scatter data={scatterData} options={chartOptions} />
                     </Paper>
                 </Grid>
-                <Grid>
+                <Grid size={9}>
                     {selectedProject ? (
                         <Card
                             elevation={3}
                             sx={{
                                 height: '100%',
-                                maxWidth: '40%',
                                 display: 'flex',
                                 flexDirection: 'column',
                                 flex: 1
                             }}
                         >
+                            <CardHeader
+                                title={selectedProject.name}
+                            />
                             <CardContent sx={{
                                 flexGrow: 1,
                                 display: 'flex',
@@ -347,87 +358,148 @@ const Page = () => {
                                 height: '100%',
                                 overflow: 'hidden'
                             }}>
-                                <Typography variant="h5" gutterBottom>
-                                    {selectedProject.name}
-                                </Typography>
-                                <Divider sx={{ my: 2 }} />
-                                <Typography variant="body1">
-                                    <strong>Description:</strong> {selectedProject.description}
-                                </Typography>
-                                <Typography variant="body1" sx={{ mt: 1 }}>
-                                    <strong>Cost:</strong> {formatCurrency(selectedProject.financial?.cost || 0)}
-                                </Typography>
-                                <Typography variant="body1" sx={{ mt: 1 }}>
-                                    <strong>PV10:</strong> {formatCurrency(selectedProject.financial?.revenuePresentValue || 0)}
-                                </Typography>
-                                <Typography variant="body1" sx={{ mt: 1 }}>
-                                    <strong>Success Probability:</strong> {formatPercentage(selectedProject.financial?.successProbability)}
-                                </Typography>
-                                <Typography variant="body1" sx={{ mt: 1 }}>
-                                    <strong>Status: </strong>
+                                {reportIsOpen ? (
                                     <Box
-                                        onClick={handleStatusClick}
                                         sx={{
-                                            display: 'inline-flex',
-                                            cursor: 'pointer',
+                                            width: '100%',
+                                            height: '100%',
+                                            border: '1px solid',
+                                            borderColor: 'grey.300',
+                                            borderRadius: 1,
                                             position: 'relative'
                                         }}
                                     >
-                                        <Chip
-                                            label={isUpdatingStatus ? 'Updating...' : (selectedProject.status || 'Unknown')}
-                                            color={getStatusColor(selectedProject.status)}
-                                            size="small"
-                                            sx={{
-                                                minWidth: '90px',
-                                                textTransform: 'capitalize'
-                                            }}
-                                        />
-                                        {isUpdatingStatus && (
-                                            <CircularProgress
-                                                size={16}
+                                        {isLoading && (
+                                            <Box
                                                 sx={{
                                                     position: 'absolute',
-                                                    top: '50%',
-                                                    left: '50%',
-                                                    marginTop: '-8px',
-                                                    marginLeft: '-8px'
+                                                    top: 0,
+                                                    left: 0,
+                                                    right: 0,
+                                                    bottom: 0,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    bgcolor: 'rgba(255, 255, 255, 0.7)',
+                                                    backdropFilter: 'blur(2px)',
+                                                    zIndex: 1
+                                                }}
+                                            >
+                                                <Box
+                                                    sx={{
+                                                        textAlign: 'center',
+                                                        bgcolor: 'background.paper',
+                                                        p: 2,
+                                                        borderRadius: 1,
+                                                        boxShadow: 1
+                                                    }}
+                                                >
+                                                    <CircularProgress size={30} />
+                                                    <Typography
+                                                        variant="body2"
+                                                        color="text.secondary"
+                                                        sx={{ mt: 1 }}
+                                                    >
+                                                        Loading report...
+                                                    </Typography>
+                                                </Box>
+                                            </Box>
+                                        )}
+                                        <iframe
+                                            src={`file/chatSessionArtifacts/sessionId=${selectedProject.sourceChatSessionId}/` + selectedProject.reportS3Path}
+                                            style={{
+                                                width: '100%',
+                                                height: '100%',
+                                                border: 'none'
+                                            }}
+                                            title={`Report for ${selectedProject.name}`}
+                                            onLoad={() => setIsLoading(false)}
+                                        />
+                                    </Box>
+                                ) : (<>
+                                    <Typography variant="body1">
+                                        <strong>Description:</strong> {selectedProject.description}
+                                    </Typography>
+                                    <Typography variant="body1" sx={{ mt: 1 }}>
+                                        <strong>Cost:</strong> {formatCurrency(selectedProject.financial?.cost || 0)}
+                                    </Typography>
+                                    <Typography variant="body1" sx={{ mt: 1 }}>
+                                        <strong>PV10:</strong> {formatCurrency(selectedProject.financial?.revenuePresentValue || 0)}
+                                    </Typography>
+                                    <Typography variant="body1" sx={{ mt: 1 }}>
+                                        <strong>Success Probability:</strong> {formatPercentage(selectedProject.financial?.successProbability)}
+                                    </Typography>
+                                    <Typography variant="body1" sx={{ mt: 1 }}>
+                                        <strong>Status: </strong>
+                                        <Box
+                                            onClick={handleStatusClick}
+                                            sx={{
+                                                display: 'inline-flex',
+                                                cursor: 'pointer',
+                                                position: 'relative'
+                                            }}
+                                        >
+                                            <Chip
+                                                label={isUpdatingStatus ? 'Updating...' : (selectedProject.status || 'Unknown')}
+                                                color={getStatusColor(selectedProject.status)}
+                                                size="small"
+                                                sx={{
+                                                    minWidth: '90px',
+                                                    textTransform: 'capitalize'
                                                 }}
                                             />
-                                        )}
-                                    </Box>
-                                    <Menu
-                                        anchorEl={statusAnchorEl}
-                                        open={Boolean(statusAnchorEl)}
-                                        onClose={handleStatusClose}
-                                    >
-                                        {STATUS_OPTIONS.map((status) => (
-                                            <MenuItem
-                                                key={status}
-                                                onClick={() => handleStatusChange(status)}
-                                                selected={status === selectedProject.status}
-                                            >
-                                                <Chip
-                                                    label={status}
-                                                    color={getStatusColor(status)}
-                                                    size="small"
+                                            {isUpdatingStatus && (
+                                                <CircularProgress
+                                                    size={16}
                                                     sx={{
-                                                        minWidth: '90px',
-                                                        textTransform: 'capitalize'
+                                                        position: 'absolute',
+                                                        top: '50%',
+                                                        left: '50%',
+                                                        marginTop: '-8px',
+                                                        marginLeft: '-8px'
                                                     }}
                                                 />
-                                            </MenuItem>
-                                        ))}
-                                    </Menu>
-                                </Typography>
-                                <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
-                                    <Button
-                                        variant="contained"
-                                        color="warning"
-                                        onClick={() => handleDeleteProject(selectedProject.id!, selectedProject.name!)}
-                                    >
-                                        Delete Project
-                                    </Button>
-                                    {selectedProject.sourceChatSessionId && (
+                                            )}
+                                        </Box>
+                                        <Menu
+                                            anchorEl={statusAnchorEl}
+                                            open={Boolean(statusAnchorEl)}
+                                            onClose={handleStatusClose}
+                                        >
+                                            {STATUS_OPTIONS.map((status) => (
+                                                <MenuItem
+                                                    key={status}
+                                                    onClick={() => handleStatusChange(status)}
+                                                    selected={status === selectedProject.status}
+                                                >
+                                                    <Chip
+                                                        label={status}
+                                                        color={getStatusColor(status)}
+                                                        size="small"
+                                                        sx={{
+                                                            minWidth: '90px',
+                                                            textTransform: 'capitalize'
+                                                        }}
+                                                    />
+                                                </MenuItem>
+                                            ))}
+                                        </Menu>
+                                    </Typography>
+
+                                </>
+                                )
+                                }
+                            </CardContent>
+                            <CardActions>
+                                <Button
+                                    variant="contained"
+                                    color="warning"
+                                    onClick={() => handleDeleteProject(selectedProject.id!, selectedProject.name!)}
+                                >
+                                    Delete Project
+                                </Button>
+                                {selectedProject.sourceChatSessionId && (
+                                    <>
                                         <Button
                                             variant="outlined"
                                             color="primary"
@@ -435,28 +507,31 @@ const Page = () => {
                                         >
                                             View Chat
                                         </Button>
-                                    )}
-                                </Box>
-                                <Divider sx={{ my: 2 }} />
-                                <Box sx={{
-                                    flexGrow: 1,
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    minHeight: 0,
-                                    overflow: 'hidden'
-                                }}>
-                                    <iframe
-                                        src={`file/chatSessionArtifacts/sessionId=${selectedProject.sourceChatSessionId}/` + selectedProject.reportS3Path}
-                                        style={{
-                                            width: '100%',
-                                            height: '100%',
-                                            border: 'none',
-                                            flexGrow: 1
+                                        <Button
+                                            variant="outlined"
+                                            onClick={() => { setIsLoading(!reportIsOpen); setReportIsOpen(!reportIsOpen) }}
+                                        >
+                                            {reportIsOpen ? "Close Report" : "View Report"}
+                                        </Button>
+                                    </>
+                                )}
+                                {hasNextAction && (
+                                    <Button
+                                        // size="small"
+                                        variant="contained"
+                                        color={!nextActionClicked ? "info" : "success"}
+                                        onClick={() => setNextActionClicked(!nextActionClicked)}
+                                        sx={{
+                                            transition: 'all 0.3s ease',
+                                            alignSelf: 'flex-start',
                                         }}
-                                        title={`Report for ${selectedProject.name}`}
-                                    />
-                                </Box>
-                            </CardContent>
+                                    >
+                                        {nextActionClicked ?
+                                            selectedProject.nextAction?.buttonTextAfterClick :
+                                            selectedProject.nextAction?.buttonTextBeforeClick}
+                                    </Button>
+                                )}
+                            </CardActions>
                         </Card>
                     ) : (
                         <Paper
