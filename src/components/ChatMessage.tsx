@@ -7,6 +7,7 @@ import { useFileSystem } from '@/contexts/FileSystemContext';
 
 // Import all the message components
 import AiMessageComponent from './messageComponents/AiMessageComponent';
+import ThinkingMessageComponent from './messageComponents/ThinkingMessageComponent'
 import HumanMessageComponent from './messageComponents/HumanMessageComponent';
 import CalculatorToolComponent from './messageComponents/CalculatorToolComponent';
 import UserInputToolComponent from './messageComponents/UserInputToolComponent';
@@ -71,6 +72,8 @@ const ChatMessage = (params: {
             />;
         case 'ai':
             return <AiMessageComponent message={message} theme={theme} />;
+        case 'ai-stream':
+            return <ThinkingMessageComponent message={message} theme={theme} />
         case 'tool':
             //This set of tools messages will render even if the chain of thought is not being shown
             switch (message.toolName) {

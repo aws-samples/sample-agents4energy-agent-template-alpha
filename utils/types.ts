@@ -10,9 +10,13 @@ const zodStringDate = z.string()
 
 
 
-export type Message = (
-    Schema["ChatMessage"]["createType"]
-)
+// export type Message = (
+//     Schema["ChatMessage"]["createType"]
+// )
+export type Message = Omit<Schema["ChatMessage"]["createType"], "role"> & {
+    role: "human" | "ai" | "tool" | "ai-stream" | null;
+  };
+
 
 export type PublishMessageCommandInput = {
     chatSessionId: string,

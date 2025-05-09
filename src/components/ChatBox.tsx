@@ -60,7 +60,7 @@ const ChatBox = (params: {
   // const [showChainOfThought, setShowChainOfThought] = useState(false);
   // const [selectedAgent, setSelectedAgent] = useState<('reActAgent' | 'planAndExecuteAgent' | 'projectGenerationAgent')>("reActAgent");
 
-  //Subscribe to the chat messages for the garden
+  //Subscribe to the chat messages
   useEffect(() => {
     const messageSubscriptionHandler = async () => {
       console.log('Creating message subscription for garden: ', params.chatSessionId)
@@ -76,12 +76,12 @@ const ChatBox = (params: {
             const sortedMessages = combineAndSortMessages(prevMessages, recentMessages)
             if (sortedMessages[sortedMessages.length - 1] && sortedMessages[sortedMessages.length - 1].responseComplete) {
               setIsLoading(false)
+              setStreamChunkMessage(undefined)
+              setResponseStreamChunks([])
             }
             setHasMoreMessages(items.length > messagesPerPage);
             return sortedMessages
-          })
-          setStreamChunkMessage(undefined)
-          setResponseStreamChunks([])
+          })          
         }
       })
 
@@ -169,6 +169,8 @@ const ChatBox = (params: {
         next: (newChunk) => {
           // console.log('Received new response stream chunk: ', newChunk)
           setResponseStreamChunks((prevChunks) => {
+            if (newChunk.index === 0) return [newChunk] //If this is the first chunk, reset the preChunk array
+
             //Now Insert the new chunk into the correct position in the array
             if (newChunk.index >= 0 && newChunk.index < prevChunks.length) {
               prevChunks[newChunk.index] = newChunk;
@@ -184,7 +186,7 @@ const ChatBox = (params: {
             if (prevChunks[0] || true) {
               setStreamChunkMessage({
                 id: 'streamChunkMessage',
-                role: 'ai',
+                role: 'ai-stream',
                 content: {
                   text: prevChunks.map((chunk) => chunk?.chunkText).join("")
                 },
@@ -317,16 +319,10 @@ const ChatBox = (params: {
         chatSessionId: params.chatSessionId
       }
 
-      const { newMessageData } = await sendMessage({
+      await sendMessage({
         chatSessionId: params.chatSessionId,
         newMessage: newMessage
       })
-
-      if (newMessageData) setMessages([...messages, {
-        ...newMessage,
-        id: newMessageData.id,
-        createdAt: newMessageData.createdAt
-      }]);
 
       setUserInput('');
     }
