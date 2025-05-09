@@ -17,7 +17,6 @@ import WriteFileToolComponent from './messageComponents/WriteFileToolComponent';
 import UpdateFileToolComponent from './messageComponents/UpdateFileToolComponent';
 import TextToTableToolComponent from './messageComponents/TextToTableToolComponent';
 import PySparkToolComponent from './messageComponents/PySparkToolComponent';
-import { PlotDataToolComponent } from './messageComponents/PlotDataToolComponent';
 import RenderAssetToolComponent from './messageComponents/RenderAssetToolComponent';
 import DefaultToolMessageComponent from './messageComponents/DefaultToolMessageComponent';
 import DuckDuckGoSearchToolComponent from './messageComponents/DuckDuckGoSearchToolComponent';
@@ -28,26 +27,27 @@ const ChatMessage = (params: {
     message: Message,
     onRegenerateMessage?: (messageId: string, messageText: string) => Promise<boolean>;
 }) => {
+    const { message, onRegenerateMessage } = params
     const theme = useTheme();
     const { refreshFiles } = useFileSystem();
-    
+
     // Use a ref to track which messages we've already processed
     // to prevent multiple refreshes for the same message
-    const processedMessageRef = useRef<{[key: string]: boolean}>({});
-    
+    const processedMessageRef = useRef<{ [key: string]: boolean }>({});
+
     // Effect to handle file operation updates
     useEffect(() => {
         // Skip if we've already processed this message
-        const messageId = params.message.id;
+        const messageId = message.id;
         if (!messageId || processedMessageRef.current[messageId]) {
             return;
         }
-        
-        if (params.message.role === 'tool' && 
-            (params.message.toolName === 'writeFile' || 
-             params.message.toolName === 'updateFile')) {
+
+        if (message.role === 'tool' &&
+            (message.toolName === 'writeFile' ||
+                message.toolName === 'updateFile')) {
             try {
-                const fileData = JSON.parse(params.message.content?.text || '{}');
+                const fileData = JSON.parse(message.content?.text || '{}');
                 if (fileData.success) {
                     // Mark this message as processed
                     processedMessageRef.current[messageId] = true;
@@ -59,66 +59,62 @@ const ChatMessage = (params: {
                 processedMessageRef.current[messageId] = true;
             }
         }
-    }, [params.message, refreshFiles]);
+    }, [message, refreshFiles]);
 
-    switch (params.message.role) {
+
+    switch (message.role) {
+        case 'human':
+            return <HumanMessageComponent
+                message={message}
+                theme={theme}
+                onRegenerateMessage={onRegenerateMessage}
+            />;
         case 'ai':
-            return <AiMessageComponent message={params.message} theme={theme} />;
+            return <AiMessageComponent message={message} theme={theme} />;
         case 'tool':
-            switch (params.message.toolName) {
-                case 'calculator':
-                    return <CalculatorToolComponent content={params.message.content} theme={theme} />;
+            //This set of tools messages will render even if the chain of thought is not being shown
+            switch (message.toolName) {
+                case 'renderAssetTool':
+                    return <RenderAssetToolComponent
+                        content={message.content}
+                        theme={theme}
+                        chatSessionId={message.chatSessionId || ''}
+                    />;
                 case 'userInputTool':
-                    return <UserInputToolComponent content={params.message.content} theme={theme} />;
+                    return <UserInputToolComponent content={message.content} theme={theme} />;
+                case 'createProject':
+                    return <CreateProjectToolComponent content={message.content} theme={theme} />;
+                case 'calculator':
+                    return <CalculatorToolComponent content={message.content} theme={theme} />;
                 case 'searchFiles':
-                    return <SearchFilesToolComponent 
-                        content={params.message.content} 
-                        theme={theme} 
-                        chatSessionId={params.message.chatSessionId || ''}
+                    return <SearchFilesToolComponent
+                        content={message.content}
+                        theme={theme}
+                        chatSessionId={message.chatSessionId || ''}
                     />;
                 case 'listFiles':
-                    return <ListFilesToolComponent content={params.message.content} theme={theme} />;
+                    return <ListFilesToolComponent content={message.content} theme={theme} />;
                 case 'readFile':
-                    return <ReadFileToolComponent content={params.message.content} theme={theme} />;
+                    return <ReadFileToolComponent content={message.content} theme={theme} />;
                 case 'writeFile':
-                    return <WriteFileToolComponent 
-                        content={params.message.content} 
-                        theme={theme} 
-                        chatSessionId={params.message.chatSessionId || ''} 
+                    return <WriteFileToolComponent
+                        content={message.content}
+                        theme={theme}
+                        chatSessionId={message.chatSessionId || ''}
                     />;
                 case 'updateFile':
-                    return <UpdateFileToolComponent content={params.message.content} theme={theme} />;
+                    return <UpdateFileToolComponent content={message.content} theme={theme} />;
                 case 'textToTableTool':
-                    return <TextToTableToolComponent content={params.message.content} theme={theme} />;
-                case 'plotDataTool':
-                    return <PlotDataToolComponent 
-                        content={params.message.content} 
-                        theme={theme} 
-                        chatSessionId={params.message.chatSessionId || ''} 
-                    />;
+                    return <TextToTableToolComponent content={message.content} theme={theme} />;
                 case 'pysparkTool':
-                    return <PySparkToolComponent content={params.message.content} theme={theme} />;
-                case 'renderAssetTool':
-                    return <RenderAssetToolComponent 
-                        content={params.message.content} 
-                        theme={theme} 
-                        chatSessionId={params.message.chatSessionId || ''} 
-                    />;
+                    return <PySparkToolComponent content={message.content} theme={theme} />;
                 case 'duckduckgo-search':
-                    return <DuckDuckGoSearchToolComponent content={params.message.content} theme={theme} />;
+                    return <DuckDuckGoSearchToolComponent content={message.content} theme={theme} />;
                 case 'webBrowserTool':
-                    return <WebBrowserToolComponent content={params.message.content} theme={theme} />;
-                case 'createProject':
-                    return <CreateProjectToolComponent content={params.message.content} theme={theme} />;
+                    return <WebBrowserToolComponent content={message.content} theme={theme} />;
                 default:
-                    return <DefaultToolMessageComponent message={params.message} />;
+                    return <DefaultToolMessageComponent message={message} />;
             }
-        case 'human':
-            return <HumanMessageComponent 
-                message={params.message} 
-                theme={theme} 
-                onRegenerateMessage={params.onRegenerateMessage} 
-            />;
         default:
             return null;
     }

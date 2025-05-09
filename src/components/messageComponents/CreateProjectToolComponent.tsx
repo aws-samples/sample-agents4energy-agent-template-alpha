@@ -1,6 +1,7 @@
 import React from 'react';
+import Link from 'next/link';
 import { Theme } from '@mui/material/styles';
-import { Card, CardContent, Typography, Box, Chip, Grid } from '@mui/material';
+import { Card, CardContent, Typography, Box, Chip, Grid2 as Grid, CardActions, Button } from '@mui/material';
 import { formatCurrency } from '../../utils/formatters';
 import { Message } from '@/../utils/types';
 
@@ -64,10 +65,10 @@ const CreateProjectToolComponent: React.FC<CreateProjectToolComponentProps> = ({
             }}>
               {project.name}
             </Typography>
-            <Chip 
-              label={project.status.toUpperCase()} 
-              color="success" 
-              size="small" 
+            <Chip
+              label={project.status.toUpperCase()}
+              color="success"
+              size="small"
               sx={{ mb: 1 }}
             />
             <Typography variant="body1" color="text.secondary" sx={{ mt: 1 }}>
@@ -76,26 +77,23 @@ const CreateProjectToolComponent: React.FC<CreateProjectToolComponentProps> = ({
           </Box>
 
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
+            <Grid>
               <Typography variant="subtitle2" color="text.secondary">
                 Financial Summary
               </Typography>
               <Box sx={{ mt: 1 }}>
                 <Typography variant="body2">
-                  PV10: {formatCurrency(project.financial.revenuePresentValue)}
+                  Revenue PV10: {formatCurrency(project.financial.revenuePresentValue)}
                 </Typography>
                 <Typography variant="body2">
                   Cost: {formatCurrency(project.financial.cost)}
                 </Typography>
-                {/* <Typography variant="body2">
-                  Revenue (Discounted): {formatCurrency(project.financial.discountedRevenue)}
-                </Typography> */}
                 <Typography variant="body2">
                   Success Probability: {(project.financial.successProbability * 100).toFixed(1)}%
                 </Typography>
               </Box>
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid>
               <Typography variant="subtitle2" color="text.secondary">
                 Project Details
               </Typography>
@@ -113,6 +111,16 @@ const CreateProjectToolComponent: React.FC<CreateProjectToolComponentProps> = ({
             </Grid>
           </Grid>
         </CardContent>
+        <CardActions>
+          <Link
+            href={`/preview/chatSessionArtifacts/sessionId=${project.sourceChatSessionId}/${project.reportS3Path}`}
+            target='_blank'
+            rel='noopener noreferrer'
+            passHref
+          >
+            <Button>Open Report</Button>
+          </Link>
+        </CardActions>
       </Card>
     );
   } catch (error) {

@@ -55,6 +55,7 @@ const ChatBox = (params: {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [isScrolledToBottom, setIsScrolledToBottom] = useState(true);
+  const [showChainOfThought, setShowChainOfThought] = useState(false);
   // const [selectedAgent, setSelectedAgent] = useState<('reActAgent' | 'planAndExecuteAgent' | 'projectGenerationAgent')>("reActAgent");
 
   //Subscribe to the chat messages for the garden
@@ -365,7 +366,19 @@ const ChatBox = (params: {
             {[
               ...messages,
               ...(streamChunkMessage ? [streamChunkMessage] : [])
-            ].map((message) => (
+            ]
+            .filter((message) => {
+              if (showChainOfThought) return true
+              switch (message.role) {
+                case 'ai':
+                  return message.responseComplete
+                case 'tool':
+                  return ['renderAssetTool','userInputTool','createProject'].includes(message.toolName!);
+                default:
+                  return true;
+              }
+            })
+            .map((message) => (
               <ListItem key={message.id}>
                 <ChatMessage
                   message={message}
