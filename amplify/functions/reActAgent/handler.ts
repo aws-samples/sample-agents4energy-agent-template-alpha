@@ -238,7 +238,8 @@ When generating a csv file, use the pysparkTool to generate the file and not the
       - Repair cost breakdown
    c) Technical Assessment
       - Operational events table:
-        - Include when the well was drilled, completed, worked-over, and any other non-administrative type events.
+        - If the textToTable tool returned a link to a table of operational events, include in ifram which links to it.
+        - If not, create a table with operational events.
       - Current well condition and artificial lift type
       - Summary of the proposed procedure
       - Link to the proposed repair procedure (ex: <a href="reports/repair_procedure.md">Proposed Repair Procedure</a>)

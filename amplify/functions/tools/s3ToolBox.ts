@@ -1,7 +1,7 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import * as path from "path";
-import { S3Client, PutObjectCommand, ListObjectsV2Command, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, ListObjectsV2Command, GetObjectCommand, ListObjectsV2CommandInput } from "@aws-sdk/client-s3";
 import { ChatBedrockConverse } from "@langchain/aws";
 import { getConfiguredAmplifyClient } from '../../../utils/amplifyUtils';
 import { publishResponseStreamChunk } from "../graphql/mutations";
@@ -919,6 +919,7 @@ async function retryWithExponentialBackoff<T>(
 export const textToTableTool = tool(
     async (params: TextToTableParams) => {
         try {
+            const origin = getOrigin() || '';
             // Reset progress timer at the start of each run
             progressUpdateStartTime = new Date();
             
@@ -947,7 +948,7 @@ export const textToTableTool = tool(
             
             // Search in global files
             const globalFiles = await findFilesMatchingPattern(
-                GLOBAL_PREFIX,
+                GLOBAL_PREFIX + 'well-files/',
                 params.filePattern
             );
             matchingFiles.push(...globalFiles);
@@ -955,7 +956,7 @@ export const textToTableTool = tool(
             console.log(`Found ${matchingFiles.length} matching files`);
 
             // Filter out files which are not text files based on the suffix
-            const textExtensions = ['.txt', '.md', '.json', '.html', '.jsonl', '.jsonl.gz', '.yaml', '.yml', '.xml', 'ml'];
+            const textExtensions = ['.txt', '.md', '.json', '.jsonl', '.yaml', '.yml', '.xml'];
             const filteredFiles = matchingFiles.filter(file => {
                 const lowerCaseFile = file.toLowerCase();
                 return textExtensions.some(ext => lowerCaseFile.endsWith(ext.toLowerCase()));
@@ -1111,7 +1112,7 @@ export const textToTableTool = tool(
                 const batchPromises = batch.map(async (fileKey) => {
                     try {
                         const result = await readS3Object({key: fileKey, maxBytes: 0, startAtByte: 0});
-                        const fileContent = result.content;
+                        const fileContent = result.content.substring(0,10000); //Process a maximum of 10,000 characters
                         
                         // Extract file path for display
                         const filePath = fileKey.startsWith(GLOBAL_PREFIX) 
@@ -1176,7 +1177,8 @@ export const textToTableTool = tool(
                             
                             // Add file path if requested
                             if (params.includeFilePath !== false) {
-                                structuredData['FilePath'] = filePath;
+                                // structuredData['FilePath'] = filePath;
+                                structuredData['FilePath'] = `${origin}/preview/${fileKey}`
                             }
 
                             // Restore original column names
@@ -1196,7 +1198,7 @@ export const textToTableTool = tool(
                                 error: `Model structured output error: ${error instanceof Error ? error.message : String(error)}`
                             };
                             if (params.includeFilePath !== false) {
-                                errorRow['FilePath'] = filePath;
+                                errorRow['FilePath'] = `${origin}/preview/${fileKey}`;
                             }
                             return errorRow;
                         }
@@ -1205,7 +1207,7 @@ export const textToTableTool = tool(
                         // Add error row
                         const errorRow: Record<string, any> = {};
                         if (params.includeFilePath !== false) {
-                            errorRow['FilePath'] = fileKey.replace(fileKey.startsWith(GLOBAL_PREFIX) ? GLOBAL_PREFIX : getUserPrefix(), '');
+                            errorRow['FilePath'] = `${origin}/preview/${fileKey}`;
                         }
                         errorRow['error'] = `Failed to process: ${error.message}`;
                         return errorRow;
@@ -1244,53 +1246,86 @@ export const textToTableTool = tool(
                 }
             });
 
-            // Save the table as CSV
+            // Save the table as HTML
             try {
-                // Create CSV header from column names
-                const columnNames = enhancedTableColumns.map(c => c.columnName);
+                // Create header from column names
+                const columnNames = enhancedTableColumns
+                    .filter(c => !['relevanceScore', 'relevanceExplanation'].includes(c.columnName))
+                    .map(c => c.columnName);
                 if (params.includeFilePath !== false) {
                     columnNames.push('FilePath');
                 }
                 
-                // Convert table rows to CSV format
-                const csvRows = tableRows.map(row => {
-                    return columnNames.map(colName => {
-                        const value = row[colName];
-                        // Handle null/undefined values
-                        if (value === null || value === undefined) {
-                            return '';
+                // Create HTML content
+                let htmlContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>${params.tableTitle}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; }
+                        table { border-collapse: collapse; width: 100%; }
+                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                        th { background-color: #f2f2f2; }
+                        tr:nth-child(even) { background-color: #f9f9f9; }
+                        tr:hover { background-color: #f1f1f1; }
+                        a { color: #0066cc; text-decoration: none; }
+                        a:hover { text-decoration: underline; }
+                        h1 { color: #333; }
+                    </style>
+                </head>
+                <body>
+                    <table>
+                        <thead>
+                            <tr>
+                                ${columnNames.map(name => `<th>${name}</th>`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                // Add table rows with FilePath as links
+                tableRows.forEach(row => {
+                    if (row.EventType && row.EventType === 'administrative') return //Don't include administrative type events
+                    htmlContent += '<tr>';
+                    columnNames.forEach(colName => {
+                        let cellValue = row[colName] === null || row[colName] === undefined ? '' : String(row[colName]);
+                        
+                        // Make FilePath values into links
+                        if (colName === 'FilePath' && cellValue) {
+                            htmlContent += `<td><a href="${cellValue}" target="_blank">link</a></td>`;
+                        } else {
+                            htmlContent += `<td>${cellValue}</td>`;
                         }
-                        // Convert to string and escape special characters
-                        const stringValue = String(value);
-                        // Escape quotes and wrap in quotes if contains comma, newline, or quote
-                        if (stringValue.includes(',') || stringValue.includes('\n') || stringValue.includes('"')) {
-                            return `"${stringValue.replace(/"/g, '""')}"`;
-                        }
-                        return stringValue;
-                    }).join(',');
+                    });
+                    htmlContent += '</tr>';
                 });
                 
-                // Combine header and rows
-                const csvContent = [columnNames.join(','), ...csvRows].join('\n');
+                // Close the HTML structure
+                htmlContent += `
+                        </tbody>
+                    </table>
+                </body>
+                </html>
+                `;
                 
-                // Generate a unique filename based on timestamp
-                // const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-                const csvFilename = `data/${params.tableTitle}.csv`;
+                // Generate filename with .html extension
+                const htmlFilename = `data/${params.tableTitle}.html`;
                 
-                // Save the CSV file
+                // Save the HTML file
                 await writeFile.invoke({
-                    filename: csvFilename,
-                    content: csvContent
+                    filename: htmlFilename,
+                    content: htmlContent
                 });
                 
-                // Add CSV file info to the response
+                // Add HTML file info to the response
                 return JSON.stringify({
                     messageContentType: 'tool_table',
                     columns: enhancedTableColumns.map(c => c.columnName),
                     data: tableRows,
                     matchedFileCount: filteredFiles.length,
-                    csvFile: {
-                        filename: csvFilename,
+                    htmlFile: {
+                        filename: htmlFilename,
                         rowCount: tableRows.length
                     }
                 });
@@ -1416,7 +1451,7 @@ async function findFilesMatchingPattern(basePrefix: string, pattern: string): Pr
     
     do {
         // List objects with this prefix
-        const listParams: any = {
+        const listParams: ListObjectsV2CommandInput = {
             Bucket: bucketName,
             Prefix: searchPrefix,
             MaxKeys: 1000 // Fetch in larger batches

@@ -90,7 +90,7 @@ export default function FilePage({ params }: PageProps) {
   };
   
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
       <Paper elevation={1} sx={{ px: 3, py: 2, borderRadius: 0 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Typography variant="h6" component="h1" sx={{ 

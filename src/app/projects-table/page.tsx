@@ -85,9 +85,12 @@ const getStatusColor = (status: ProjectStatus | null | undefined): 'default' | '
         default: return 'default';
     }
 };
+type createProjectTypeWithCreateAtField =  Omit<Schema["Project"]["createType"], "createdAt"> & {
+    createdAt?: string;
+  };
 
 interface ExpandableRowProps {
-    project: Schema["Project"]["createType"];
+    project: createProjectTypeWithCreateAtField;
     onDelete: () => void;
     onStatusChange: (projectId: string, newStatus: ProjectStatus) => void;
 }
@@ -195,6 +198,15 @@ const ExpandableRow = ({ project, onDelete, onStatusChange }: ExpandableRowProps
                     }}
                 >
                     {formatPercentage(project.financial?.successProbability)}
+                </TableCell>
+                <TableCell
+                    align="right"
+                    sx={{
+                        fontFamily: 'monospace',
+                        fontWeight: 500
+                    }}
+                >
+                    {project.createdAt!}
                 </TableCell>
                 <TableCell align="center">
                     <Box
@@ -587,6 +599,7 @@ const Page = () => {
                                 <TableCell align="right">PV10</TableCell>
                                 <TableCell align="right">Cost</TableCell>
                                 <TableCell align="right">Success Probability</TableCell>
+                                <TableCell align="right">Date</TableCell>
                                 <TableCell align="center">Status</TableCell>
                                 <TableCell align="right" sx={{ pr: 3 }}>Actions</TableCell>
                             </TableRow>

@@ -12,7 +12,7 @@ const s3Client = new S3Client({ region: outputs.storage.aws_region });
 
 interface ProductionRecord {
     api: string;
-    rate_drop: string;
+    rate_drop_MCFD: string;
 }
 
 const downloadFile = async (url: string, outputPath: string) => {
@@ -50,7 +50,7 @@ const extractPDFLinks = async (wellFileUrl: string) => {
 
 const main = async () => {
     const storageBucketName = outputs.storage.bucket_name;
-    const productionDropTablePath = path.join(__dirname, '../tmp/productionDropTable.csv');
+    const productionDropTablePath = path.join(__dirname, '../tmp/fittedProductionDrops.csv');
 
     // Create tmp directory for downloads if it doesn't exist
     const tmpDir = path.join(__dirname, '../tmp/downloads');
@@ -71,7 +71,7 @@ const main = async () => {
         records.push(record);
     }
     
-    const highDropWells = records.filter(record => parseFloat(record.rate_drop) > 50);
+    const highDropWells = records.filter(record => parseFloat(record.rate_drop_MCFD) > 50);
     console.log(`Found ${highDropWells.length} wells with rate drop > 50`);
 
     // Process each well

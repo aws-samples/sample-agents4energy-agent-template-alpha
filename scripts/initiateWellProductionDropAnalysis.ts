@@ -75,15 +75,15 @@ function generateAnalysisPrompt(props: {well: ProductionRecord, wellParameters: 
 Production dropped from ${formatNumber(initialRate)} to ${formatNumber(finalRate)} MCF/Day
 The present value (10% discount rate) of returning produciton to the previous decline curve is $${formatNumber(presentValue)} USD
 1. Search for well files and create an operational events table.
-2. Analyze the well's informaton and determine the cause of the production drop. Likely candidates are:
+2. Analyze the well's information and determine the cause of the production drop. Likely candidates are:
     - Hole in the tubing
-    - Artifical lift system failure
+    - Artificial lift system failure
     - Debris in the well from the perforations
 3. Develop a detailed repair procedure and save it to a file
 4. Estimate the cost of the repair and save it to a file
 5. Generate an executive report.
     - Include the plot located at 'plots/${well.api}_hyperbolic_decline.html'
-    - Include the operational events table. Filter out administrative type events.
+    - Include an operational events table.
 6. If the project is economically attractive or more information is needed, create the project.
 
 If you don't have enough information to recommend a project, ask the user for more information or to run a test.
@@ -272,7 +272,7 @@ pio.templates.default = "white_clean_log"
                 await new Promise(resolve => setTimeout(resolve, 30000));
             }
         }
-        // break; // for testing, only process the first well
+        break; // for testing, only process the first well
     }
 };
 

@@ -1,9 +1,12 @@
 import { expect } from 'chai';
 import { textToTableTool } from '../../amplify/functions/tools/s3ToolBox';
 import { writeFile } from '../../amplify/functions/tools/s3ToolBox';
+import { setOrigin } from '../../amplify/functions/tools/toolUtils';
 import { setAmplifyEnvVars } from '../../utils/amplifyUtils';
 import { setChatSessionId } from '../../amplify/functions/tools/toolUtils';
 import { loadOutputs } from '../utils';
+
+setOrigin('http://localhost:3001')
 
 describe('Text to Table Tool', function () {
   this.timeout(30000); // Set timeout to 30 seconds as text processing might take time
@@ -14,14 +17,14 @@ describe('Text to Table Tool', function () {
 
     const outputs = loadOutputs();
     process.env.STORAGE_BUCKET_NAME = outputs?.storage?.bucket_name;
-    // process.env.TEXT_TO_TABLE_MODEL_ID = 'anthropic.claude-3-haiku-20240307-v1:0';
-    process.env.TEXT_TO_TABLE_MODEL_ID = 'amazon.nova-pro-v1:0';
+    process.env.TEXT_TO_TABLE_MODEL_ID = 'anthropic.claude-3-haiku-20240307-v1:0';
+    // process.env.TEXT_TO_TABLE_MODEL_ID = 'amazon.nova-pro-v1:0';
   });
 
   it('should convert text files to a structured table', async function() {
     const result = await textToTableTool.invoke({
       filePattern: '30045292020000_13_wf',
-      tableTitle: 'test',
+      tableTitle: 'test-table',
       tableColumns: [
         {
           columnName: 'Date',

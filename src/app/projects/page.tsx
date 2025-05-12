@@ -25,14 +25,7 @@ import {
 
 // Register Chart.js components
 ChartJS.register(LinearScale, LogarithmicScale, PointElement, Tooltip, Legend);
-import DeleteIcon from '@mui/icons-material/Delete';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import OilBarrelIcon from '@mui/icons-material/LocalGasStation';
 import GasIcon from '@mui/icons-material/Waves';
-import DescriptionIcon from '@mui/icons-material/Description';
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
-import ChatIcon from '@mui/icons-material/Chat';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 const amplifyClient = generateClient<Schema>();
 
@@ -531,7 +524,7 @@ const Page = () => {
                                         <strong>Cost:</strong> {formatCurrency(selectedProject.financial?.cost || 0)}
                                     </Typography>
                                     <Typography variant="body1" sx={{ mt: 1 }}>
-                                        <strong>PV10:</strong> {formatCurrency(selectedProject.financial?.revenuePresentValue || 0)}
+                                        <strong>Revenue PV10:</strong> {formatCurrency(selectedProject.financial?.revenuePresentValue || 0)}
                                     </Typography>
                                     <Typography variant="body1" sx={{ mt: 1 }}>
                                         <strong>Success Probability:</strong> {formatPercentage(selectedProject.financial?.successProbability)}
