@@ -59,6 +59,19 @@ const formatPercentage = (value: number | undefined | null): string => {
     return `${(value * 100).toFixed(1)}%`;
 };
 
+// Format date to a more readable format
+const formatDate = (dateString: string | undefined | null): string => {
+    if (!dateString) return '—';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+};
+
 type ProjectStatus = NonNullable<Schema["Project"]["createType"]["status"]>;
 
 // Available status options - these should match the schema
@@ -89,9 +102,12 @@ const getStatusColor = (status: ProjectStatus | null | undefined): 'default' | '
     }
 };
 
+type createProjectTypeWithCreateAtField =  Omit<Schema["Project"]["createType"], "createdAt"> & {
+    createdAt?: string;
+  };
 const Page = () => {
     const [projects, setProjects] = useState<Schema["Project"]["createType"][]>([]);
-    const [selectedProject, setSelectedProject] = useState<Schema["Project"]["createType"] | null>(null);
+    const [selectedProject, setSelectedProject] = useState<createProjectTypeWithCreateAtField | null>(null);
     const [statusAnchorEl, setStatusAnchorEl] = useState<null | HTMLElement>(null);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
     const [reportIsOpen, setReportIsOpen] = useState(false);
@@ -119,6 +135,12 @@ const Page = () => {
                 status: newStatus
             });
             setSelectedProject({ ...selectedProject, status: newStatus });
+            setProjects(projects.map(project => {
+                if (project.id === selectedProject.id) {
+                    return { ...project, status: newStatus };
+                }
+                return project;
+            }));
             // onStatusChange(project.id!, newStatus);
         } catch (error) {
             console.error('Failed to update status:', error);
@@ -186,10 +208,18 @@ const Page = () => {
             pointRadius: 8,
             pointHoverRadius: 12,
             backgroundColor: validProjects.map(project => {
-                const successProb = project.financial?.successProbability || 0;
-                if (successProb >= 0.7) return 'rgba(75, 192, 192, 0.6)';  // Green
-                if (successProb >= 0.4) return 'rgba(255, 206, 86, 0.6)';  // Yellow
-                return 'rgba(255, 99, 132, 0.6)';  // Red
+                const status = project.status;
+                switch (status) {
+                    case 'proposed': return 'rgba(33, 150, 243, 0.6)';  // info - blue
+                    case 'approved': return 'rgba(76, 175, 80, 0.6)';   // success - green
+                    case 'rejected': return 'rgba(244, 67, 54, 0.6)';   // error - red
+                    case 'in_progress': return 'rgba(255, 152, 0, 0.6)'; // warning - orange
+                    case 'completed': return 'rgba(76, 175, 80, 0.6)';  // success - green
+                    case 'failed': return 'rgba(244, 67, 54, 0.6)';     // error - red
+                    case 'scheduled': return 'rgba(156, 39, 176, 0.6)'; // primary - purple
+                    case 'drafting': 
+                    default: return 'rgba(158, 158, 158, 0.6)';         // default - gray
+                }
             })
         }]
     };
@@ -218,6 +248,10 @@ const Page = () => {
                         size: 16,
                         weight: 'bold'
                     }
+                },
+                ticks: {
+                    callback: (value: number) => formatCurrency(value),
+                    maxTicksLimit: 8 // Limit the number of ticks displayed
                 }
             },
             y: {
@@ -484,6 +518,9 @@ const Page = () => {
                                                 </MenuItem>
                                             ))}
                                         </Menu>
+                                    </Typography>
+                                    <Typography variant="body1" sx={{ mt: 1 }}>
+                                        <strong>Creation Date:</strong> {formatDate(selectedProject.createdAt)}
                                     </Typography>
 
                                 </>
