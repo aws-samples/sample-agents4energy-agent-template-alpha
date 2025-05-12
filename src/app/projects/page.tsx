@@ -19,7 +19,8 @@ import {
     CardContent,
     Divider,
     CardActions,
-    CardHeader
+    CardHeader,
+    useTheme
 } from '@mui/material';
 
 // Register Chart.js components
@@ -32,6 +33,7 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import ChatIcon from '@mui/icons-material/Chat';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 const amplifyClient = generateClient<Schema>();
 
 // Format large numbers with commas and handle millions/billions
@@ -86,6 +88,44 @@ const STATUS_OPTIONS: ProjectStatus[] = [
     'failed'
 ];
 
+// Convert theme color to RGBA string
+const getStatusColorRgba = (status: ProjectStatus | null | undefined, opacity: string, theme: any): string => {
+    if (!status) return `rgba(158, 158, 158, ${opacity})`; // default gray for null/undefined status
+    
+    // Get the color name from the status
+    const colorName = getStatusColor(status);
+    
+    // Get the RGB values from the theme
+    let rgbColor;
+    switch (colorName) {
+        case 'primary': rgbColor = theme.palette.primary.main; break;
+        case 'secondary': rgbColor = theme.palette.secondary.main; break;
+        case 'error': rgbColor = theme.palette.error.main; break;
+        case 'warning': rgbColor = theme.palette.warning.main; break;
+        case 'info': rgbColor = theme.palette.info.main; break;
+        case 'success': rgbColor = theme.palette.success.main; break;
+        case 'default':
+        default: rgbColor = theme.palette.grey[500]; break;
+    }
+    
+    // Convert hex color to RGB components
+    const hexToRgb = (hex: string) => {
+        // Remove the # if present
+        hex = hex.replace('#', '');
+        
+        // Parse the hex values
+        const r = parseInt(hex.substring(0, 2), 16);
+        const g = parseInt(hex.substring(2, 4), 16);
+        const b = parseInt(hex.substring(4, 6), 16);
+        
+        return { r, g, b };
+    };
+    
+    // Convert the theme color to RGB and return as rgba string
+    const rgb = hexToRgb(rgbColor);
+    return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`;
+};
+
 const getStatusColor = (status: ProjectStatus | null | undefined): 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' => {
     if (!status) return 'default';
 
@@ -114,6 +154,8 @@ const Page = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [nextActionClicked, setNextActionClicked] = useState(false);
     const hasNextAction = selectedProject?.nextAction?.buttonTextBeforeClick && selectedProject.nextAction?.buttonTextAfterClick;
+
+    const theme = useTheme();
 
     const handleStatusClick = (event: React.MouseEvent<HTMLDivElement>) => {
         setStatusAnchorEl(event.currentTarget);
@@ -195,6 +237,17 @@ const Page = () => {
         if (!project?.financial) return sum;
         return sum + (project.financial.incrimentalGasRateMCFD || 0);
     }, 0);
+    
+    // Calculate total rate of return (weighted average based on project costs)
+    let totalCost = 0;
+    let totalRevenue = 0;
+    validProjects.forEach(project => {
+        if (project?.financial) {
+            totalCost += project.financial.cost || 0;
+            totalRevenue += project.financial.revenuePresentValue || 0;
+        }
+    });
+    const totalNetPresentValue10Ratio = totalCost > 0 ? (totalRevenue - totalCost) / totalCost : 0;
 
     // Scatter plot data preparation
     const scatterData = {
@@ -205,21 +258,20 @@ const Page = () => {
                 y: project.financial?.revenuePresentValue || 0,
                 project: project
             })),
-            pointRadius: 8,
+            pointRadius: validProjects.map(project => 
+                selectedProject && project.id === selectedProject.id ? 10 : 8
+            ),
             pointHoverRadius: 12,
+            borderColor: validProjects.map(project => 
+                selectedProject && project.id === selectedProject.id ? '#000000' : 'transparent'
+            ),
+            borderWidth: validProjects.map(project => 
+                selectedProject && project.id === selectedProject.id ? 2 : 0
+            ),
             backgroundColor: validProjects.map(project => {
                 const status = project.status;
-                switch (status) {
-                    case 'proposed': return 'rgba(33, 150, 243, 0.6)';  // info - blue
-                    case 'approved': return 'rgba(76, 175, 80, 0.6)';   // success - green
-                    case 'rejected': return 'rgba(244, 67, 54, 0.6)';   // error - red
-                    case 'in_progress': return 'rgba(255, 152, 0, 0.6)'; // warning - orange
-                    case 'completed': return 'rgba(76, 175, 80, 0.6)';  // success - green
-                    case 'failed': return 'rgba(244, 67, 54, 0.6)';     // error - red
-                    case 'scheduled': return 'rgba(156, 39, 176, 0.6)'; // primary - purple
-                    case 'drafting': 
-                    default: return 'rgba(158, 158, 158, 0.6)';         // default - gray
-                }
+                const opacity = (selectedProject && project.id === selectedProject.id) ? '0.9': '0.6';
+                return getStatusColorRgba(status, opacity, theme);
             })
         }]
     };
@@ -286,7 +338,7 @@ const Page = () => {
     return (
         <Box p={3}>
             {/* Summary Statistics */}
-            <Grid container spacing={3}>
+            <Grid container spacing={3} sx={{ justifyContent: 'center' }}>
                 <Grid>
                     <Paper
                         elevation={3}
@@ -306,7 +358,7 @@ const Page = () => {
                         elevation={3}
                         sx={{
                             p: 3,
-                            bgcolor: 'warning.main',
+                            bgcolor: 'success.main',
                             color: 'white',
                             borderRadius: 2
                         }}
@@ -316,6 +368,27 @@ const Page = () => {
                     </Paper>
                 </Grid>
                 <Grid>
+                    <Paper
+                        elevation={3}
+                        sx={{
+                            p: 3,
+                            bgcolor: 'secondary.main',
+                            color: 'white',
+                            borderRadius: 2,
+                            display: 'flex',
+                            flexDirection: 'column'
+                        }}
+                    >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <TrendingUpIcon />
+                            <Typography variant="h6" sx={{ opacity: 0.8 }}>Total Net Present Value (10%) Ratio </Typography>
+                        </Box>
+                        <Typography variant="h3" sx={{ mt: 1 }}>
+                            {totalNetPresentValue10Ratio.toFixed(1)}
+                        </Typography>
+                    </Paper>
+                </Grid>
+                {/* <Grid>
                     <Paper
                         elevation={3}
                         sx={{
@@ -336,7 +409,7 @@ const Page = () => {
                             <Typography component="span" variant="h6" sx={{ ml: 1, opacity: 0.8 }}>BOPD</Typography>
                         </Typography>
                     </Paper>
-                </Grid>
+                </Grid> */}
                 <Grid>
                     <Paper
                         elevation={3}
@@ -362,7 +435,7 @@ const Page = () => {
             </Grid>
 
             {/* Projects Scatter Plot and Details */}
-            <Grid container spacing={3} mt='20px' sx={{ display: 'flex', flexDirection: 'row' }}>
+            <Grid container spacing={3} mt='20px' sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'center' }}>
                 <Grid size={3}>
                     <Paper elevation={3} sx={{ p: 2, paddingBottom: 5, height: '700px' }}>
                         <Typography variant="h6" gutterBottom>
