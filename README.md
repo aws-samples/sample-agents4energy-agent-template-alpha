@@ -49,23 +49,21 @@ Before starting this workshop, you'll need:
 ## Workshop Labs
 
 
-### Lab 2: Building Your First LangGraph Agent
-- Introduction to LangGraph concepts
-- Creating a basic conversational agent
-- Implementing agent state management
-- Testing the agent locally
+### Lab 1: Interact with the Agent in the Browser
+- Try modifying one of the example prompts to fit a problem in your business
+- Become conformtable with how the agent can create plots and reports
 
-### Lab 2: Creating Custom Tools for Your Agent
+### Lab 2: Creating Custom Tools for the Agent
 - Understanding the LangGraph tool architecture
-- Building REST API tools with AWS Lambda
-- Implementing file handling tools
-- Creating database interaction tools
+- 
 
 ### Lab 3: Rendering Custom UI Elements 
 - Creating React components for agent interaction
 - Building tool response visualizations
 
-### Lab 4: Persisting Agent State with AWS Amplify
+### Lab 4: 
+
+### Lab 10: Persisting Agent State with AWS Amplify
 - Setting up DynamoDB through Amplify
 - Designing the state persistence schema
 - Implementing state storage and retrieval

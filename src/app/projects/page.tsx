@@ -190,7 +190,14 @@ const Page = () => {
             const result = await amplifyClient.models.Project.list({
                 authMode: userSub ? "userPool" : "identityPool",
             });
-            const validProjects = result.data.filter(project => project != null);
+            console.log("First Project: ", result.data[0])
+            const validProjects = result
+                .data
+                .filter(project => 
+                    (project != null)
+                    // project.financial?.revenuePresentValue// &&
+                    // (project.financial?.revenuePresentValue > 0)
+            );
             const sortedProjects = validProjects.sort((a, b) => {
                 if (!a || !b) return 0;
                 const dateA = a?.createdAt;
@@ -203,6 +210,8 @@ const Page = () => {
                 return new Date(dateB).getTime() - new Date(dateA).getTime();
             });
             setProjects(sortedProjects);
+
+            
         };
 
         fetchProjects();
@@ -240,6 +249,8 @@ const Page = () => {
             totalRevenue += project.financial.revenuePresentValue || 0;
         }
     });
+
+    console.log({totalRevenue: totalRevenue, totalCost: totalCost})
     const totalNetPresentValue10Ratio = totalCost > 0 ? (totalRevenue - totalCost) / totalCost : 0;
 
     // Scatter plot data preparation

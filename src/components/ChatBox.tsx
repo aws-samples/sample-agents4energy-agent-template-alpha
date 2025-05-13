@@ -357,7 +357,7 @@ const ChatBox = (params: {
         {messages.length === 0 ? (
           <DefaultPrompts onSelectPrompt={(prompt) => {
             setUserInput(prompt);
-            handleSend(prompt);
+            // handleSend(prompt);
           }} />
         ) : (
           <List>
