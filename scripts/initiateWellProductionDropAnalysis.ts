@@ -275,7 +275,7 @@ pio.templates.default = "white_clean_log"
                 await new Promise(resolve => setTimeout(resolve, 30000));
             }
         }
-        // break; // for testing, only process the first well
+        break; // for testing, only process the first well
     }
 };
 
