@@ -1101,7 +1101,6 @@ export const textToTableTool = tool(
             console.log('Target JSON schema for row:', JSON.stringify(jsonSchema, null, 2));
 
             
-
             // Process each file with concurrency limit
             const tableRows = [];
             const concurrencyLimit = parseInt(process.env.TEXT_TO_TABLE_CONCURRENCY || '2'); // Process x files at a time
