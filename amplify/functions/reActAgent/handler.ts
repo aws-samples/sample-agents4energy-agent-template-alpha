@@ -17,6 +17,8 @@ import { pysparkTool } from "../tools/athenaPySparkTool";
 import { webBrowserTool } from "../tools/webBrowserTool";
 import { renderAssetTool } from "../tools/renderAssetTool";
 import { createProjectToolBuilder } from "../tools/createProjectTool";
+import { permeabilityCalculator } from "../tools/customWorkshopTool";
+
 import { Schema } from '../../data/resource';
 
 import { getLangChainChatMessagesStartingWithHumanMessage, getLangChainMessageTextContent, publishMessage, stringifyLimitStringLength } from '../../../utils/langChainUtils';
@@ -71,9 +73,10 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
         });
 
         const agentTools = [
+            // permeabilityCalculator,
             new Calculator(),
-            new DuckDuckGoSearch({maxResults: 3}),
-            webBrowserTool,
+            // new DuckDuckGoSearch({maxResults: 3}),
+            // webBrowserTool,
             userInputTool,
             createProjectToolBuilder({
                 sourceChatSessionId: event.arguments.chatSessionId,

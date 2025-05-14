@@ -55,15 +55,13 @@ Before starting this workshop, you'll need:
 
 ### Lab 2: Creating Custom Tools for the Agent
 - Understanding the LangGraph tool architecture
-- 
+- Add custom buisness logic to a agentic tool call
 
 ### Lab 3: Rendering Custom UI Elements 
 - Creating React components for agent interaction
 - Building tool response visualizations
 
-### Lab 4: 
-
-### Lab 10: Persisting Agent State with AWS Amplify
+### Lab 4: Persisting Agent State with AWS Amplify
 - Setting up DynamoDB through Amplify
 - Designing the state persistence schema
 - Implementing state storage and retrieval

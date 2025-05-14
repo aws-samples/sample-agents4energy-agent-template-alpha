@@ -1,40 +1,45 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 
-const customWorkshopToolSchema = z.object({
-    title: z.string(),
-    firstNumber: z.number(),
-    secondNumber: z.number(),
-    operation: z.enum(['add', 'subtract', 'multiply', 'divide'])
-})
+const permeabilityCalculatorSchema = z.object({
+    porosity: z.number().describe("Porosity (fraction)"),
+    grainSize: z.number().describe("Average grain size (mm)"),
+    rockType: z.enum(["sandstone", "limestone", "dolomite"]).describe("Type of reservoir rock")
+});
 
-export const customWrokshopTool = tool(
-    async (args) => {
-        const {firstNumber, secondNumber, operation} = args
-
-        console.log("The custom workshop tool has begun executing")
-        // Put business logic here
-        
-        let calculationResult: number = 0
-
-        switch (operation) {
-            case 'add':
-                calculationResult = firstNumber + secondNumber
+export const permeabilityCalculator = tool(
+    async ({ porosity, grainSize, rockType }) => {
+        // Simplified Kozeny-Carman equation
+        let constant = 0;
+        switch(rockType) {
+          case "sandstone":
+            constant = 150;
+            break;
+          case "limestone":
+            constant = 225;
+            break;
+          case "dolomite":
+            constant = 300;
+            break;
         }
-
-
-
+        
+        // k = (porosity^3 * d^2) / (constant * (1-porosity)^2)
+        const permeability = (Math.pow(porosity, 3) * Math.pow(grainSize, 2)) / 
+                             (constant * Math.pow(1-porosity, 2));
+        
+        // Convert to millidarcy
+        const permeabilityMD = permeability * 1000000;
+        
         return {
-            customField: "Hello from the tool!",
-            calculationResult: calculationResult,
-            ...args,
+          permeability_md: permeabilityMD.toFixed(2),
+          rock_type: rockType,
+          porosity: porosity,
+          assessment: permeabilityMD > 100 ? "Good reservoir quality" : "Poor reservoir quality"
         }
     },
     {
-        name: "toolNameHere",
-        description: `
-Descirbe both when the tool should be used, and give advice on how the agent should use the tool.
-`,
-        schema: customWorkshopToolSchema,
-    }
+      name: "permeabilityCalculator",
+      description: "Calculate estimated permeability based on rock properties",
+      schema: permeabilityCalculatorSchema,
+  }
 );

@@ -27,7 +27,7 @@ const UpdateFileToolComponent: React.FC<UpdateFileToolComponentProps> = ({ conte
         <Typography variant="body1" color="textPrimary">
           {fileData.success 
             ? `File updated successfully` 
-            : `Error: ${fileData.message || 'Unknown error updating file'}`}
+            : `Error: ${fileData.error || "Unknown error updating file"}`}
         </Typography>
       </div>
     );

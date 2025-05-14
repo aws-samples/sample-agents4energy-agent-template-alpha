@@ -17,6 +17,9 @@ import { invokeReActAgent, listChatMessageByChatSessionIdAndCreatedAt } from "..
 import * as APITypes from "../amplify/functions/graphql/API";
 import { readFile } from "../amplify/functions/tools/s3ToolBox";
 
+const START_INDEX = 11
+const END_INDEX = 50
+
 // const ORIGIN = 'https://main.d2jrc1knzjqt63.amplifyapp.com'
 const ORIGIN = 'http://localhost:3001'
 
@@ -122,8 +125,8 @@ const main = async () => {
     for await (const [index, well] of highDropWells.entries()) {
         console.log('#'.repeat(20),`\nProcessing well ${well.api}, index ${index}`)
         //for testing, only process the first x wells
-        if (index < 10) continue
-        if (index > 20) {
+        if (index < START_INDEX) continue
+        if (index > END_INDEX) {
             break;
         }
 
@@ -240,7 +243,7 @@ pio.templates.default = "white_clean_log"
         }
 
         console.log('Chat session id: ', newChatSession.createChatSession.id);
-
+        console.log('Well Index: ', index)
         // Get the last message and check if it's from the assistant and has completed. Loop until we get a complete response.
         let responseComplete = false;
         const waitStartTime = Date.now();
@@ -272,7 +275,7 @@ pio.templates.default = "white_clean_log"
                 await new Promise(resolve => setTimeout(resolve, 30000));
             }
         }
-        break; // for testing, only process the first well
+        // break; // for testing, only process the first well
     }
 };
 

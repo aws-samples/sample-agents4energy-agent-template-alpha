@@ -9,7 +9,7 @@ import { ProjectStatus } from '../graphql/API';
 const createProjectToolSchema = z.object({
     name: z.string(),
     description: z.string(),
-    status: z.nativeEnum(ProjectStatus).pipe(z.enum([ProjectStatus.drafting, ProjectStatus.proposed])),
+    status: z.nativeEnum(ProjectStatus).pipe(z.enum([ProjectStatus.drafting, ProjectStatus.proposed])).describe(`Only 'drafting' | 'proposed' are allowed`),
     result: z.string().optional(),
     procedureS3Path: z.string().optional(),
     reportS3Path: z.string().describe("The path to the executive report for the project. Should always be an .html file."),

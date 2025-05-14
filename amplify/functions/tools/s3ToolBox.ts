@@ -507,15 +507,15 @@ export const updateFile = tool(
                     break;
                 case "replace":
                     // For non-existent or empty files, just use the new content without requiring searchString
-                    if (!existingContent || existingContent.length === 0) {
+                    if (!existingContent || existingContent.length === 0 || !searchString) {
                         newContent = content;
                         break;
                     }
 
-                    // searchString is only required for non-empty files
-                    if (!searchString) {
-                        return JSON.stringify({ error: "searchString is required for replace operation on non-empty files" });
-                    }
+                    // // searchString is only required for non-empty files
+                    // if (!searchString) {
+                    //     return JSON.stringify({ error: "searchString is required for replace operation on non-empty files" });
+                    // }
                     
                     if (isRegex) {
                         // If multiLine flag is set, override the regexFlags to include 'm'
@@ -577,8 +577,9 @@ export const updateFile = tool(
                     return JSON.stringify({ error: "Invalid operation. Must be 'append', 'prepend', or 'replace'" });
             }
             
+            const finalContent = await processDocumentLinks(newContent, getChatSessionId() || '');
             // Write the updated content to S3
-            await writeS3Object(s3Key, newContent);
+            await writeS3Object(s3Key, finalContent);
             
             // Read back a portion of the file to verify the update
             const verificationResult = await readS3Object({key: s3Key, maxBytes: 0, startAtByte: 0});
@@ -1103,7 +1104,7 @@ export const textToTableTool = tool(
 
             // Process each file with concurrency limit
             const tableRows = [];
-            const concurrencyLimit = 2; // Process x files at a time
+            const concurrencyLimit = parseInt(process.env.TEXT_TO_TABLE_CONCURRENCY || '2'); // Process x files at a time
             let processedCount = 0;
             
             // Process files in batches to avoid hitting limits
