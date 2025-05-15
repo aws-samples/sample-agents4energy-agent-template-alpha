@@ -137,8 +137,8 @@ async function waitForJobCompletion(
 
         const getCommand = new GetDocumentAnalysisCommand(getParams);
 
-        // Poll every 2 seconds
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Poll every 10 seconds
+        await new Promise(resolve => setTimeout(resolve, 10000));
 
         const response = await client.send(getCommand);
         console.log('Job Status: ', response.JobStatus)
@@ -270,8 +270,8 @@ export const handler: SQSHandler = async (event: SQSEvent) => {
                 // Check if the file already exists
                 try {
                     const existingFile = await s3Client.send(new HeadObjectCommand({ Bucket: bucket, Key: newS3Key }))
-                    if (existingFile) {
-                        console.log(`File ${newS3Key} already exists in bucket ${bucket}. Skipping...`)
+                    if (existingFile && existingFile.ContentLength !== undefined && existingFile.ContentLength > 100) {
+                        console.log(`File ${newS3Key} already exists in bucket ${bucket} and has size ${existingFile.ContentLength}. Skipping...`)
                         return
                     }
                 } catch (error) {
