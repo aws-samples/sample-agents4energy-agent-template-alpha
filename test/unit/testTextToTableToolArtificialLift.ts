@@ -23,7 +23,7 @@ describe('Text to Table Tool', function () {
 
   it('should convert text files to a structured table', async function() {
     const result = await textToTableTool.invoke({
-      filePattern: '30045292020000_13_wf',
+      filePattern: '3003906477',
       tableTitle: 'test-table',
       tableColumns: [
         {

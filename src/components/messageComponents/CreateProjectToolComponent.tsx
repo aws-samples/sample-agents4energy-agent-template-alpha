@@ -48,6 +48,9 @@ const CreateProjectToolComponent: React.FC<CreateProjectToolComponentProps> = ({
     const toolData: ProjectToolResponse = JSON.parse(content?.text || '{}');
     const { project } = toolData;
 
+    const npvr = (project.financial.revenuePresentValue - project.financial.cost)/project.financial.cost;
+
+
     return (
       <Card sx={{
         backgroundColor: theme.palette.background.paper,
@@ -82,6 +85,16 @@ const CreateProjectToolComponent: React.FC<CreateProjectToolComponentProps> = ({
                 Financial Summary
               </Typography>
               <Box sx={{ mt: 1 }}>
+                <Typography
+                  variant="body1"
+                  sx={{
+                    fontWeight: 'bold',
+                    fontSize: '1.1rem',
+                    color: npvr >= 0 ? theme.palette.success.main : theme.palette.error.main
+                  }}
+                >
+                  Net Present Value Ratio: {npvr.toFixed(1)}
+                </Typography>
                 <Typography variant="body2">
                   Revenue PV10: {formatCurrency(project.financial.revenuePresentValue)}
                 </Typography>

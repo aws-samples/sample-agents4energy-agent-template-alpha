@@ -9,6 +9,7 @@ import { getChatSessionId, getChatSessionPrefix, getOrigin } from "./toolUtils";
 import { validate } from 'jsonschema';
 import { stringifyLimitStringLength } from "../../../utils/langChainUtils";
 import { BaseMessage, AIMessage, HumanMessage } from "@langchain/core/messages";
+import { match } from "assert";
 // import { stringifyLimitStringLength } from "../../../utils/stringUtils";
 
 // Schema for listing files
@@ -73,7 +74,7 @@ const textToTableSchema = z.object({
 });
 
 interface FieldDefinition {
-    type: string  | Array<string>;
+    type: string | Array<string>;
     description: string;
     format?: string;
     pattern?: string;
@@ -128,13 +129,13 @@ export async function correctStructuredOutputResponse(model: { invoke: (arg0: an
     return response
 }
 
-export const getStructuredOutputResponse = async (props: {modelId: string, messages: BaseMessage[], outputStructure: JsonSchema}) => {
+export const getStructuredOutputResponse = async (props: { modelId: string, messages: BaseMessage[], outputStructure: JsonSchema }) => {
     const chatModelWithStructuredOutput = new ChatBedrockConverse({
         model: props.modelId || process.env.MODEL_ID,
         temperature: 0
     }).withStructuredOutput(
-        props.outputStructure, 
-        {includeRaw: true}
+        props.outputStructure,
+        { includeRaw: true }
     )
 
     let structuredOutputResponse = await chatModelWithStructuredOutput.invoke(props.messages)
@@ -173,7 +174,7 @@ function getS3KeyPrefix(filepath: string) {
     if (filepath.startsWith('global/')) {
         return '';
     }
-    
+
     // Otherwise use the session-specific prefix
     return getChatSessionPrefix();
 }
@@ -181,17 +182,17 @@ function getS3KeyPrefix(filepath: string) {
 async function listS3Objects(prefix: string) {
     const s3Client = getS3Client();
     const bucketName = getBucketName();
-    
+
     const listParams = {
         Bucket: bucketName,
         Prefix: prefix,
         Delimiter: '/' // Use delimiter to simulate directory structure
     };
-    
+
     try {
         const command = new ListObjectsV2Command(listParams);
         const response = await s3Client.send(command);
-        
+
         // Process directories (CommonPrefixes)
         const directories = (response.CommonPrefixes || [])
             .map(prefixObj => {
@@ -199,19 +200,19 @@ async function listS3Objects(prefix: string) {
                 return name ? { name, type: 'directory' } : null;
             })
             .filter(Boolean) as { name: string, type: 'directory' }[];
-            
+
         // Process files (Contents)
         const files = (response.Contents || [])
             .filter(item => item.Key !== prefix) // Filter out the directory itself
             .map(item => {
                 const key = item.Key as string;
                 const name = key.substring(prefix.length);
-                return name && !name.endsWith('/') && !name.endsWith('.s3meta') 
-                    ? { name, type: 'file' } 
+                return name && !name.endsWith('/') && !name.endsWith('.s3meta')
+                    ? { name, type: 'file' }
                     : null;
             })
             .filter(Boolean) as { name: string, type: 'file' }[];
-            
+
         // Return combined array with type indicators
         return [...directories, ...files];
     } catch (error) {
@@ -228,21 +229,21 @@ interface S3ReadResult {
     truncationMessage?: string;
 }
 
-export async function readS3Object(props: {key: string, maxBytes: number, startAtByte: number}): Promise<S3ReadResult> {
+export async function readS3Object(props: { key: string, maxBytes: number, startAtByte: number }): Promise<S3ReadResult> {
     const { key, maxBytes = 2048, startAtByte = 0 } = props;
     const s3Client = getS3Client();
     const bucketName = getBucketName();
-    
+
     const getParams = {
         Bucket: bucketName,
         Key: key,
         Range: maxBytes > 0 ? `bytes=${startAtByte}-${startAtByte + maxBytes - 1}` : undefined
     };
-    
+
     try {
         const command = new GetObjectCommand(getParams);
         const response = await s3Client.send(command);
-        
+
         if (response.Body) {
             // Convert stream to string
             const chunks: Buffer[] = [];
@@ -254,14 +255,14 @@ export async function readS3Object(props: {key: string, maxBytes: number, startA
             // Check if content was truncated, accounting for startAtByte
             const contentLength = parseInt(response.ContentRange?.split('/')[1] || '0', 10);
             const wasTruncated = maxBytes > 0 && (contentLength - startAtByte) > maxBytes;
-            
+
             return {
                 content,
                 wasTruncated,
                 totalBytes: contentLength,
                 bytesRead: content.length,
-                truncationMessage: wasTruncated ? 
-                    `\n[...File truncated. Showing bytes ${startAtByte} to ${startAtByte + content.length} of ${contentLength} total bytes...]` : 
+                truncationMessage: wasTruncated ?
+                    `\n[...File truncated. Showing bytes ${startAtByte} to ${startAtByte + content.length} of ${contentLength} total bytes...]` :
                     undefined
             };
         } else {
@@ -303,14 +304,14 @@ export async function readS3Object(props: {key: string, maxBytes: number, startA
 async function writeS3Object(key: string, content: string) {
     const s3Client = getS3Client();
     const bucketName = getBucketName();
-    
+
     const putParams = {
         Bucket: bucketName,
         Key: key,
         Body: content,
         ContentType: getContentType(key)
     };
-    
+
     try {
         const command = new PutObjectCommand(putParams);
         await s3Client.send(command);
@@ -323,7 +324,7 @@ async function writeS3Object(key: string, content: string) {
 
 function getContentType(filePath: string): string {
     const extension = path.extname(filePath).toLowerCase();
-    
+
     const contentTypeMap: Record<string, string> = {
         '.txt': 'text/plain',
         '.html': 'text/html',
@@ -344,7 +345,7 @@ function getContentType(filePath: string): string {
         '.ts': 'text/typescript',
         '.tsx': 'text/typescript'
     };
-    
+
     return contentTypeMap[extension] || 'application/octet-stream';
 }
 
@@ -359,33 +360,33 @@ export const listFiles = tool(
                 if (!fullPrefix.endsWith('/')) {
                     fullPrefix += '/';
                 }
-                
+
                 const items = await listS3Objects(fullPrefix);
                 // Group items by type for better clarity
                 const directories = items.filter(item => item.type === 'directory');
                 const files = items.filter(item => item.type === 'file');
-                
-                return JSON.stringify({ 
+
+                return JSON.stringify({
                     path: directory,
                     directories: directories.map(d => d.name),
                     files: files.map(f => f.name),
                     items // Keep the original items with type info for backward compatibility
                 });
             }
-            
+
             // Handle session-specific directory listing
             const sessionPrefix = getChatSessionPrefix();
             let fullPrefix = path.posix.join(sessionPrefix, directory);
             if (!fullPrefix.endsWith('/')) {
                 fullPrefix += '/';
             }
-            
+
             const items = await listS3Objects(fullPrefix);
             // Group items by type for better clarity
             const directories = items.filter(item => item.type === 'directory');
             const files = items.filter(item => item.type === 'file');
-            
-            return JSON.stringify({ 
+
+            return JSON.stringify({
                 path: directory,
                 directories: directories.map(d => d.name),
                 files: files.map(f => f.name),
@@ -412,20 +413,20 @@ export const readFile = tool(
             if (targetPath.startsWith("..")) {
                 return JSON.stringify({ error: "Invalid file path. Cannot access files outside project root directory." });
             }
-            
+
             const prefix = getS3KeyPrefix(targetPath);
             const s3Key = path.posix.join(prefix, targetPath);
-            
+
             try {
-                const result = await readS3Object({key: s3Key, maxBytes, startAtByte});
+                const result = await readS3Object({ key: s3Key, maxBytes, startAtByte });
                 let displayContent = result.content;
-                
+
                 // Add truncation indicator if the file was truncated
                 if (result.wasTruncated) {
                     const truncationMessage = result.truncationMessage || '';
                     displayContent = displayContent + truncationMessage;
                 }
-                
+
                 return JSON.stringify({
                     content: displayContent,
                     wasTruncated: result.wasTruncated,
@@ -451,11 +452,11 @@ export const readFile = tool(
 
 // Tool to update a file in S3
 export const updateFile = tool(
-    async ({ 
-        filename, 
-        operation, 
-        content, 
-        searchString, 
+    async ({
+        filename,
+        operation,
+        content,
+        searchString,
         createIfNotExists = true,
         isRegex = false,
         regexFlags = "g",
@@ -467,26 +468,26 @@ export const updateFile = tool(
             if (targetPath.startsWith("..")) {
                 return JSON.stringify({ error: "Invalid file path. Cannot update files outside project root directory." });
             }
-            
+
             // Prevent updating files with global/ prefix
             if (targetPath.startsWith("global/")) {
                 return JSON.stringify({ error: "Cannot update files in the global directory. Global files are read-only." });
             }
-            
+
             const prefix = getChatSessionPrefix();
             const s3Key = path.posix.join(prefix, targetPath);
-            
+
             // Check if file exists and get content if it does
             let existingContent = "";
             let fileExists = true;
-            
+
             try {
-                const result = await readS3Object({key: s3Key, maxBytes: 0, startAtByte: 0}); // Read entire file for updates
+                const result = await readS3Object({ key: s3Key, maxBytes: 0, startAtByte: 0 }); // Read entire file for updates
                 existingContent = result.content;
             } catch (error: any) {
                 if (error.name === 'NoSuchKey') {
                     fileExists = false;
-                    
+
                     // If file does not exist and createIfNotExists is false, return error
                     if (!createIfNotExists) {
                         return JSON.stringify({ error: `File does not exist: ${filename}` });
@@ -495,9 +496,9 @@ export const updateFile = tool(
                     throw error;
                 }
             }
-            
+
             let newContent;
-            
+
             switch (operation) {
                 case "append":
                     newContent = existingContent + content;
@@ -516,7 +517,7 @@ export const updateFile = tool(
                     // if (!searchString) {
                     //     return JSON.stringify({ error: "searchString is required for replace operation on non-empty files" });
                     // }
-                    
+
                     if (isRegex) {
                         // If multiLine flag is set, override the regexFlags to include 'm'
                         const flags = multiLine ? "gm" : regexFlags;
@@ -524,8 +525,8 @@ export const updateFile = tool(
                             const regex = new RegExp(searchString, flags);
                             newContent = existingContent.replace(regex, content);
                         } catch (regexError: any) {
-                            return JSON.stringify({ 
-                                error: `Invalid regular expression: ${regexError.message}` 
+                            return JSON.stringify({
+                                error: `Invalid regular expression: ${regexError.message}`
                             });
                         }
                     } else {
@@ -534,14 +535,14 @@ export const updateFile = tool(
                         if (multiLine) {
                             // Split the content by lines, replace in each line, then join back
                             const lines = existingContent.split('\n');
-                            
+
                             // Join the searchString with newlines to create a search pattern
                             const searchLines = searchString.split('\n');
-                            
+
                             // Find the starting line of each potential match
                             for (let i = 0; i <= lines.length - searchLines.length; i++) {
                                 let matches = true;
-                                
+
                                 // Check if the current position is a full match for searchLines
                                 for (let j = 0; j < searchLines.length; j++) {
                                     if (lines[i + j] !== searchLines[j]) {
@@ -549,23 +550,23 @@ export const updateFile = tool(
                                         break;
                                     }
                                 }
-                                
+
                                 // If we found a match, replace it
                                 if (matches) {
                                     // Remove the matching lines
                                     lines.splice(i, searchLines.length);
-                                    
+
                                     // Insert the new content lines
                                     const contentLines = content.split('\n');
                                     for (let j = contentLines.length - 1; j >= 0; j--) {
                                         lines.splice(i, 0, contentLines[j]);
                                     }
-                                    
+
                                     // Adjust i to skip past what we just inserted
                                     i += contentLines.length - 1;
                                 }
                             }
-                            
+
                             newContent = lines.join('\n');
                         } else {
                             // For single-line replacements, use the standard replace method
@@ -576,18 +577,18 @@ export const updateFile = tool(
                 default:
                     return JSON.stringify({ error: "Invalid operation. Must be 'append', 'prepend', or 'replace'" });
             }
-            
+
             const finalContent = await processDocumentLinks(newContent, getChatSessionId() || '');
             // Write the updated content to S3
             await writeS3Object(s3Key, finalContent);
-            
+
             // Read back a portion of the file to verify the update
-            const verificationResult = await readS3Object({key: s3Key, maxBytes: 0, startAtByte: 0});
-            
+            const verificationResult = await readS3Object({ key: s3Key, maxBytes: 0, startAtByte: 0 });
+
             // Get lines of content for context
             const lines = verificationResult.content.split('\n');
             const contextLines = 3; // Number of lines to show before and after
-            
+
             // Find the line number where the new content starts
             let contentStartLine = 0;
             if (operation === 'append') {
@@ -599,20 +600,20 @@ export const updateFile = tool(
                 contentStartLine = lines.findIndex(line => line.includes(content));
                 if (contentStartLine === -1) contentStartLine = 0;
             }
-            
+
             // Extract the relevant lines with context
             const startLine = Math.max(0, contentStartLine - contextLines);
             const endLine = Math.min(lines.length, contentStartLine + contextLines + 1);
             const contentWithContext = lines.slice(startLine, endLine).join('\n');
-            
+
             const operationMessage = {
                 "append": "appended to",
                 "prepend": "prepended to",
                 "replace": "updated in"
             }[operation];
-            
-            return JSON.stringify({ 
-                success: true, 
+
+            return JSON.stringify({
+                success: true,
                 message: `Content successfully ${operationMessage} file ${filename}`,
                 operation,
                 fileExistedBefore: fileExists,
@@ -642,15 +643,15 @@ async function processDocumentLinks(content: string, chatSessionId: string): Pro
     // Function to process a path and return the full URL
     const getFullUrl = (filePath: string) => {
         // Only process relative paths that don't start with http/https/files
-        if (filePath.startsWith('http://') || filePath.startsWith('https://') ) {
+        if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
             return filePath;
         }
-        
+
         // Handle global files differently
         if (filePath.startsWith('global/')) {
             return `${origin}/file/${filePath}`;
         }
-        
+
         // Construct the full asset path for session-specific files
         return `${origin}/file/chatSessionArtifacts/sessionId=${chatSessionId}/${filePath}`;
     };
@@ -659,19 +660,19 @@ async function processDocumentLinks(content: string, chatSessionId: string): Pro
     const linkRegex = /href="([^"]+)"/g;
     // Regular expression to match src="path/to/file" patterns in iframes
     const iframeSrcRegex = /<iframe[^>]*\ssrc="([^"]+)"[^>]*>/g;
-    
+
     // First replace all href matches
     let processedContent = content.replace(linkRegex, (match, filePath) => {
         const fullPath = getFullUrl(filePath);
         return `href="${fullPath}"`;
     });
-    
+
     // Then replace all iframe src matches
     processedContent = processedContent.replace(iframeSrcRegex, (match, filePath) => {
         const fullPath = getFullUrl(filePath);
         return match.replace(`src="${filePath}"`, `src="${fullPath}"`);
     });
-    
+
     return processedContent;
 }
 
@@ -685,28 +686,28 @@ export const writeFile = tool(
             if (targetPath.startsWith("..")) {
                 return JSON.stringify({ error: "Invalid file path. Cannot write files outside project root directory." });
             }
-            
+
             // Prevent writing files with global/ prefix
             if (targetPath.startsWith("global/")) {
                 return JSON.stringify({ error: "Cannot write files to the global directory. Global files are read-only." });
             }
-            
+
             const prefix = getChatSessionPrefix();
             const s3Key = path.posix.join(prefix, targetPath);
-            
+
             // Create parent "directory" keys if needed
             const dirPath = path.dirname(targetPath);
             if (dirPath !== '.') {
                 const directories = dirPath.split('/').filter(Boolean);
                 let currentPath = prefix;
-                
+
                 for (const dir of directories) {
                     currentPath = path.posix.join(currentPath, dir, '/');
                     // Create an empty object with trailing slash to represent directory
                     await writeS3Object(currentPath, '');
                 }
             }
-            
+
             // Process HTML embeddings if this is an HTML file
             let finalContent = content;
             if (targetPath.toLowerCase().endsWith('.html')) {
@@ -737,16 +738,16 @@ export const writeFile = tool(
                 while ((match = imgRegex.exec(content)) !== null) {
                     validateFileExtension(match[1], allowedImageExtensions, 'img');
                 }
-                
+
                 // Process document links
                 finalContent = await processDocumentLinks(content, getChatSessionId() || '');
             }
-            
+
             // Write the file to S3
             await writeS3Object(s3Key, finalContent);
-            
-            return JSON.stringify({ 
-                success: true, 
+
+            return JSON.stringify({
+                success: true,
                 message: `File ${filename} written successfully to S3`,
                 targetPath: targetPath
             });
@@ -820,7 +821,7 @@ interface TextToTableParams {
     maxFiles?: number;
     dataToInclude?: string;
     dataToExclude?: string;
-    
+
 }
 
 // Function to get user-specific prefix
@@ -839,17 +840,17 @@ async function publishProgressUpdate(processedCount: number, totalCount: number,
         if (!progressUpdateStartTime) {
             progressUpdateStartTime = startTime || new Date();
         }
-        
+
         // Calculate time elapsed and estimate time remaining
         const timeElapsed = (new Date().getTime() - progressUpdateStartTime.getTime()) / 1000; // in seconds
         let timeRemaining = "calculating...";
-        
+
         // Only calculate time remaining once we have some progress (avoid division by zero)
         if (processedCount > 0) {
             const timePerItem = timeElapsed / processedCount;
             const remainingItems = totalCount - processedCount;
             const estimatedSecondsRemaining = timePerItem * remainingItems;
-            
+
             // Format the time remaining in a human-readable format
             if (estimatedSecondsRemaining < 60) {
                 timeRemaining = `${Math.round(estimatedSecondsRemaining)} seconds`;
@@ -862,9 +863,9 @@ async function publishProgressUpdate(processedCount: number, totalCount: number,
             }
         }
 
-        const progressPercentage = Math.round((processedCount/totalCount) * 100);
+        const progressPercentage = Math.round((processedCount / totalCount) * 100);
         const progressMessage = `Processing files: ${processedCount}/${totalCount} (${progressPercentage}%) - Est. time remaining: ${timeRemaining}`;
-        
+
         await amplifyClient.graphql({
             query: publishResponseStreamChunk,
             variables: {
@@ -886,33 +887,33 @@ async function retryWithExponentialBackoff<T>(
     maxDelayMs: number = 10000
 ): Promise<T> {
     let lastError: any;
-    
+
     for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
             return await operation();
         } catch (error: any) {
             lastError = error;
-            
+
             // Check if it's a throttling error
             const isThrottlingError = error.message?.toLowerCase().includes('too many tokens') ||
-                                    error.message?.toLowerCase().includes('rate limit') ||
-                                    error.message?.toLowerCase().includes('throttle');
-            
+                error.message?.toLowerCase().includes('rate limit') ||
+                error.message?.toLowerCase().includes('throttle');
+
             if (!isThrottlingError) {
                 throw error; // If it's not a throttling error, throw immediately
             }
-            
+
             if (attempt === maxRetries - 1) {
                 break; // On last attempt, break to throw the error
             }
-            
+
             // Calculate delay with exponential backoff and jitter
             const delayMs = Math.min(initialDelayMs * Math.pow(2, attempt) * (0.5 + Math.random()), maxDelayMs);
             console.log(`Throttling detected, retrying in ${Math.round(delayMs)}ms (attempt ${attempt + 1}/${maxRetries})`);
             await new Promise(resolve => setTimeout(resolve, delayMs));
         }
     }
-    
+
     throw lastError;
 }
 
@@ -923,7 +924,7 @@ export const textToTableTool = tool(
             const origin = getOrigin() || '';
             // Reset progress timer at the start of each run
             progressUpdateStartTime = new Date();
-            
+
             // Publish initial notification
             const amplifyClient = getConfiguredAmplifyClient();
             await amplifyClient.graphql({
@@ -939,21 +940,27 @@ export const textToTableTool = tool(
 
             // Search for matching files
             const matchingFiles: string[] = [];
-            
+
             // Search in user files
             const userFiles = await findFilesMatchingPattern(
                 getUserPrefix(),
                 params.filePattern
             );
             matchingFiles.push(...userFiles);
-            
+
             // Search in global files
-            const globalFiles = await findFilesMatchingPattern(
+            const globalWellFiles = await findFilesMatchingPattern(
                 GLOBAL_PREFIX + 'well-files/',
                 params.filePattern
             );
-            matchingFiles.push(...globalFiles);
-            
+            matchingFiles.push(...globalWellFiles);
+
+            const globalProductionFiles = await findFilesMatchingPattern(
+                GLOBAL_PREFIX + 'production-data/',
+                params.filePattern
+            );
+            matchingFiles.push(...globalProductionFiles);
+
             console.log(`Found ${matchingFiles.length} matching files`);
 
             // Filter out files which are not text files based on the suffix
@@ -972,7 +979,7 @@ export const textToTableTool = tool(
                     "For global files, you can omit the 'global/' prefix",
                     "Try using a broader pattern (e.g., '.*' for all files)"
                 ];
-                
+
                 let errorMessage: {
                     error: string;
                     suggestions: string[];
@@ -985,12 +992,12 @@ export const textToTableTool = tool(
                     error: `No files found matching pattern: ${params.filePattern}`,
                     suggestions: searchSuggestions
                 };
-                
+
                 // Try to do a broader search to suggest available files
                 try {
                     const sampleGlobalFiles = await listAvailableFiles(GLOBAL_PREFIX, 5);
                     const sampleUserFiles = await listAvailableFiles(getUserPrefix(), 5);
-                    
+
                     if (sampleGlobalFiles.length > 0 || sampleUserFiles.length > 0) {
                         errorMessage.availableFiles = {
                             message: "Here are some files that are available:",
@@ -1001,7 +1008,7 @@ export const textToTableTool = tool(
                 } catch (error) {
                     console.error("Error getting sample files:", error);
                 }
-                
+
                 return JSON.stringify(errorMessage);
             }
 
@@ -1011,9 +1018,9 @@ export const textToTableTool = tool(
                 console.log(`Found ${filteredFiles.length} matching files, limiting to ${maxFiles}`);
                 filteredFiles.splice(maxFiles);
             }
-            
+
             console.log(`Processing ${filteredFiles.length} files`);
-            
+
             // Remove filePath column if it already exists
             params.tableColumns = params.tableColumns.filter(column => column.columnName.toLowerCase() !== 'filepath');
 
@@ -1026,7 +1033,7 @@ export const textToTableTool = tool(
 
             // Add default score columns if dataToInclude or dataToExclude are provided
             let enhancedTableColumns = [...params.tableColumns];
-            
+
             if (params.dataToInclude || params.dataToExclude) {
                 enhancedTableColumns.push({
                     columnName: 'relevanceScore',
@@ -1061,7 +1068,7 @@ export const textToTableTool = tool(
                     };
                 }
             });
-            
+
             // enhancedTableColumns.unshift({
             //     columnName: 'date',
             //     columnDescription: `The date of the event in YYYY-MM-DD format. Can be null if no date is available.`,
@@ -1079,7 +1086,7 @@ export const textToTableTool = tool(
                 fieldDefinitions[normalizedColumnName] = {
                     ...(column.columnDataDefinition ? {
                         ...column.columnDataDefinition,
-                        type: Array.isArray(column.columnDataDefinition.type) 
+                        type: Array.isArray(column.columnDataDefinition.type)
                             ? [...new Set([...column.columnDataDefinition.type, 'null'])]  // Add 'null' if array
                             : [column.columnDataDefinition.type, 'null']  // Convert to array with 'null'
                     } : { type: ['string'] }),
@@ -1100,23 +1107,23 @@ export const textToTableTool = tool(
 
             console.log('Target JSON schema for row:', JSON.stringify(jsonSchema, null, 2));
 
-            
+
             // Process each file with concurrency limit
             const tableRows = [];
             const concurrencyLimit = parseInt(process.env.TEXT_TO_TABLE_CONCURRENCY || '2'); // Process x files at a time
             let processedCount = 0;
-            
+
             // Process files in batches to avoid hitting limits
             for (let i = 0; i < filteredFiles.length; i += concurrencyLimit) {
                 const batch = filteredFiles.slice(i, i + concurrencyLimit);
                 const batchPromises = batch.map(async (fileKey) => {
                     try {
-                        const result = await readS3Object({key: fileKey, maxBytes: 0, startAtByte: 0});
-                        const fileContent = result.content.substring(0,10000); //Process a maximum of 10,000 characters
-                        
+                        const result = await readS3Object({ key: fileKey, maxBytes: 0, startAtByte: 0 });
+                        const fileContent = result.content.substring(0, 10000); //Process a maximum of 10,000 characters
+
                         // Extract file path for display
-                        const filePath = fileKey.startsWith(GLOBAL_PREFIX) 
-                            ? fileKey.replace(GLOBAL_PREFIX, 'global/') 
+                        const filePath = fileKey.startsWith(GLOBAL_PREFIX)
+                            ? fileKey.replace(GLOBAL_PREFIX, 'global/')
                             : fileKey.replace(getUserPrefix(), '');
 
                         // Find each time one of the enum values appears in the file content
@@ -1127,7 +1134,7 @@ export const textToTableTool = tool(
                             const regex = new RegExp(regexPattern, 'gi');  // 'g' for global, 'i' for case-insensitive
                             const matches = [];
                             let match;
-                            
+
                             while ((match = regex.exec(fileContent)) !== null) {
                                 matches.push({
                                     value: enumValue,
@@ -1136,7 +1143,7 @@ export const textToTableTool = tool(
                                     context: fileContent.slice(Math.max(0, match.index - 100), match.index + 100 + match[0].length)
                                 });
                             }
-                            
+
                             return matches.length > 0 ? matches : [];
                         });
 
@@ -1145,7 +1152,7 @@ export const textToTableTool = tool(
                         //Create a message with the enum matches. Show 100 characters before and after the enum matches.
                         const enumMatchesMessage = `Enum matches found in the file: ${enumMatches.flat().map(m => m.value).join(', ')}. Showing 100 characters before and after each match.`;
                         console.log('enumMatchesMessage:', enumMatchesMessage);
-                        
+
                         // Build the message for AI processing
                         const messageText = `
                         Extract structured data from the following text content according to the provided schema.
@@ -1156,7 +1163,7 @@ export const textToTableTool = tool(
                         ${enumMatchesMessage}
                         </EnumMatches>
                         `;
-                        
+
                         try {
                             // Wrap the structured output extraction in retry logic
                             const structuredData = await retryWithExponentialBackoff(
@@ -1174,7 +1181,7 @@ export const textToTableTool = tool(
                                 5000, // initial delay in ms
                                 10000 // max delay in ms
                             );
-                            
+
                             // Add file path if requested
                             if (params.includeFilePath !== false) {
                                 // structuredData['FilePath'] = filePath;
@@ -1213,28 +1220,28 @@ export const textToTableTool = tool(
                         return errorRow;
                     }
                 });
-                
+
                 // Wait for all batch promises to resolve
                 const batchResults = await Promise.all(batchPromises);
                 tableRows.push(...batchResults);
-                
+
                 // Update progress
                 processedCount += batch.length;
                 await publishProgressUpdate(processedCount, filteredFiles.length, getChatSessionId() || '', new Date());
             }
 
             console.log(`Generated ${tableRows.length} table rows`);
-            
+
             // Sort the table rows by the first column
             const firstColumnName = enhancedTableColumns[0].columnName;
             tableRows.sort((a, b) => {
                 const valueA = a[firstColumnName];
                 const valueB = b[firstColumnName];
-                
+
                 // Handle null/undefined values
                 if (valueA === null || valueA === undefined) return 1;
                 if (valueB === null || valueB === undefined) return -1;
-                
+
                 // Compare based on type
                 if (typeof valueA === 'number' && typeof valueB === 'number') {
                     return valueA - valueB;
@@ -1255,7 +1262,7 @@ export const textToTableTool = tool(
                 if (params.includeFilePath !== false) {
                     columnNames.push('FilePath');
                 }
-                
+
                 // Create HTML content
                 let htmlContent = `
                 <!DOCTYPE html>
@@ -1283,14 +1290,14 @@ export const textToTableTool = tool(
                         </thead>
                         <tbody>
                 `;
-                
+
                 // Add table rows with FilePath as links
                 tableRows.forEach(row => {
                     if (row.EventType && row.EventType === 'administrative') return //Don't include administrative type events
                     htmlContent += '<tr>';
                     columnNames.forEach(colName => {
                         let cellValue = row[colName] === null || row[colName] === undefined ? '' : String(row[colName]);
-                        
+
                         // Make FilePath values into links
                         if (colName === 'FilePath' && cellValue) {
                             htmlContent += `<td><a href="${cellValue}" target="_blank">link</a></td>`;
@@ -1300,7 +1307,7 @@ export const textToTableTool = tool(
                     });
                     htmlContent += '</tr>';
                 });
-                
+
                 // Close the HTML structure
                 htmlContent += `
                         </tbody>
@@ -1308,16 +1315,16 @@ export const textToTableTool = tool(
                 </body>
                 </html>
                 `;
-                
+
                 // Generate filename with .html extension
                 const htmlFilename = `data/${params.tableTitle}.html`;
-                
+
                 // Save the HTML file
                 await writeFile.invoke({
                     filename: htmlFilename,
                     content: htmlContent
                 });
-                
+
                 // Add HTML file info to the response
                 return JSON.stringify({
                     messageContentType: 'tool_table',
@@ -1388,14 +1395,14 @@ export const textToTableTool = tool(
 async function listAvailableFiles(prefix: string, limit: number = 10): Promise<string[]> {
     const s3Client = getS3Client();
     const bucketName = getBucketName();
-    
+
     try {
         const command = new ListObjectsV2Command({
             Bucket: bucketName,
             Prefix: prefix,
             MaxKeys: 20 // Get a few more than needed to filter
         });
-        
+
         const response = await s3Client.send(command);
         return (response.Contents || [])
             .filter(item => {
@@ -1414,95 +1421,86 @@ async function listAvailableFiles(prefix: string, limit: number = 10): Promise<s
 async function findFilesMatchingPattern(basePrefix: string, pattern: string): Promise<string[]> {
     const s3Client = getS3Client();
     const bucketName = getBucketName();
-    
+
     // Fix common pattern mistakes
     let correctedPattern = pattern;
-    
+
     // If pattern starts with 'global/' and basePrefix already contains 'global/',
     // remove the redundant 'global/' from the pattern
     if (basePrefix === GLOBAL_PREFIX && pattern.startsWith('global/')) {
         correctedPattern = pattern.replace('global/', '');
         console.log(`Corrected pattern from ${pattern} to ${correctedPattern}`);
     }
-    
+
     // If pattern doesn't have any wildcards, treat it as a contains search
-    if (!correctedPattern.includes('*') && !correctedPattern.includes('?') && 
-        !correctedPattern.includes('[') && !correctedPattern.includes('(') && 
+    if (!correctedPattern.includes('*') && !correctedPattern.includes('?') &&
+        !correctedPattern.includes('[') && !correctedPattern.includes('(') &&
         !correctedPattern.includes('|')) {
         // Change to match the pattern anywhere in the path after the base prefix
         correctedPattern = `.*${correctedPattern}.*`;
         console.log(`Added wildcards to pattern: ${correctedPattern}`);
     }
-    
+
     // First, try to extract a common prefix from the regex pattern if possible
     let searchPrefix = basePrefix;
-    
+
     // If pattern starts with a literal part before any regex special chars, use it as prefix
     const prefixMatch = correctedPattern.match(/^([^\\.\*\+\?\|\(\)\[\]\{\}^$]+)/);
     if (prefixMatch && prefixMatch[1]) {
         // Don't append the prefix match to searchPrefix anymore since we want to match it anywhere
         console.log(`Found literal prefix in pattern: ${prefixMatch[1]}, but keeping base prefix for broader search`);
     }
-    
+
     console.log(`Searching in S3 with prefix: ${searchPrefix}`);
-    
+
     const matchingFiles: string[] = [];
     let continuationToken: string | undefined;
-    
+
     do {
-        // List objects with this prefix
-        const listParams: ListObjectsV2CommandInput = {
-            Bucket: bucketName,
-            Prefix: searchPrefix,
-            MaxKeys: 1000 // Fetch in larger batches
-        };
-        
-        // Add continuation token if we have one
-        if (continuationToken) {
-            listParams.ContinuationToken = continuationToken;
-        }
-        
         try {
-            const command = new ListObjectsV2Command(listParams);
-            const response = await s3Client.send(command);
-            
-            // Log how many objects were found with this prefix
-            console.log(`Found ${response.Contents?.length || 0} objects with prefix ${searchPrefix}`);
-            
-            // Extract matching files from current batch
-            const currentBatchFiles = (response.Contents || [])
+            const listCommonPrefixesResponse = await s3Client.send(new ListObjectsV2Command({
+                Bucket: bucketName,
+                Prefix: searchPrefix,
+                MaxKeys: 1000, // Fetch in larger batches,
+                Delimiter: '/',
+                ContinuationToken: continuationToken //Can be null
+            }));
+
+            // console.log('Common Prefixes: ', listCommonPrefixesResponse.CommonPrefixes)
+            const matchingPrefixes = (listCommonPrefixesResponse.CommonPrefixes || [])
                 .filter(item => {
-                    const key = item.Key as string;
-                    // Filter out directory markers and metadata files
-                    if (key.endsWith('/') || key.endsWith('.s3meta')) {
-                        return false;
-                    }
-                    
-                    // Remove the base prefix for matching
-                    const relativePath = key.replace(basePrefix, '');
+                    if (!item.Prefix) return false
+                    const relativePath = item.Prefix.replace(basePrefix, '');
                     const isMatch = fileMatchesPattern(relativePath, correctedPattern);
-                    
-                    // Log pattern matching results for debugging
-                    if (isMatch) {
-                        console.log(`Match found: ${relativePath} matches pattern ${correctedPattern}`);
-                    }
-                    
-                    return isMatch;
+                    return isMatch
                 })
-                .map(item => item.Key as string);
-                
-            // Add matching files to our result array
-            matchingFiles.push(...currentBatchFiles);
-            
-            // Update continuation token for next batch
-            continuationToken = response.NextContinuationToken;
-            
+
+            if (matchingPrefixes.length === 0 && matchingFiles.length === 0) matchingPrefixes.push({ Prefix: searchPrefix }) //If no matching prefixes are found, search for all file matches under the search prefix.
+            console.log('Matching Prefixes: ', matchingPrefixes)
+
+            for await (const item of matchingPrefixes) {
+                const listFilesCommandResult = await s3Client.send(new ListObjectsV2Command({
+                    Bucket: bucketName,
+                    Prefix: item.Prefix,
+                    MaxKeys: 1000, // Fetch in larger batches,
+                }));
+                (listFilesCommandResult.Contents || [])
+                    .map(item => {
+                        if (!item.Key) return
+                        const relativePath = item.Key.replace(basePrefix, '');
+                        const isMatch = fileMatchesPattern(relativePath, correctedPattern);
+                        if (isMatch) matchingFiles.push(item.Key)
+                    })
+            }
+
+            continuationToken = listCommonPrefixesResponse.NextContinuationToken;
+
         } catch (error) {
             console.error(`Error finding files matching pattern in S3: ${error}`);
             throw error;
         }
     } while (continuationToken);
-    
+
     // If no files found, log available files for debugging
     if (matchingFiles.length === 0) {
         try {
@@ -1512,7 +1510,7 @@ async function findFilesMatchingPattern(basePrefix: string, pattern: string): Pr
                 Prefix: basePrefix,
                 MaxKeys: 20 // Just get a few for sample
             });
-            
+
             const sampleResponse = await s3Client.send(sampleCommand);
             const sampleFiles = (sampleResponse.Contents || [])
                 .filter(item => {
@@ -1520,7 +1518,7 @@ async function findFilesMatchingPattern(basePrefix: string, pattern: string): Pr
                     return !key.endsWith('/') && !key.endsWith('.s3meta');
                 })
                 .map(item => (item.Key as string).replace(basePrefix, ''));
-                
+
             if (sampleFiles.length > 0) {
                 console.log(`No files matched pattern "${correctedPattern}", but here are some available files:`);
                 sampleFiles.forEach(file => console.log(`- ${file}`));
@@ -1531,7 +1529,7 @@ async function findFilesMatchingPattern(basePrefix: string, pattern: string): Pr
             console.error(`Error listing sample files: ${error}`);
         }
     }
-    
+
     return matchingFiles;
 }
 
@@ -1540,23 +1538,29 @@ export const searchFiles = tool(
     async ({ filePattern, maxFiles = 100, includeGlobal = true }) => {
         try {
             const matchingFiles: string[] = [];
-            
+
             // Search in user files
             const userFiles = await findFilesMatchingPattern(
                 getUserPrefix(),
                 filePattern
             );
             matchingFiles.push(...userFiles);
-            
+
             // Search in global files if requested
             if (includeGlobal) {
-                const globalFiles = await findFilesMatchingPattern(
-                    GLOBAL_PREFIX,
+                const globalWellFiles = await findFilesMatchingPattern(
+                    GLOBAL_PREFIX + 'well-files/',
                     filePattern
                 );
-                matchingFiles.push(...globalFiles);
+                matchingFiles.push(...globalWellFiles);
+
+                const globalProductionFiles = await findFilesMatchingPattern(
+                    GLOBAL_PREFIX + 'production-data/',
+                    filePattern
+                );
+                matchingFiles.push(...globalProductionFiles);
             }
-            
+
             // Format file paths for display
             const formattedFiles = matchingFiles.map(fileKey => {
                 if (fileKey.startsWith(GLOBAL_PREFIX)) {
@@ -1565,11 +1569,11 @@ export const searchFiles = tool(
                     return fileKey.substring(getUserPrefix().length);
                 }
             });
-            
+
             // Limit results
             const limitedFiles = formattedFiles.slice(0, maxFiles);
             const hasMore = formattedFiles.length > maxFiles;
-            
+
             // Return results
             return JSON.stringify({
                 files: limitedFiles,
@@ -1577,8 +1581,8 @@ export const searchFiles = tool(
                 totalCount: formattedFiles.length,
                 hasMore,
                 pattern: filePattern,
-                message: hasMore 
-                    ? `Found ${formattedFiles.length} files, showing first ${maxFiles}. Use a more specific pattern to narrow results.` 
+                message: hasMore
+                    ? `Found ${formattedFiles.length} files, showing first ${maxFiles}. Use a more specific pattern to narrow results.`
                     : `Found ${formattedFiles.length} files.`
             });
         } catch (error: any) {

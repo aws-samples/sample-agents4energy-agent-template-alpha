@@ -14,6 +14,10 @@ operating_cost_USD_per_year=50000
 # Read production data
 production_df = pd.read_csv(path_to_production_data)
 
+if (production_df.shape[0] < 10):
+    print('Production DF does not contain 10 rows')
+    exit()
+
 # Convert Date column to datetime
 production_df['Date'] = pd.to_datetime(production_df['Date'])
 
@@ -54,24 +58,6 @@ gas_rates_MCFD[(gas_rates_MCFD.isna() | np.isinf(gas_rates_MCFD))]=0
 # Weight recent points more heavily (x20)
 n = len(t_years)
 weights = np.linspace(0.05, 1, n)**2 * 20
-
-# try:
-# # Curve Fitting with bounds and weighted fitting
-# popt, pcov = curve_fit(
-#     hyperbolic_decline, 
-#     t_years, 
-#     gas_rates_MCFD, 
-#     p0=[max(gas_rates_MCFD), 0.3, 0.5],  # Initial guess
-#     bounds=(
-#         [0, 0, 0],  # Lower bounds
-#         [2 * max(gas_rates_MCFD), 1.0, 2.0]  # Upper bounds
-#     ),
-#     sigma=1/weights,  # Weighting
-#     absolute_sigma=True
-# )
-
-# # Unpack optimized parameters
-# qi_opt, di_opt, b_opt = popt
 
 # Curve Fitting with bounds and weighted fitting
 popt, pcov = curve_fit(

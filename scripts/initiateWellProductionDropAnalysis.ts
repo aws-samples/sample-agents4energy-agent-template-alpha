@@ -3,6 +3,7 @@ import * as csv from 'csv-parse';
 // import outputs from '../amplify_outputs.json';
 import fs from 'fs';
 import { S3Client } from "@aws-sdk/client-s3";
+import { execSync } from 'child_process';
 
 import { setAmplifyEnvVars, getConfiguredAmplifyClient } from '../utils/amplifyUtils';
 import { setChatSessionId, setOrigin } from '../amplify/functions/tools/toolUtils';
@@ -12,16 +13,15 @@ import { stringify } from 'yaml';
 // Import tools after setting environment variables
 import { pysparkTool } from '../amplify/functions/tools/athenaPySparkTool';
 import { createChatSession, createChatMessage } from '../amplify/functions/graphql/mutations';
-// import { listChatMessageByChatSessionIdAndCreatedAt } from '../amplify/functions/graphql/queries';
+
 import { invokeReActAgent, listChatMessageByChatSessionIdAndCreatedAt } from "../utils/graphqlStatements";
 import * as APITypes from "../amplify/functions/graphql/API";
 import { readFile } from "../amplify/functions/tools/s3ToolBox";
 
-const START_INDEX = 11
-const END_INDEX = 50
+const START_INDEX = 72
+const END_INDEX = 100
 
-// const ORIGIN = 'https://main.d2jrc1knzjqt63.amplifyapp.com'
-const ORIGIN = 'http://localhost:3001'
+const LOCAL_ORIGIN = 'http://localhost:3001'
 
 // Set environment variables first`
 const outputs = loadOutputs();
@@ -97,8 +97,13 @@ Common tests are:
 }
 
 const main = async () => {
-    // setOrigin('http://localhost:3001');//This is requred so that reports will correctly link to the other files
-    setOrigin(ORIGIN)
+    const appIdParts = (outputs.custom.rootStackName as string).split('-')
+    const whoAmI = execSync('whoami').toString().trim();
+    // If the branch name === whoami, this is very likely a sandbox deployment so use the local origin.
+    const domainUrl = (appIdParts[2] === whoAmI) ? LOCAL_ORIGIN : `https://${appIdParts[2]}.${appIdParts[1]}.amplifyapp.com`
+    console.log('Domain url: ', domainUrl)
+
+    setOrigin(domainUrl)
 
     await setAmplifyEnvVars();
     const amplifyClient = getConfiguredAmplifyClient();
@@ -231,7 +236,7 @@ pio.templates.default = "white_clean_log"
             variables: {
                 chatSessionId: newChatSession.createChatSession.id,
                 userId: 'test-user',
-                origin: ORIGIN
+                origin: domainUrl
             },
         });
 
@@ -275,7 +280,7 @@ pio.templates.default = "white_clean_log"
                 await new Promise(resolve => setTimeout(resolve, 30000));
             }
         }
-        break; // for testing, only process the first well
+        // break; // for testing, only process the first well
     }
 };
 

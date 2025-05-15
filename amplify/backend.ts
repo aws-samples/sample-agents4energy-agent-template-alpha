@@ -98,6 +98,30 @@ const athenaWorkgroup = new athena.CfnWorkGroup(backend.stack, 'SparkWorkgroup',
   }
 });
 
+const executeAthenaStatementsPolicy = new iam.PolicyStatement({
+    actions: [
+      "athena:StartSession",
+      "athena:GetSessionStatus",
+      "athena:TerminateSession",
+      "athena:ListSessions",
+      "athena:StartCalculationExecution",
+      "athena:GetCalculationExecutionCode",
+      "athena:StopCalculationExecution",
+      "athena:ListCalculationExecutions",
+      "athena:GetCalculationExecution",
+      "athena:GetCalculationExecutionStatus",
+      "athena:ListExecutors",
+      "athena:ExportNotebook",
+      "athena:UpdateNotebook"
+    ],
+    resources: [
+      `arn:aws:athena:${backend.stack.region}:${backend.stack.account}:workgroup/${athenaWorkgroup.name}`,
+    ],
+  })
+
+// This enables the Athena notebook console environment to use this service role
+athenaExecutionRole.addToPolicy(executeAthenaStatementsPolicy);
+
 backend.stack.tags.setTag('Project', 'workshop-a4e');
 
 backend.addOutput({ custom: { rootStackName: backend.stack.stackName } });
@@ -119,28 +143,7 @@ backend.addOutput({ custom: { athenaWorkgroupName: athenaWorkgroup.name } });
 })
 
 // Add Athena permissions to the Lambda
-backend.reActAgentFunction.resources.lambda.addToRolePolicy(
-  new iam.PolicyStatement({
-    actions: [
-      "athena:StartSession",
-      "athena:GetSessionStatus",
-      "athena:TerminateSession",
-      "athena:ListSessions",
-      "athena:StartCalculationExecution",
-      "athena:GetCalculationExecutionCode",
-      "athena:StopCalculationExecution",
-      "athena:ListCalculationExecutions",
-      "athena:GetCalculationExecution",
-      "athena:GetCalculationExecutionStatus",
-      "athena:ListExecutors",
-      "athena:ExportNotebook",
-      "athena:UpdateNotebook"
-    ],
-    resources: [
-      `arn:aws:athena:${backend.stack.region}:${backend.stack.account}:workgroup/${athenaWorkgroup.name}`,
-    ],
-  })
-);
+backend.reActAgentFunction.resources.lambda.addToRolePolicy(executeAthenaStatementsPolicy);
 
 // Also grant access to the Athena execution role
 backend.reActAgentFunction.resources.lambda.addToRolePolicy(
