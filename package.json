@@ -44,6 +44,7 @@
     "@aws-amplify/backend": "^1.14.0",
     "@aws-amplify/backend-cli": "^1.4.9",
     "@aws-sdk/client-athena": "^3.777.0",
+    "@aws-sdk/client-sqs": "^3.810.0",
     "@aws-sdk/client-textract": "^3.782.0",
     "@eslint/eslintrc": "^3",
     "@types/chai": "^5.2.1",

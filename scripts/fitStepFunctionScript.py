@@ -88,8 +88,10 @@ def fit_step_function(pdf):
     
     # Try each date as a potential step point
     for i in range(1, len(dates)-1):
-        initial_rate = np.mean(rates[:i])
-        final_rate = np.mean(rates[i:])
+        # initial_rate = np.mean(rates[:i])
+        # final_rate = np.mean(rates[i:])
+        initial_rate = np.median(rates[:i])
+        final_rate = np.median(rates[i:])
         step_date = dates[i]
         rate_drop = initial_rate - final_rate
         

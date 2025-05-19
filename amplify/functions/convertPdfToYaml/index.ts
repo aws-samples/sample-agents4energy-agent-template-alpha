@@ -275,7 +275,7 @@ export const handler: SQSHandler = async (event: SQSEvent) => {
                         return
                     }
                 } catch (error) {
-                    console.error(`Error checking if file ${newS3Key} exists in bucket ${bucket}:`, error)
+                    console.error(`Error checking if file ${newS3Key} exists in bucket ${bucket}:`, JSON.stringify(error))
                 }
 
                 const documentContent = await startAndWaitForDocumentAnalysis(bucket, documentKeys[0]) || "No contents found in file"
