@@ -228,8 +228,10 @@ const Page = () => {
     const validProjects = projects.filter(project => project != null);
     const totalProjects = validProjects.length;
     const totalNPV10 = validProjects.reduce((sum, project) => {
-        if (!project?.financial) return sum;
-        return sum + (project.financial.NPV10 || 0);
+        if (!project?.financial || !project.financial.revenuePresentValue || !project.financial.cost) return sum;
+        const {revenuePresentValue, cost} = project.financial
+        const npv10 = revenuePresentValue - cost;
+        return sum + (npv10|| 0);
     }, 0);
     const totalOilRate = validProjects.reduce((sum, project) => {
         if (!project?.financial) return sum;
@@ -249,9 +251,10 @@ const Page = () => {
             totalRevenue += project.financial.revenuePresentValue || 0;
         }
     });
-
-    console.log({totalRevenue: totalRevenue, totalCost: totalCost})
+    
     const totalNetPresentValue10Ratio = totalCost > 0 ? (totalRevenue - totalCost) / totalCost : 0;
+
+    console.log({totalRevenue: totalRevenue, totalCost: totalCost, totalNetPresentValue10Ratio: totalNetPresentValue10Ratio})
 
     // Scatter plot data preparation
     const scatterData = {
