@@ -1,6 +1,9 @@
 // This component is used to render an asset in a chat message.
 
 import React from 'react';
+
+import Link from 'next/link';
+
 import { Theme } from '@mui/material/styles';
 import { Typography, Box, IconButton, Tooltip } from '@mui/material';
 import DescriptionIcon from '@mui/icons-material/Description';
@@ -60,21 +63,9 @@ const RenderAssetToolComponent: React.FC<RenderAssetToolComponentProps> = ({ con
             </Typography>
           </Box>
           <Tooltip title="Open in new tab">
-            <IconButton
-              size="small"
-              onClick={() => {
-                window.open(`/preview/${s3Key}`, '_blank');
-              }}
-              sx={{
-                opacity: 0.7,
-                '&:hover': {
-                  opacity: 1,
-                  color: theme.palette.primary.main
-                }
-              }}
-            >
+            <Link href={`/preview/${s3Key}`} passHref>
               <OpenInNewIcon fontSize="small" />
-            </IconButton>
+            </Link>
           </Tooltip>
         </Box>
 
