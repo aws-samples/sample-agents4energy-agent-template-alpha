@@ -11,7 +11,7 @@ export function setChatSessionId(chatSessionId: string) {
 
 // Function to set the origin from the handler
 export function setOrigin(origin: string) {
-    _origin = process.env.ORIGIN_BASE_PATH + origin;
+    _origin = origin + process.env.ORIGIN_BASE_PATH;
 }
 
 export function getOrigin() {
