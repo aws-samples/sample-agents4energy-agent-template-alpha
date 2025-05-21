@@ -99,9 +99,9 @@ export class PdfToYamlConstruct extends Construct {
 
         // Add SQS as trigger for Lambda
         convertPdfToYamlFunction.addEventSource(new lambdaEvent.SqsEventSource(pdfProcessingQueue, {
-            batchSize: 10,
+            batchSize: 5,
             maxBatchingWindow: cdk.Duration.seconds(10),
-            maxConcurrency: 10,
+            maxConcurrency: 5,
         }));
 
         const storageBucket = s3.Bucket.fromBucketName(scope, 'ExistingBucket', props.s3Bucket.bucketName);

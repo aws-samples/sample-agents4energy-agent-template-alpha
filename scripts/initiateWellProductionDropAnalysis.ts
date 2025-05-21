@@ -19,7 +19,7 @@ import * as APITypes from "../amplify/functions/graphql/API";
 import { readFile } from "../amplify/functions/tools/s3ToolBox";
 
 const START_INDEX = 72
-const END_INDEX = 100
+const END_INDEX = 10000
 
 const LOCAL_ORIGIN = 'http://localhost:3001'
 
@@ -36,8 +36,8 @@ interface ProductionRecord {
     api: string;
     pool: string;
     rate_drop_MCFD: string;
-    initial_rate_MCFD: string;
-    final_rate_MCFD: string;
+    final_fit_rate_MCFD: string;
+    initial_fit_rate_MCFD: string;
     step_date: string;
 }
 
@@ -69,8 +69,8 @@ function formatNumber(num: number): string {
 function generateAnalysisPrompt(props: {well: ProductionRecord, wellParameters: WellParameters}): string {
     const {well, wellParameters} = props;
     const dropRate = parseFloat(well.rate_drop_MCFD);
-    const initialRate = parseFloat(well.initial_rate_MCFD);
-    const finalRate = parseFloat(well.final_rate_MCFD);
+    const initialRate = parseFloat(well.initial_fit_rate_MCFD);
+    const finalRate = parseFloat(well.final_fit_rate_MCFD);
     const date = well.step_date;
     const presentValue = wellParameters.economic_parameters.present_value_production_wedge_usd;
 
@@ -134,6 +134,7 @@ const main = async () => {
         if (index > END_INDEX) {
             break;
         }
+        if (well.api != '3003924224') continue //Select a specific well
 
         // Create a new chat session
         console.log('Creating new chat session');
@@ -156,8 +157,8 @@ const main = async () => {
         const result = await pysparkTool({}).invoke({
             code: `
 production_drop_date = '${well.step_date}'
-initial_production_rate_MCFD = float('${well.initial_rate_MCFD}')
-final_production_rate_MCFD = float('${well.final_rate_MCFD}')
+initial_production_rate_MCFD = float('${well.initial_fit_rate_MCFD}')
+final_production_rate_MCFD = float('${well.final_fit_rate_MCFD}')
 production_drop_rate_MCFD = float('${well.rate_drop_MCFD}')
 well_api_number = '${well.api}'
 pool = '${well.pool}'
@@ -212,6 +213,8 @@ pio.templates.default = "white_clean_log"
         console.log(`Generated analysis prompt for well ${well.api} (${index + 1}/${highDropWells.length})`);
 
         console.log(prompt, '\n\n');
+
+        // return //Optionally, don't invoke the agent.
 
         const {errors: newChatMessageErrors } = await amplifyClient.graphql({
             query: createChatMessage,

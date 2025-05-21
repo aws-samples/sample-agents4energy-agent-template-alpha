@@ -126,6 +126,7 @@ backend.stack.tags.setTag('Project', 'workshop-a4e');
 
 backend.addOutput({ custom: { rootStackName: backend.stack.stackName } });
 backend.addOutput({ custom: { athenaWorkgroupName: athenaWorkgroup.name } });
+backend.addOutput({ custom: { reactAgentLambdaArn: backend.reActAgentFunction.resources.lambda.functionArn } });
 
 //Add permissions to the lambda functions to invoke the model
 [
