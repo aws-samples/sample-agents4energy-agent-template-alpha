@@ -1,6 +1,7 @@
 "use client"
 import React, { useEffect, useState } from 'react';
-// import { stringify } from 'yaml';
+import Link from 'next/link';
+// import { Link } from '@mui/material';
 import { Authenticator, useAuthenticator } from '@aws-amplify/ui-react';
 import { generateClient } from "aws-amplify/data";
 import { type Schema } from "@/../amplify/data/resource";
@@ -37,9 +38,12 @@ const Page = () => {
                         <CardContent>
                             <Typography variant="h5">{chatSession.name}</Typography>
                             <Box mt={2}>
-                                <Button variant="contained" color="primary" href={`/chat/${chatSession.id}`}>
+                                <Link href={`/chat/${chatSession.id}`}>
                                     Open Chat
-                                </Button>
+                                </Link>
+                                {/* <Button variant="contained" color="primary" href={`/chat/${chatSession.id}`}>
+                                    Open Chat
+                                </Button> */}
                             </Box>
                             <Box mt={2}>
                                 <Button
