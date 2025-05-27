@@ -16,7 +16,7 @@ export const reActAgentFunction = defineFunction({
     TEXT_TO_TABLE_MODEL_ID: 'anthropic.claude-3-haiku-20240307-v1:0',
     TEXT_TO_TABLE_CONCURRENCY: '10',
 
-    ORIGIN_BASE_PATH: ''
+    ORIGIN_BASE_PATH: process.env.ORIGIN_BASE_PATH || ''
   }
 });
 
