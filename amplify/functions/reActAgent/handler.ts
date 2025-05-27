@@ -73,7 +73,7 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
         });
 
         const agentTools = [
-            // permeabilityCalculator,
+            permeabilityCalculator,
             new Calculator(),
             // new DuckDuckGoSearch({maxResults: 3}),
             // webBrowserTool,
