@@ -299,7 +299,8 @@ const Page = () => {
         },
         scales: {
             x: {
-                type: 'linear',
+                // type: 'linear',
+                type: 'logarithmic' as const,
                 title: {
                     display: true,
                     text: 'Project Cost',
