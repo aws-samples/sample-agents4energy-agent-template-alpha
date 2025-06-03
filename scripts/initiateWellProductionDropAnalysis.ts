@@ -141,6 +141,8 @@ const main = async () => {
 
         console.log('#'.repeat(20),`\nProcessing well ${well.api}, index ${i}`)
 
+        console.log('#'.repeat(20),`\nProcessing well ${well.api}, index ${index}`)
+
         // Create a new chat session
         console.log('Creating new chat session');
         const { data: newChatSession, errors: newChatSessionErrors } = await amplifyClient.graphql({
