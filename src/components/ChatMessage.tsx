@@ -116,8 +116,8 @@ const ChatMessage = (params: {
                     return <DuckDuckGoSearchToolComponent content={message.content} theme={theme} />;
                 case 'webBrowserTool':
                     return <WebBrowserToolComponent content={message.content} theme={theme} />;
-                case 'permeabilityCalculator':
-                    return <CustomWorkshopComponent content={message.content} theme={theme} />;
+                // case 'permeabilityCalculator':
+                //     return <CustomWorkshopComponent content={message.content} theme={theme} />;
                 default:
                     return <DefaultToolMessageComponent message={message} />;
             }

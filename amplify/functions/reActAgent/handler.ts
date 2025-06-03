@@ -17,7 +17,7 @@ import { pysparkTool } from "../tools/athenaPySparkTool";
 import { webBrowserTool } from "../tools/webBrowserTool";
 import { renderAssetTool } from "../tools/renderAssetTool";
 import { createProjectToolBuilder } from "../tools/createProjectTool";
-import { permeabilityCalculator } from "../tools/customWorkshopTool";
+// import { permeabilityCalculator } from "../tools/customWorkshopTool";
 
 import { Schema } from '../../data/resource';
 
@@ -73,7 +73,7 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
         });
 
         const agentTools = [
-            permeabilityCalculator,
+            // permeabilityCalculator,
             new Calculator(),
             // new DuckDuckGoSearch({maxResults: 3}),
             // webBrowserTool,

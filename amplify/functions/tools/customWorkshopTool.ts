@@ -1,6 +1,7 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 
+// This schema tells the agent which arguments to call the tool with.
 const permeabilityCalculatorSchema = z.object({
     porosity: z.number().describe("Porosity (fraction)"),
     grainSize: z.number().describe("Average grain size (mm)"),
