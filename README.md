@@ -6,8 +6,8 @@ This workshop teaches you how to build, deploy, and manage AI agents using LangG
 
 1. Clone this repository:
 ```bash
-git clone https://github.com/aws-samples/amplify-langgraph-template
-cd amplify-langgraph-template
+git clone https://github.com/aws-samples/sample-agents4energy-agent-template-alpha
+cd sample-agents4energy-agent-template-alpha
 ```
 
 2. Install dependencies:

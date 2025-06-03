@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import Link from 'next/link';
 import { list, getUrl, uploadData } from 'aws-amplify/storage';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
@@ -29,6 +30,7 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { styled } from '@mui/material/styles';
 import FileViewer from './FileViewer';
 import { useFileSystem } from '@/contexts/FileSystemContext';
+
 
 // File extensions to icon mapping
 const fileIcons: Record<string, React.ReactNode> = {
@@ -358,7 +360,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ chatSessionId, onFileSelect
     event.stopPropagation(); // Prevent triggering file click
     if (file.url) {
       // Open in a new tab instead of downloading
-      window.open(file.url, '_blank');
+      // window.open(file.url, '_blank');
 
       setDownloadMessage(`Opened ${file.name} in a new tab`);
       setShowDownloadMessage(true);
@@ -862,7 +864,10 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ chatSessionId, onFileSelect
                     {item.isFolder ? (
                       <DownloadIcon fontSize="small" />
                     ) : (
-                      <OpenInNewIcon fontSize="small" />
+                      <Link href={item.url || ""} passHref>
+                        <OpenInNewIcon fontSize="small" />
+                      </Link>
+                      
                     )}
                   </IconButton>
                 </Tooltip>

@@ -19,9 +19,11 @@ production_df['Date'] = pd.to_datetime(production_df['Date'])
 
 # Filter and clean data
 production_df = production_df[production_df['Date'] <= pd.to_datetime(production_drop_date)]
+production_df = production_df[production_df['Date'] > pd.to_datetime("1993-01-01")] # pre 1993 data is not available from our data source
 production_df = production_df[production_df['GasProduced'] > 0]  # Remove zero or negative values
+production_df = production_df.iloc[10:,:]
 
-
+print("production_df shape: ", production_df.shape)
 
 t_years = ((production_df['Date'] - production_df['Date'].min()).dt.days / 365.25).values
 
@@ -62,9 +64,9 @@ def main():
         hyperbolic_decline_with_terminal_rate, 
         t_years, 
         gas_rates_MCFD, 
-        p0=[0.3, 0.5],  # Initial guess
+        p0=[0.1, 0.5],  # Initial guess
         bounds=(
-            [0, 0],  # Lower bounds
+            [0.03, 0],  # Lower bounds
             [1.0, 2.0]  # Upper bounds
         ),
         sigma=1/weights,  # Weighting
@@ -88,7 +90,7 @@ def main():
     # Generate prediction points
     # t_pred = np.linspace(0, economic_life_years + 1, 100)
     t_pred = np.arange(0, int(economic_life_years) + 1)
-    t_economic_evaluation_years = t_pred[int(max(t_years)):]
+    # t_economic_evaluation_years = t_pred[int(max(t_years)):]
     # t_economic_evaluation_years = np.arange(int(max(t_years)), int(economic_life_years) + 1)
 
     gas_rate_pred_MCFM = hyperbolic_decline(t_pred, qi_opt, di_opt, b_opt)*365.25/12
@@ -255,7 +257,7 @@ def main():
     print(f"Residuals Mean: {np.mean(residuals):.4f}")
     print(f"Residuals Standard Deviation: {np.std(residuals):.4f}")
 
-if (production_df.shape[0] > 10):
+if (production_df.shape[0] > 120):
     main()
 else:
     # Save to JSON file with well API number in filename

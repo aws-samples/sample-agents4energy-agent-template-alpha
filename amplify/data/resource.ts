@@ -129,7 +129,6 @@ export const schema = a.schema({
     .authorization((allow) => [allow.authenticated()]),
 })
   .authorization((allow) => [
-    // allow.resource(generateGardenPlanStepsFunction),
     allow.resource(reActAgentFunction)
   ]);
 

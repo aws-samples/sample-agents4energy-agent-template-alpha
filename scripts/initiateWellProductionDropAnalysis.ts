@@ -18,8 +18,8 @@ import { invokeReActAgent, listChatMessageByChatSessionIdAndCreatedAt } from "..
 import * as APITypes from "../amplify/functions/graphql/API";
 import { readFile } from "../amplify/functions/tools/s3ToolBox";
 
-const START_INDEX = 0
-const END_INDEX = 10
+const START_INDEX = 62
+const END_INDEX = 200
 
 const LOCAL_ORIGIN = 'http://localhost:3001'
 
@@ -136,6 +136,7 @@ const main = async () => {
         if (i > END_INDEX) {
             break;
         }
+        if (well.pool.includes("MANCOS")) continue
         // if (well.api != '3003924224') continue //Select a specific well
 
         console.log('#'.repeat(20),`\nProcessing well ${well.api}, index ${i}`)
