@@ -25,18 +25,8 @@ export class PdfToYamlConstruct extends Construct {
         const convertPdfToYamlFunction = new lambdaNodeJs.NodejsFunction(scope, 'ConvertPdfToYamlFunction', {
             runtime: lambda.Runtime.NODEJS_20_X,
             entry: path.join(__dirname, '..', 'functions', 'convertPdfToYaml', 'index.ts'),
-            // bundling: {
-            //     format: lambdaNodeJs.OutputFormat.CJS,
-            //     loader: {
-            //         '.node': 'file',
-            //     },
-            //     bundleAwsSDK: true,
-            //     minify: true,
-            //     sourceMap: true,
-            // },
             timeout: cdk.Duration.minutes(15),
             memorySize: 3000,
-            // role: lambdaLlmAgentRole,
             environment: {
                 DATA_BUCKET_NAME: props.s3Bucket.bucketName,
             },

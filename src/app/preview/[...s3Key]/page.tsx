@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, use } from 'react';
 import { uploadData } from 'aws-amplify/storage';
 import FileViewer from '@/components/FileViewer';
 import { Button, Typography, Box, Paper, Stack, Snackbar, Alert } from '@mui/material';
@@ -11,12 +11,13 @@ import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 
 interface PageProps {
-  params: {
+  params: Promise<{
     s3Key: string[];
-  };
+  }>;
 }
 
-export default function FilePage({ params }: PageProps) {
+export default function FilePage(props: PageProps) {
+  const params = use(props.params);
   const s3Key = params.s3Key.join('/');
   const s3KeyDecoded = s3Key.split('/').map((item: string) => decodeURIComponent(item)).join('/');
   const [fileUrl, setFileUrl] = useState<URL>();
@@ -88,7 +89,7 @@ export default function FilePage({ params }: PageProps) {
   const handleCloseSnackbar = () => {
     setSaveStatus(prev => ({ ...prev, open: false }));
   };
-  
+
   return (
     <Box sx={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
       <Paper elevation={1} sx={{ px: 3, py: 2, borderRadius: 0 }}>
