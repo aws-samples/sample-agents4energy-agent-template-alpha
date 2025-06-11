@@ -6,7 +6,7 @@ import { S3Client } from "@aws-sdk/client-s3";
 import { execSync } from 'child_process';
 
 import { setAmplifyEnvVars, getConfiguredAmplifyClient } from '../utils/amplifyUtils';
-import { setChatSessionId, setOrigin } from '../amplify/functions/tools/toolUtils';
+import { setChatSessionId } from '../amplify/functions/tools/toolUtils';
 import { loadOutputs } from '../test/utils';
 import { stringify } from 'yaml';
 
@@ -21,7 +21,7 @@ import { readFile } from "../amplify/functions/tools/s3ToolBox";
 const START_INDEX = 62
 const END_INDEX = 200
 
-const LOCAL_ORIGIN = 'http://localhost:3001'
+// const LOCAL_ORIGIN = 'http://localhost:3001'
 
 // Set environment variables first`
 const outputs = loadOutputs();
@@ -101,10 +101,10 @@ const main = async () => {
     const appIdParts = (outputs.custom.rootStackName as string).split('-')
     const whoAmI = execSync('whoami').toString().trim();
     // If the branch name === whoami, this is very likely a sandbox deployment so use the local origin.
-    const domainUrl = (appIdParts[2] === whoAmI) ? LOCAL_ORIGIN : `https://${appIdParts[2]}.${appIdParts[1]}.amplifyapp.com`
-    console.log('Domain url: ', domainUrl)
+    // const domainUrl = (appIdParts[2] === whoAmI) ? LOCAL_ORIGIN : `https://${appIdParts[2]}.${appIdParts[1]}.amplifyapp.com`
+    // console.log('Domain url: ', domainUrl)
 
-    setOrigin(domainUrl)
+    // setOrigin(domainUrl)
 
     await setAmplifyEnvVars();
     const amplifyClient = getConfiguredAmplifyClient();
@@ -248,7 +248,7 @@ pio.templates.default = "white_clean_log"
             variables: {
                 chatSessionId: newChatSession.createChatSession.id,
                 userId: 'test-user',
-                origin: domainUrl
+                // origin: domainUrl
             },
         });
 

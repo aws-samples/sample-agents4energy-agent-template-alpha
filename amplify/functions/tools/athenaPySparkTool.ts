@@ -5,7 +5,7 @@ import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
 import { getConfiguredAmplifyClient } from '../../../utils/amplifyUtils';
 import { publishResponseStreamChunk } from "../graphql/mutations";
-import { getChatSessionId, getChatSessionPrefix, getOrigin } from "./toolUtils";
+import { getChatSessionId, getChatSessionPrefix } from "./toolUtils";
 import { writeFile } from "./s3ToolBox";
 
 // Environment variables
@@ -189,8 +189,8 @@ for s3_path in files_to_download:
 \n\n`
 }
 
-export const getPostCodeExecutionScript = (props?: {origin?: string}) => { 
-    const origin = props?.origin || '';
+export const getPostCodeExecutionScript = () => { 
+    // const origin = props?.origin || '';
     return `
 import os
 
@@ -250,10 +250,10 @@ def upload_working_directory():
                         
                         # Handle global files differently
                         if file_path.startswith('global/'):
-                            return f"${origin}/file/{file_path}"
+                            return f"/file/{file_path}"
                         
                         # Construct the full asset path for session-specific files
-                        return f"${origin}/file/{chatSessionS3Prefix}{file_path}"
+                        return f"/file/{chatSessionS3Prefix}{file_path}"
                     
                     import re
                     
@@ -658,7 +658,7 @@ export const pysparkTool = (props: {additionalSetupScript?: string, additionalTo
             // Save the script file
             if (code && scriptPath) {
                 // Save the code to a file
-                codeToExecute = getPreCodeExecutionScript(code) + code + getPostCodeExecutionScript({origin: getOrigin() || ''});
+                codeToExecute = getPreCodeExecutionScript(code) + code + getPostCodeExecutionScript();
                 await writeFile.invoke({
                     filename: scriptPath,
                     content: getSessionSetupScript() + additionalSetupScript + '\n' + codeToExecute

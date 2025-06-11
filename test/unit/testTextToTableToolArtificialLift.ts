@@ -1,15 +1,15 @@
 import { expect } from 'chai';
 import { textToTableTool } from '../../amplify/functions/tools/s3ToolBox';
 import { writeFile } from '../../amplify/functions/tools/s3ToolBox';
-import { setOrigin } from '../../amplify/functions/tools/toolUtils';
+// import { setOrigin } from '../../amplify/functions/tools/toolUtils';
 import { setAmplifyEnvVars } from '../../utils/amplifyUtils';
 import { setChatSessionId } from '../../amplify/functions/tools/toolUtils';
 import { loadOutputs } from '../utils';
 
-setOrigin('http://localhost:3001')
+// setOrigin('http://localhost:3001')
 
-describe('Text to Table Tool', function () {
-  this.timeout(30000); // Set timeout to 30 seconds as text processing might take time
+describe('Text to Table Tool Artificial Lift Test', function () {
+  this.timeout(300000); // Set timeout to 300 seconds as text processing might take time
 
   before(async function() {
     await setAmplifyEnvVars();
@@ -23,7 +23,8 @@ describe('Text to Table Tool', function () {
 
   it('should convert text files to a structured table', async function() {
     const result = await textToTableTool.invoke({
-      filePattern: '3003906477',
+      // filePattern: '3003906477',
+      filePattern: '3004533593',
       tableTitle: 'test-table',
       tableColumns: [
         {

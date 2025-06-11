@@ -20,38 +20,39 @@ interface FileViewerProps {
   content?: string;
 }
 
-export default function FileViewer({ 
-  s3Key, 
-  onUrlChange, 
-  isEditMode = false, 
-  onContentChange, 
+export default function FileViewer({
+  s3Key,
+  onUrlChange,
+  isEditMode = false,
+  onContentChange,
   onContentTypeChange,
-  content 
+  content
 }: FileViewerProps) {
   const [selectedFileUrl, setSelectedFileUrl] = useState<URL>();
   const [loading, setLoading] = useState<boolean>(true);
   const [iframeLoading, setIframeLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [fileContent, setFileContent] = useState<string | null>(null);
+  const [fileContentType, setFileContentType] = useState<string | null>(null);
 
   const fileExtension = s3Key.split('.').pop()?.toLowerCase() || 'text';
   const isHtmlFile = fileExtension === 'html';
 
   useEffect(() => {
     console.log('s3Key: ', s3Key);
-    
+
     if (!s3Key) {
       setError('Invalid file path');
       setLoading(false);
       return;
     }
-    
+
     setLoading(true);
     setError(null);
-    
+
     const s3KeyDecoded = s3Key.split('/').map((item: string) => decodeURIComponent(item)).join('/');
     console.log('getting file from s3 Key: ', s3KeyDecoded);
-    
+
     getUrl({
       path: s3KeyDecoded,
     }).then(async (response: { url: URL }) => {
@@ -62,7 +63,8 @@ export default function FileViewer({
         // Check the content type
         const fileResponse = await fetch(response.url);
         const contentType = fileResponse.headers.get('Content-Type');
-        
+        setFileContentType(contentType)
+
         // Pass content type back to parent
         onContentTypeChange?.(contentType);
 
@@ -71,9 +73,9 @@ export default function FileViewer({
 
         // If content is not already set, set it for edit mode
         if (!content) {
-            onContentChange?.(text);
-          }
-        
+          onContentChange?.(text);
+        }
+
         // // If it's a text-based file or CSV/XML/HTML, display as text
         // if (contentType?.startsWith('text/') || 
         //     contentType === 'application/octet-stream' ||
@@ -92,7 +94,7 @@ export default function FileViewer({
         console.error('Error fetching file content:', error);
         setError('Failed to load file content. Please try again later.');
       }
-      
+
       setLoading(false);
     }).catch((error) => {
       console.error('Error fetching file:', error);
@@ -141,7 +143,7 @@ export default function FileViewer({
         </div>
       );
     }
-    
+
     // Render HTML files in iframe when not in edit mode
     return (
       <div className="w-full h-full relative">
@@ -150,7 +152,7 @@ export default function FileViewer({
             <CircularProgress />
           </div>
         )}
-        
+
         <iframe
           srcDoc={fileContent || ""}
           // src={selectedFileUrl?.toString()}
@@ -168,7 +170,11 @@ export default function FileViewer({
   }
 
   // If we have text content for non-HTML files, display it
-  if (fileContent) {
+  if (
+    fileContentType?.startsWith('text/') ||
+    fileContentType === 'application/octet-stream' ||
+    ['csv', 'xml', 'json', 'txt', 'md', 'html'].includes(fileExtension)
+  ) {
     console.log('Rendering text content');
 
     // Determine the editor mode based on file extension

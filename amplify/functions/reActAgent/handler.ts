@@ -10,11 +10,11 @@ import { DuckDuckGoSearch } from "@langchain/community/tools/duckduckgo_search";
 
 import { publishResponseStreamChunk } from "../graphql/mutations";
 
-import { setChatSessionId, setOrigin } from "../tools/toolUtils";
+import { setChatSessionId } from "../tools/toolUtils";
 import { s3FileManagementTools } from "../tools/s3ToolBox";
 import { userInputTool } from "../tools/userInputTool";
 import { pysparkTool } from "../tools/athenaPySparkTool";
-import { webBrowserTool } from "../tools/webBrowserTool";
+// import { webBrowserTool } from "../tools/webBrowserTool";
 import { renderAssetTool } from "../tools/renderAssetTool";
 import { createProjectToolBuilder } from "../tools/createProjectTool";
 // import { permeabilityCalculator } from "../tools/customWorkshopTool";
@@ -27,11 +27,6 @@ import { EventEmitter } from "events";
 // Increase the default max listeners to prevent warnings
 EventEmitter.defaultMaxListeners = 10;
 
-// Add cleanup helper
-const cleanupEventEmitter = (emitter: EventEmitter) => {
-    emitter.removeAllListeners();
-};
-
 const graphQLFieldName = 'invokeReActAgent'
 
 export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (event, context) => {
@@ -43,17 +38,17 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
     const userId = event.arguments.userId || (event.identity && 'sub' in event.identity ? event.identity.sub : null);
     if (!userId) throw new Error("userId is required");
 
-    const origin = event.arguments.origin || (event.request?.headers?.origin || null);
-    if (!origin) throw new Error("origin is required");
-    console.log('origin:', origin);
+    // const origin = event.arguments.origin || (event.request?.headers?.origin || null);
+    // if (!origin) throw new Error("origin is required");
+    // console.log('origin:', origin);
     try {
         if (event.arguments.chatSessionId === null) throw new Error("chatSessionId is required");
 
         // Set the chat session ID for use by the S3 tools
         setChatSessionId(event.arguments.chatSessionId);
 
-        // Set the origin from the event arguments or request headers
-        setOrigin(origin);
+        // // Set the origin from the event arguments or request headers
+        // setOrigin(origin);
 
         // Define the S3 prefix for this chat session (needed for env vars)
         const bucketName = process.env.STORAGE_BUCKET_NAME;
@@ -113,39 +108,39 @@ pio.templates.default = "white_clean_log"
             tools: agentTools,
         });
 
-         // If the last message is an assistant message with a tool call, call the tool with the arguments
-         if (
-            chatSessionMessages.length > 0 && 
-            chatSessionMessages[chatSessionMessages.length - 1] instanceof AIMessage && 
-            (chatSessionMessages[chatSessionMessages.length - 1] as AIMessage).tool_calls
-        ) {
-            console.log('Chat messages end with a tool call but no tool response. Invoking tool...')
-            const toolCall = (chatSessionMessages[chatSessionMessages.length - 1] as AIMessage).tool_calls![0]
-            const toolName = toolCall.name
-            const toolArgs = toolCall.args
-            const selectedTool = agentTools.find(tool => tool.name === toolName)
-            if (selectedTool) {
-                try {
-                    const toolResult = await selectedTool.invoke(toolArgs as any)
-                    console.log('toolResult:\n', JSON.stringify(toolResult, null, 2))
-                    const toolMessage = new ToolMessage({
-                        content: JSON.stringify(toolResult),
-                        name: toolName,
-                        tool_call_id: toolCall.id!
-                    })
-                    chatSessionMessages.push(toolMessage)
-                    await publishMessage({
-                        chatSessionId: event.arguments.chatSessionId,
-                        fieldName: graphQLFieldName,
-                        owner: userId,
-                        message: toolMessage
-                    })
-                } catch (error) {
-                    console.error('Tool invocation error:', error)
-                    throw error
-                }
-            }
-        }
+        //  // If the last message is an assistant message with a tool call, call the tool with the arguments
+        //  if (
+        //     chatSessionMessages.length > 0 && 
+        //     chatSessionMessages[chatSessionMessages.length - 1] instanceof AIMessage && 
+        //     (chatSessionMessages[chatSessionMessages.length - 1] as AIMessage).tool_calls
+        // ) {
+        //     console.log('Chat messages end with a tool call but no tool response. Invoking tool...')
+        //     const toolCall = (chatSessionMessages[chatSessionMessages.length - 1] as AIMessage).tool_calls![0]
+        //     const toolName = toolCall.name
+        //     const toolArgs = toolCall.args
+        //     const selectedTool = agentTools.find(tool => tool.name === toolName)
+        //     if (selectedTool) {
+        //         try {
+        //             const toolResult = await selectedTool.invoke(toolArgs as any)
+        //             console.log('toolResult:\n', JSON.stringify(toolResult, null, 2))
+        //             const toolMessage = new ToolMessage({
+        //                 content: JSON.stringify(toolResult),
+        //                 name: toolName,
+        //                 tool_call_id: toolCall.id!
+        //             })
+        //             chatSessionMessages.push(toolMessage)
+        //             await publishMessage({
+        //                 chatSessionId: event.arguments.chatSessionId,
+        //                 fieldName: graphQLFieldName,
+        //                 owner: userId,
+        //                 message: toolMessage
+        //             })
+        //         } catch (error) {
+        //             console.error('Tool invocation error:', error)
+        //             throw error
+        //         }
+        //     }
+        // }
 
         
         let systemMessageContent = `

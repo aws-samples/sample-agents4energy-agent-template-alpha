@@ -5,7 +5,7 @@ import { S3Client, PutObjectCommand, ListObjectsV2Command, GetObjectCommand, Lis
 import { ChatBedrockConverse } from "@langchain/aws";
 import { getConfiguredAmplifyClient } from '../../../utils/amplifyUtils';
 import { publishResponseStreamChunk } from "../graphql/mutations";
-import { getChatSessionId, getChatSessionPrefix, getOrigin } from "./toolUtils";
+import { getChatSessionId, getChatSessionPrefix } from "./toolUtils";
 import { validate } from 'jsonschema';
 import { stringifyLimitStringLength } from "../../../utils/langChainUtils";
 import { BaseMessage, AIMessage, HumanMessage } from "@langchain/core/messages";
@@ -637,8 +637,8 @@ export const updateFile = tool(
 
 // Helper function to process document links
 async function processDocumentLinks(content: string, chatSessionId: string): Promise<string> {
-    // Get the origin from toolUtils
-    const origin = getOrigin() || '';
+    // // Get the origin from toolUtils
+    // const origin = getOrigin() || '';
 
     // Function to process a path and return the full URL
     const getFullUrl = (filePath: string) => {
@@ -647,13 +647,24 @@ async function processDocumentLinks(content: string, chatSessionId: string): Pro
             return filePath;
         }
 
+        //Sometimes the agent incorrectly responds with ../ before the file path.
+        // Remove all leading '../' sequences
+        while (filePath.startsWith('../')) {
+            filePath = filePath.slice(3);
+        }
+
         // Handle global files differently
         if (filePath.startsWith('global/')) {
-            return `${origin}/file/${filePath}`;
+            return `/file/${filePath}`;
+        }
+        
+        // If the path starts with preview, assume it's a formated link to the preview page as returned by the textToTable tool.
+        if (filePath.startsWith('/preview')){
+            return filePath
         }
 
         // Construct the full asset path for session-specific files
-        return `${origin}/file/chatSessionArtifacts/sessionId=${chatSessionId}/${filePath}`;
+        return `/file/chatSessionArtifacts/sessionId=${chatSessionId}/${filePath}`;
     };
 
     // Regular expression to match href="path/to/file" patterns
@@ -679,7 +690,7 @@ async function processDocumentLinks(content: string, chatSessionId: string): Pro
 // Tool to write a file to S3
 export const writeFile = tool(
     async ({ filename, content }) => {
-        console.log('writeFile tool called with filename:', filename, '. Origin: ', getOrigin());
+        console.log('writeFile tool called with filename:', filename);
         try {
             // Normalize the path to prevent path traversal attacks
             const targetPath = path.normalize(filename);
@@ -921,7 +932,7 @@ async function retryWithExponentialBackoff<T>(
 export const textToTableTool = tool(
     async (params: TextToTableParams) => {
         try {
-            const origin = getOrigin() || '';
+            // const origin = getOrigin() || '';
             // Reset progress timer at the start of each run
             progressUpdateStartTime = new Date();
 
@@ -1185,7 +1196,7 @@ export const textToTableTool = tool(
                             // Add file path if requested
                             if (params.includeFilePath !== false) {
                                 // structuredData['FilePath'] = filePath;
-                                structuredData['FilePath'] = `${origin}/preview/${fileKey}`
+                                structuredData['FilePath'] = `/preview/${fileKey}`
                             }
 
                             // Restore original column names
@@ -1205,7 +1216,7 @@ export const textToTableTool = tool(
                                 error: `Model structured output error: ${error instanceof Error ? error.message : String(error)}`
                             };
                             if (params.includeFilePath !== false) {
-                                errorRow['FilePath'] = `${origin}/preview/${fileKey}`;
+                                errorRow['FilePath'] = `/preview/${fileKey}`;
                             }
                             return errorRow;
                         }
@@ -1214,7 +1225,7 @@ export const textToTableTool = tool(
                         // Add error row
                         const errorRow: Record<string, any> = {};
                         if (params.includeFilePath !== false) {
-                            errorRow['FilePath'] = `${origin}/preview/${fileKey}`;
+                            errorRow['FilePath'] = `/preview/${fileKey}`;
                         }
                         errorRow['error'] = `Failed to process: ${error.message}`;
                         return errorRow;
