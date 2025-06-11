@@ -65,21 +65,29 @@ export default function FileViewer({
         
         // Pass content type back to parent
         onContentTypeChange?.(contentType);
-        
-        // If it's a text-based file or CSV/XML/HTML, display as text
-        if (contentType?.startsWith('text/') || 
-            contentType === 'application/octet-stream' ||
-            ['csv', 'xml', 'json', 'txt', 'md', 'html'].includes(s3KeyDecoded.split('.').pop()?.toLowerCase() || '')
-          ) {
-          const text = await fileResponse.text();
-          setFileContent(text);
-          // If content is not already set, set it for edit mode
-          if (!content) {
+
+        const text = await fileResponse.text()
+        setFileContent(text)
+
+        // If content is not already set, set it for edit mode
+        if (!content) {
             onContentChange?.(text);
           }
-        } else {
-          setFileContent(null);
-        }
+        
+        // // If it's a text-based file or CSV/XML/HTML, display as text
+        // if (contentType?.startsWith('text/') || 
+        //     contentType === 'application/octet-stream' ||
+        //     ['csv', 'xml', 'json', 'txt', 'md', 'html'].includes(s3KeyDecoded.split('.').pop()?.toLowerCase() || '')
+        //   ) {
+        //   const text = await fileResponse.text();
+        //   setFileContent(text);
+        //   // If content is not already set, set it for edit mode
+        //   if (!content) {
+        //     onContentChange?.(text);
+        //   }
+        // } else {
+        //   setFileContent(null);
+        // }
       } catch (error) {
         console.error('Error fetching file content:', error);
         setError('Failed to load file content. Please try again later.');
@@ -142,8 +150,10 @@ export default function FileViewer({
             <CircularProgress />
           </div>
         )}
+        
         <iframe
-          src={selectedFileUrl?.toString()}
+          srcDoc={fileContent || ""}
+          // src={selectedFileUrl?.toString()}
           className="w-full h-full"
           style={{
             border: 'none',
