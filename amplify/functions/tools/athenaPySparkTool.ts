@@ -22,6 +22,7 @@ os.makedirs('data', exist_ok=True)
 
 s3BucketName = '${process.env.STORAGE_BUCKET_NAME}'
 chatSessionS3Prefix = '${getChatSessionPrefix()}'
+globalS3Uri = 's3://${process.env.STORAGE_BUCKET_NAME}/global/'
 # sc.addPyFile('s3://${process.env.STORAGE_BUCKET_NAME}/pypi/pypi_libs.zip')
 
 def uploadDfToS3(df, file_path):
@@ -925,6 +926,17 @@ Example usage:
 - Create and manipulate Spark DataFrames
 - Run data transformations and aggregations
 - Generate visualizations from data
+
+Create a new database:
+\`\`\`python
+spark.sql("CREATE DATABASE IF NOT EXISTS <database name>")
+\`\`\`
+
+Query a data lake:
+\`\`\`python
+# Run sql statements like this
+tables = spark.sql("SHOW TABLES IN {database_name}").collect()
+\`\`\`
 
 Load and save data example:
 \`\`\`python
