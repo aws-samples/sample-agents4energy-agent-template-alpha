@@ -638,7 +638,7 @@ async function isSessionActive(athenaClient: AthenaClient, sessionId: string): P
 
 // Schema for the PySpark execution tool
 const pysparkToolSchema = z.object({
-    code: z.string().optional().describe("PySpark code to execute. If provided, this code will be saved to scriptPath before execution. The 'spark' session is already initialized."),
+    code: z.string().describe("PySpark code to execute. This code will be saved to scriptPath before execution. The 'spark' session is already initialized."),
     timeout: z.number().optional().default(300).describe("Timeout in seconds for the execution"),
     description: z.string().optional().describe("Optional description for the execution"),
     scriptPath: z.string().describe("Path for the script file. If code is provided, the script will be saved here. If code is not provided, an existing script at this path will be executed. Must start with 'scripts/'")
@@ -717,7 +717,7 @@ export const pysparkTool = (props: {additionalSetupScript?: string, additionalTo
                     Description: `Session for ${description} [ChatSessionID:${chatSessionId}]`,
                     ClientRequestToken: sessionToken,
                     EngineConfiguration: {
-                        MaxConcurrentDpus: 20,
+                        MaxConcurrentDpus: 50,
                         SparkProperties: {
                             "spark.sql.catalog.spark_catalog": "org.apache.iceberg.spark.SparkSessionCatalog",
                             "spark.sql.catalog.spark_catalog.catalog-impl": "org.apache.iceberg.aws.glue.GlueCatalog",
@@ -930,6 +930,16 @@ Example usage:
 Create a new database:
 \`\`\`python
 spark.sql("CREATE DATABASE IF NOT EXISTS <database name>")
+\`\`\`
+
+Save a table in the database:
+\`\`\`python
+(
+spark_df.write
+    .format("iceberg")
+    .mode("overwrite")
+    .saveAsTable(f"<database name>.<table name>")
+)
 \`\`\`
 
 Query a data lake:
