@@ -3,10 +3,18 @@ import { auth } from './auth/resource';
 import { data, reActAgentFunction } from './data/resource';
 import { storage } from './storage/resource';
 import cdk, {
+  aws_athena as athena,
   aws_iam as iam,
-  aws_athena as athena
+  aws_lambda as lambda,
+  aws_lambda_nodejs as lambdaNodeJs,
 } from 'aws-cdk-lib'
+
+import path from 'path';
+import { fileURLToPath } from 'url';
+
 import { PdfToYamlConstruct } from './custom/pdfToYamlConstruct';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const backend = defineBackend({
   auth,
@@ -124,9 +132,6 @@ athenaExecutionRole.addToPolicy(executeAthenaStatementsPolicy);
 
 backend.stack.tags.setTag('Project', 'workshop-a4e');
 
-backend.addOutput({ custom: { rootStackName: backend.stack.stackName } });
-backend.addOutput({ custom: { athenaWorkgroupName: athenaWorkgroup.name } });
-backend.addOutput({ custom: { reactAgentLambdaArn: backend.reActAgentFunction.resources.lambda.functionArn } });
 
 //Add permissions to the lambda functions to invoke the model
 [
@@ -181,3 +186,22 @@ backend.reActAgentFunction.addEnvironment(
 new PdfToYamlConstruct(backend.stack, 'PdfToYamlConstruct', {
   s3Bucket: backend.storage.resources.bucket
 });
+
+const awsMcpToolsFunction = new lambdaNodeJs.NodejsFunction(backend.stack, 'awsMcpToolsFunction', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      entry: path.join(__dirname, 'functions', 'mcpAwsTools', 'index.ts'),
+      timeout: cdk.Duration.minutes(15),
+      // memorySize: 3000,
+      environment: {
+          HELLO: "world"
+      },
+  });
+
+const awsMcpToolsFunctionUrl = awsMcpToolsFunction.addFunctionUrl({
+  authType: lambda.FunctionUrlAuthType.AWS_IAM
+})
+
+backend.addOutput({ custom: { rootStackName: backend.stack.stackName } });
+backend.addOutput({ custom: { athenaWorkgroupName: athenaWorkgroup.name } });
+backend.addOutput({ custom: { reactAgentLambdaArn: backend.reActAgentFunction.resources.lambda.functionArn } });
+backend.addOutput({ custom: { awsMcpToolsFunctionUrl: awsMcpToolsFunctionUrl.url } });
