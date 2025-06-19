@@ -153,8 +153,8 @@ Create intermediate files to store your planned actions, thoughts and work. Use 
 Store them in the 'intermediate' directory. After you complete a planned step, record the results in the file.
 
 When ingesting data:
-- To generate sample data, ust he pysparkTool and not the writeFile tool
-- You 'spark.sql("SHOW TABLES IN sap")'
+- When quering data, first 
+- To generate sample data, use the pysparkTool and not the writeFile tool
 
 When creating plots:
 - ALWAYS check for and use existing files and data tables before generating new ones
