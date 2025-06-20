@@ -199,6 +199,7 @@ const awsMcpToolsFunction = new lambdaNodeJs.NodejsFunction(backend.stack, 'awsM
 
 const awsMcpToolsFunctionUrl = awsMcpToolsFunction.addFunctionUrl({
   authType: lambda.FunctionUrlAuthType.AWS_IAM
+  // authType: lambda.FunctionUrlAuthType.NONE
 })
 
 backend.addOutput({ custom: { rootStackName: backend.stack.stackName } });

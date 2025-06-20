@@ -59,5 +59,5 @@ export const handler = middy(async (
     };
 })
     .use(logMiddleware())
-    // .use(mcpMiddleware({ server }))
+    .use(mcpMiddleware({ server }))
     .use(httpErrorHandler());

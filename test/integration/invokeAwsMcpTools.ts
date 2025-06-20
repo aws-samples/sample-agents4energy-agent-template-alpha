@@ -34,20 +34,31 @@ const main = async () => {
     //     })
     // };
 
+    // Define the body as a separate variable for clarity
+    // const bodyData = JSON.stringify({
+    //     message: "Hello from the test event!"
+    // });
+
+    const bodyData = JSON.stringify({
+            jsonrpc: "2.0",
+            method: "tools/list",
+            id: 1
+        })
+
     const opts: aws4.Request = {
         host: url.hostname,
         path: url.pathname,
-        method: 'POST', // or 'POST' if needed
+        method: 'POST',
         service: 'lambda',
         region,
         headers: {
             'content-type': 'application/json',
             'accept': 'application/json',
+            'content-length': Buffer.byteLength(bodyData),
             'jsonrpc': '2.0'
         },
-        body: JSON.stringify({
-            message: "Hello from the test event!"
-        })
+        body: bodyData
+        // Other body options for reference:
         // "body": "{ \"message\": \"Hello, world!\" }",
         // body: "Hello from the test event!"
         // body: JSON.stringify({
@@ -74,24 +85,36 @@ const main = async () => {
         sessionToken: process.env.AWS_SESSION_TOKEN
     });
 
-    console.log('request: ', opts)
+    // console.log('request: ', opts)
 
     // Make the HTTPS request
     const req = https.request(opts, (res) => {
         let data = '';
+        
+        console.log(`Response status: ${res.statusCode}`);
+        console.log('Response headers:', res.headers);
+        
         res.on('data', (chunk) => {
             data += chunk;
         });
+        
         res.on('end', () => {
-            console.log(data);
+            console.log('Response data:', data);
         });
     });
 
-    req.on('error', (err) => {
-        console.error(err);
+    // Add timeout to prevent hanging indefinitely
+    req.setTimeout(10000, () => {
+        console.error('Request timed out after 10 seconds');
+        req.destroy();
     });
 
-    req.end();
+    req.on('error', (err) => {
+        console.error('Request error:', err);
+    });
+
+    // Pass the body to req.end() when sending a request with a body
+    req.end(bodyData);
 
 }
 
