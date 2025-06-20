@@ -1,12 +1,13 @@
 import { stringify } from "yaml";
 
-import aws4 from  'aws4';
+import aws4 from 'aws4';
 
 import { getConfiguredAmplifyClient } from '../../../utils/amplifyUtils';
 
 import { ChatBedrockConverse } from "@langchain/aws";
 import { HumanMessage, ToolMessage, BaseMessage, SystemMessage, AIMessageChunk, AIMessage } from "@langchain/core/messages";
 import { Calculator } from "@langchain/community/tools/calculator";
+import { Tool, StructuredToolInterface, ToolSchemaBase } from "@langchain/core/tools";
 
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { MultiServerMCPClient } from "@langchain/mcp-adapters";
@@ -27,6 +28,8 @@ import { Schema } from '../../data/resource';
 import { getLangChainChatMessagesStartingWithHumanMessage, getLangChainMessageTextContent, publishMessage, stringifyLimitStringLength } from '../../../utils/langChainUtils';
 import { EventEmitter } from "events";
 
+let mcpTools: StructuredToolInterface<ToolSchemaBase, any, any>[]
+
 // Increase the default max listeners to prevent warnings
 EventEmitter.defaultMaxListeners = 10;
 
@@ -35,25 +38,25 @@ const graphQLFieldName = 'invokeReActAgent'
 // Create a function to generate signed headers of AWS credentials when calling the MCP server
 function getSignedHeaders(url: string) {
     const parsedUrl = new URL(url);
-    
+
     const opts = {
         host: parsedUrl.hostname,
         path: parsedUrl.pathname,
         method: 'POST',
         service: 'lambda',
-        region: process.env.AWS_REGION || 'us-east-1',
+        region: process.env.AWS_REGION!,
         headers: {
-            'Content-Type': 'application/json'
+            'content-type': 'application/json',
         }
     };
-    
+
     // Sign the request
     aws4.sign(opts, {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
         sessionToken: process.env.AWS_SESSION_TOKEN
     });
-    
+
     return opts.headers;
 }
 
@@ -66,9 +69,6 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
     const userId = event.arguments.userId || (event.identity && 'sub' in event.identity ? event.identity.sub : null);
     if (!userId) throw new Error("userId is required");
 
-    // const origin = event.arguments.origin || (event.request?.headers?.origin || null);
-    // if (!origin) throw new Error("origin is required");
-    // console.log('origin:', origin);
     try {
         if (event.arguments.chatSessionId === null) throw new Error("chatSessionId is required");
 
@@ -90,50 +90,61 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
             // temperature: 0
         });
 
-        const mcpClient = new MultiServerMCPClient({
-            mcpServers: {
-                math: {
-                    url: process.env.A4E_MCP_SERVER_URL!,
-                    headers: {
-                        ...getSignedHeaders(process.env.A4E_MCP_SERVER_URL!)
+        console.log('Signed headers: ', getSignedHeaders(process.env.A4E_MCP_SERVER_URL!))
+
+        if (!mcpTools) {
+            const mcpClient = new MultiServerMCPClient({
+                useStandardContentBlocks: true,
+                mcpServers: {
+                    math: {
+                        url: process.env.A4E_MCP_SERVER_URL!,
+                        headers: {
+                            ...getSignedHeaders(process.env.A4E_MCP_SERVER_URL!),
+                            'accept': 'application/json',
+                            'jsonrpc': '2.0'
+                        }
                     }
                 }
-            }
-        })
+            })
+
+            mcpTools = await mcpClient.getTools()
+        }
+
+        console.log('Mcp Tools: ', mcpTools)
 
         const agentTools = [
-            ...(await mcpClient.getTools()),
-            new Calculator(),
-//             ...s3FileManagementTools,
-//             userInputTool,
-//             createProjectToolBuilder({
-//                 sourceChatSessionId: event.arguments.chatSessionId,
-//                 foundationModelId: foundationModelId
-//             }),
-//             pysparkTool({
-//                 additionalSetupScript: `
-// import plotly.io as pio
-// import plotly.graph_objects as go
+            ...mcpTools,
+            // new Calculator(),
+            //             ...s3FileManagementTools,
+            //             userInputTool,
+            //             createProjectToolBuilder({
+            //                 sourceChatSessionId: event.arguments.chatSessionId,
+            //                 foundationModelId: foundationModelId
+            //             }),
+            //             pysparkTool({
+            //                 additionalSetupScript: `
+            // import plotly.io as pio
+            // import plotly.graph_objects as go
 
-// # Create a custom layout
-// custom_layout = go.Layout(
-//     paper_bgcolor='white',
-//     plot_bgcolor='white',
-//     xaxis=dict(showgrid=False),
-//     yaxis=dict(
-//         showgrid=True,
-//         gridcolor='lightgray',
-//         type='log'  # <-- Set y-axis to logarithmic
-//     )
-// )
+            // # Create a custom layout
+            // custom_layout = go.Layout(
+            //     paper_bgcolor='white',
+            //     plot_bgcolor='white',
+            //     xaxis=dict(showgrid=False),
+            //     yaxis=dict(
+            //         showgrid=True,
+            //         gridcolor='lightgray',
+            //         type='log'  # <-- Set y-axis to logarithmic
+            //     )
+            // )
 
-// # Create and register the template
-// custom_template = go.layout.Template(layout=custom_layout)
-// pio.templates["white_clean_log"] = custom_template
-// pio.templates.default = "white_clean_log"
-//                 `,
-//             }),
-//             renderAssetTool
+            // # Create and register the template
+            // custom_template = go.layout.Template(layout=custom_layout)
+            // pio.templates["white_clean_log"] = custom_template
+            // pio.templates.default = "white_clean_log"
+            //                 `,
+            //             }),
+            //             renderAssetTool
         ]
 
         const agent = createReactAgent({
@@ -283,7 +294,28 @@ When using the textToTableTool:
                                     const toolCallArgs = toolCallMessage.tool_calls?.[0].args
                                     const toolName = streamChunk.lc_kwargs.name
                                     const selectedToolSchema = agentTools.find(tool => tool.name === toolName)?.schema
-                                    const zodError = selectedToolSchema?.safeParse(toolCallArgs)
+
+
+                                    // Check if the schema is a Zod schema with safeParse method
+                                    const isZodSchema = (schema: any): schema is { safeParse: Function } => {
+                                        return schema && typeof schema.safeParse === 'function';
+                                    }
+
+                                    //TODO: If the schema is a json schema, convert it to ZOD and do the same error checking: import { jsonSchemaToZod } from "json-schema-to-zod";
+                                    let zodError;
+                                    if (selectedToolSchema && isZodSchema(selectedToolSchema)) {
+                                        zodError = selectedToolSchema.safeParse(toolCallArgs);
+                                        console.log({ toolCallMessage, toolCallArgs, toolName, selectedToolSchema, zodError, formattedZodError: zodError?.error?.format() });
+
+                                        if (zodError?.error) {
+                                            streamChunk.content += '\n\n' + stringify(zodError.error.format());
+                                        }
+                                    } else {
+                                        selectedToolSchema
+                                        console.log({ toolCallMessage, toolCallArgs, toolName, selectedToolSchema, message: "Schema is not a Zod schema with safeParse method" });
+                                    }
+
+                                    // const zodError = selectedToolSchema?.safeParse(toolCallArgs)
                                     console.log({ toolCallMessage, toolCallArgs, toolName, selectedToolSchema, zodError, formattedZodError: zodError?.error?.format() })
 
                                     streamChunk.content += '\n\n' + stringify(zodError?.error?.format())
