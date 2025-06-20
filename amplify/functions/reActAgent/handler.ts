@@ -1,12 +1,15 @@
 import { stringify } from "yaml";
 
+import aws4 from  'aws4';
+
 import { getConfiguredAmplifyClient } from '../../../utils/amplifyUtils';
 
 import { ChatBedrockConverse } from "@langchain/aws";
 import { HumanMessage, ToolMessage, BaseMessage, SystemMessage, AIMessageChunk, AIMessage } from "@langchain/core/messages";
-import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { Calculator } from "@langchain/community/tools/calculator";
-import { DuckDuckGoSearch } from "@langchain/community/tools/duckduckgo_search";
+
+import { createReactAgent } from "@langchain/langgraph/prebuilt";
+import { MultiServerMCPClient } from "@langchain/mcp-adapters";
 
 import { publishResponseStreamChunk } from "../graphql/mutations";
 
@@ -29,6 +32,31 @@ EventEmitter.defaultMaxListeners = 10;
 
 const graphQLFieldName = 'invokeReActAgent'
 
+// Create a function to generate signed headers of AWS credentials when calling the MCP server
+function getSignedHeaders(url: string) {
+    const parsedUrl = new URL(url);
+    
+    const opts = {
+        host: parsedUrl.hostname,
+        path: parsedUrl.pathname,
+        method: 'POST',
+        service: 'lambda',
+        region: process.env.AWS_REGION || 'us-east-1',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    };
+    
+    // Sign the request
+    aws4.sign(opts, {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+        sessionToken: process.env.AWS_SESSION_TOKEN
+    });
+    
+    return opts.headers;
+}
+
 export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (event, context) => {
     console.log('event:\n', JSON.stringify(event, null, 2))
 
@@ -47,9 +75,6 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
         // Set the chat session ID for use by the S3 tools
         setChatSessionId(event.arguments.chatSessionId);
 
-        // // Set the origin from the event arguments or request headers
-        // setOrigin(origin);
-
         // Define the S3 prefix for this chat session (needed for env vars)
         const bucketName = process.env.STORAGE_BUCKET_NAME;
         if (!bucketName) throw new Error("STORAGE_BUCKET_NAME is not set");
@@ -60,47 +85,55 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
         // by ensuring no message content is empty when sent to Bedrock
         const chatSessionMessages = await getLangChainChatMessagesStartingWithHumanMessage(event.arguments.chatSessionId)
 
-       
-
         const agentModel = new ChatBedrockConverse({
             model: process.env.AGENT_MODEL_ID,
             // temperature: 0
         });
 
+        const mcpClient = new MultiServerMCPClient({
+            mcpServers: {
+                math: {
+                    url: process.env.A4E_MCP_SERVER_URL!,
+                    headers: {
+                        ...getSignedHeaders(process.env.A4E_MCP_SERVER_URL!)
+                    }
+                }
+            }
+        })
+
         const agentTools = [
-            // permeabilityCalculator,
+            ...(await mcpClient.getTools()),
             new Calculator(),
-            // new DuckDuckGoSearch({maxResults: 3}),
-            // webBrowserTool,
-            userInputTool,
-            createProjectToolBuilder({
-                sourceChatSessionId: event.arguments.chatSessionId,
-                foundationModelId: foundationModelId
-            }),
-            pysparkTool({
-                additionalSetupScript:`
-import plotly.io as pio
-import plotly.graph_objects as go
+//             ...s3FileManagementTools,
+//             userInputTool,
+//             createProjectToolBuilder({
+//                 sourceChatSessionId: event.arguments.chatSessionId,
+//                 foundationModelId: foundationModelId
+//             }),
+//             pysparkTool({
+//                 additionalSetupScript: `
+// import plotly.io as pio
+// import plotly.graph_objects as go
 
-# Create a custom layout
-custom_layout = go.Layout(
-    paper_bgcolor='white',
-    plot_bgcolor='white',
-    xaxis=dict(showgrid=False),
-    yaxis=dict(
-        showgrid=True,
-        gridcolor='lightgray',
-        type='log'  # <-- Set y-axis to logarithmic
-    )
-)
+// # Create a custom layout
+// custom_layout = go.Layout(
+//     paper_bgcolor='white',
+//     plot_bgcolor='white',
+//     xaxis=dict(showgrid=False),
+//     yaxis=dict(
+//         showgrid=True,
+//         gridcolor='lightgray',
+//         type='log'  # <-- Set y-axis to logarithmic
+//     )
+// )
 
-# Create and register the template
-custom_template = go.layout.Template(layout=custom_layout)
-pio.templates["white_clean_log"] = custom_template
-pio.templates.default = "white_clean_log"
-                `,}),
-            ...s3FileManagementTools,
-            renderAssetTool
+// # Create and register the template
+// custom_template = go.layout.Template(layout=custom_layout)
+// pio.templates["white_clean_log"] = custom_template
+// pio.templates.default = "white_clean_log"
+//                 `,
+//             }),
+//             renderAssetTool
         ]
 
         const agent = createReactAgent({
@@ -142,7 +175,7 @@ pio.templates.default = "white_clean_log"
         //     }
         // }
 
-        
+
         let systemMessageContent = `
 You are a helpful llm agent showing a demo workflow. 
 Use markdown formatting for your responses (like **bold**, *italic*, ## headings, etc.), but DO NOT wrap your response in markdown code blocks.
@@ -211,7 +244,7 @@ When using the textToTableTool:
             input,
             {
                 version: "v2",
-                recursionLimit: 100 
+                recursionLimit: 100
             }
         );
 
@@ -251,8 +284,8 @@ When using the textToTableTool:
                                     const toolName = streamChunk.lc_kwargs.name
                                     const selectedToolSchema = agentTools.find(tool => tool.name === toolName)?.schema
                                     const zodError = selectedToolSchema?.safeParse(toolCallArgs)
-                                    console.log({toolCallMessage, toolCallArgs, toolName, selectedToolSchema, zodError, formattedZodError: zodError?.error?.format()})
-                                    
+                                    console.log({ toolCallMessage, toolCallArgs, toolName, selectedToolSchema, zodError, formattedZodError: zodError?.error?.format() })
+
                                     streamChunk.content += '\n\n' + stringify(zodError?.error?.format())
                                 }
 
@@ -308,7 +341,7 @@ When using the textToTableTool:
 
         //If the agent is invoked by another agent, create a tool response message with it's output
         if (event.arguments.respondToAgent) {
-            
+
             const toolResponseMessage = new ToolMessage({
                 content: "This is a tool response message",
                 tool_call_id: "123",
@@ -321,7 +354,7 @@ When using the textToTableTool:
         const amplifyClient = getConfiguredAmplifyClient();
 
         console.warn("Error responding to user:", JSON.stringify(error, null, 2));
-        
+
         // Send the complete error message to the client
         const errorMessage = error instanceof Error ? error.stack || error.message : String(error);
 

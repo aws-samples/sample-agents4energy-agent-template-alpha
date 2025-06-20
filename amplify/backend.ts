@@ -132,10 +132,25 @@ athenaExecutionRole.addToPolicy(executeAthenaStatementsPolicy);
 
 backend.stack.tags.setTag('Project', 'workshop-a4e');
 
+const awsMcpToolsFunction = new lambdaNodeJs.NodejsFunction(backend.stack, 'awsMcpToolsFunction', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      entry: path.join(__dirname, 'functions', 'mcpAwsTools', 'index.ts'),
+      timeout: cdk.Duration.minutes(15),
+      // memorySize: 3000,
+      environment: {
+          HELLO: "world"
+      },
+  });
+
+const awsMcpToolsFunctionUrl = awsMcpToolsFunction.addFunctionUrl({
+  authType: lambda.FunctionUrlAuthType.AWS_IAM
+  // authType: lambda.FunctionUrlAuthType.NONE
+});
 
 //Add permissions to the lambda functions to invoke the model
 [
   backend.reActAgentFunction.resources.lambda,
+  awsMcpToolsFunction
 ].forEach((resource) => {
   resource.addToRolePolicy(
     new iam.PolicyStatement({
@@ -183,24 +198,14 @@ backend.reActAgentFunction.addEnvironment(
   athenaWorkgroup.name
 );
 
+backend.reActAgentFunction.addEnvironment(
+  'A4E_MCP_SERVER_URL',
+  awsMcpToolsFunctionUrl.url
+);
+
 new PdfToYamlConstruct(backend.stack, 'PdfToYamlConstruct', {
   s3Bucket: backend.storage.resources.bucket
 });
-
-const awsMcpToolsFunction = new lambdaNodeJs.NodejsFunction(backend.stack, 'awsMcpToolsFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      entry: path.join(__dirname, 'functions', 'mcpAwsTools', 'index.ts'),
-      timeout: cdk.Duration.minutes(15),
-      // memorySize: 3000,
-      environment: {
-          HELLO: "world"
-      },
-  });
-
-const awsMcpToolsFunctionUrl = awsMcpToolsFunction.addFunctionUrl({
-  authType: lambda.FunctionUrlAuthType.AWS_IAM
-  // authType: lambda.FunctionUrlAuthType.NONE
-})
 
 backend.addOutput({ custom: { rootStackName: backend.stack.stackName } });
 backend.addOutput({ custom: { athenaWorkgroupName: athenaWorkgroup.name } });

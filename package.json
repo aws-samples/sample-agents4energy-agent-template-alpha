@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "test": "mocha --require tsx test/**/*.ts",
+    "test:specific": "mocha --require tsx",
     "test:unit": "mocha --require tsx"
   },
   "dependencies": {
@@ -21,6 +22,7 @@
     "@langchain/aws": "^0.1.7",
     "@langchain/community": "^0.3.28",
     "@langchain/langgraph": "^0.2.44",
+    "@langchain/mcp-adapters": "^0.5.2",
     "@mui/icons-material": "^6.4.2",
     "@mui/material": "^6.3.1",
     "@mui/material-nextjs": "^6.3.1",
@@ -70,10 +72,10 @@
     "eslint": "^8.56.0",
     "eslint-config-next": "^14.2.26",
     "esm-hook": "^0.1.4",
-    "middy-mcp": "^0.0.1",
     "itypescript": "^0.4.0",
     "jsdom": "^26.1.0",
     "jsonschema": "^1.5.0",
+    "middy-mcp": "^0.0.1",
     "mocha": "^11.1.0",
     "pdf-lib": "^1.17.1",
     "postcss": "^8",
