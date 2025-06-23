@@ -34,7 +34,7 @@ export async function getDeployedResourceArn(
           if (resource && resource.LogicalResourceId && 
             (
               resource.LogicalResourceId.slice(0,-8) === targetLogicalIdPrefix ||
-              resource.LogicalResourceId === targetLogicalIdPrefix
+              resource.LogicalResourceId === targetLogicalIdPrefix 
             )
           ) {
             return resource.PhysicalResourceId;

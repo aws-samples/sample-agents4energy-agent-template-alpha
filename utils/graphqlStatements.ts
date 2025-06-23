@@ -124,14 +124,14 @@ export const invokeReActAgent = /* GraphQL */ `query InvokeReActAgent(
   $foundationModelId: String
   $respondToAgent: Boolean
   $userId: String
-  $origin: String
+  # $origin: String
 ) {
   invokeReActAgent(
     chatSessionId: $chatSessionId
     foundationModelId: $foundationModelId
     respondToAgent: $respondToAgent
     userId: $userId
-    origin: $origin
+    # origin: $origin
   ) {
     __typename
   }

@@ -113,8 +113,8 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
         console.log('Mcp Tools: ', mcpTools)
 
         const agentTools = [
-            ...mcpTools,
-            // new Calculator(),
+            // ...mcpTools,
+            new Calculator(),
             //             ...s3FileManagementTools,
             //             userInputTool,
             //             createProjectToolBuilder({
