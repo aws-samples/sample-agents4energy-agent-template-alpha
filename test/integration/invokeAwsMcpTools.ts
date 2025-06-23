@@ -76,9 +76,11 @@ describe('AWS MCP Tools Integration Tests', function () {
 
       res.on('end', () => {
         try {
+          // console.log('List Tools response: ', data)
+
           const response = JSON.parse(data);
 
-          // console.log('List Tools response: ', data)
+          console.log('List Tools response: ', JSON.stringify(response, null, 2))
 
           // Verify response structure
           expect(response).to.have.property('jsonrpc', '2.0');
@@ -164,7 +166,7 @@ describe('AWS MCP Tools Integration Tests', function () {
 
       res.on('end', () => {
         try {
-          // console.log('Add numbers response: ', data)
+          console.log('Add numbers response: ', data)
 
           const response = JSON.parse(data);
 

@@ -1,6 +1,7 @@
 import { stringify } from "yaml";
 
 import aws4 from 'aws4';
+import { APIGatewayClient, GetApiKeyCommand } from "@aws-sdk/client-api-gateway";
 
 import { getConfiguredAmplifyClient } from '../../../utils/amplifyUtils';
 
@@ -18,7 +19,6 @@ import { setChatSessionId } from "../tools/toolUtils";
 import { s3FileManagementTools } from "../tools/s3ToolBox";
 import { userInputTool } from "../tools/userInputTool";
 import { pysparkTool } from "../tools/athenaPySparkTool";
-// import { webBrowserTool } from "../tools/webBrowserTool";
 import { renderAssetTool } from "../tools/renderAssetTool";
 import { createProjectToolBuilder } from "../tools/createProjectTool";
 // import { permeabilityCalculator } from "../tools/customWorkshopTool";
@@ -34,31 +34,6 @@ let mcpTools: StructuredToolInterface<ToolSchemaBase, any, any>[]
 EventEmitter.defaultMaxListeners = 10;
 
 const graphQLFieldName = 'invokeReActAgent'
-
-// Create a function to generate signed headers of AWS credentials when calling the MCP server
-function getSignedHeaders(url: string) {
-    const parsedUrl = new URL(url);
-
-    const opts = {
-        host: parsedUrl.hostname,
-        path: parsedUrl.pathname,
-        method: 'POST',
-        service: 'lambda',
-        region: process.env.AWS_REGION!,
-        headers: {
-            'content-type': 'application/json',
-        }
-    };
-
-    // Sign the request
-    aws4.sign(opts, {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-        sessionToken: process.env.AWS_SESSION_TOKEN
-    });
-
-    return opts.headers;
-}
 
 export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (event, context) => {
     console.log('event:\n', JSON.stringify(event, null, 2))
@@ -90,20 +65,54 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
             // temperature: 0
         });
 
-        console.log('Signed headers: ', getSignedHeaders(process.env.A4E_MCP_SERVER_URL!))
+        // console.log('Signed headers: ', getSignedHeaders(process.env.A4E_MCP_SERVER_URL!))
 
         if (!mcpTools) {
+            // process.env.MCP_REST_API_KEY_ARN contains the api key's ARN
+            const mcpServerApiKey = await (async () => {
+                // Extract the API key ID from the ARN
+                const apiKeyArn = process.env.MCP_REST_API_KEY_ARN;
+                if (!apiKeyArn) throw new Error("MCP_REST_API_KEY_ARN is not set");
+                
+                // ARN format: arn:aws:apigateway:region::/apikeys/key-id
+                const apiKeyId = apiKeyArn.split('/').pop();
+                
+                // Create API Gateway client
+                const apiGatewayClient = new APIGatewayClient();
+                
+                // Get the API key
+                const command = new GetApiKeyCommand({
+                    apiKey: apiKeyId,
+                    includeValue: true // This is important to get the actual key value
+                });
+                
+                const response = await apiGatewayClient.send(command);
+                if (!response.value) throw new Error("Failed to retrieve API key value");
+
+                // console.log('API Key: ', response.value)
+
+                return response.value; // This is the actual API key value
+            })();
+            
             const mcpClient = new MultiServerMCPClient({
                 useStandardContentBlocks: true,
                 mcpServers: {
                     math: {
-                        url: process.env.A4E_MCP_SERVER_URL!,
+                        url: process.env.MCP_REST_API_URL!,
                         headers: {
-                            ...getSignedHeaders(process.env.A4E_MCP_SERVER_URL!),
+                            'X-API-Key': mcpServerApiKey,
                             'accept': 'application/json',
                             'jsonrpc': '2.0'
                         }
                     }
+                    // math: {
+                    //     url: process.env.A4E_MCP_SERVER_URL!,
+                    //     headers: {
+                    //         // ...getSignedHeaders(process.env.A4E_MCP_SERVER_URL!),
+                    //         'accept': 'application/json',
+                    //         'jsonrpc': '2.0'
+                    //     }
+                    // }
                 }
             })
 
@@ -113,8 +122,8 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
         console.log('Mcp Tools: ', mcpTools)
 
         const agentTools = [
-            // ...mcpTools,
-            new Calculator(),
+            ...mcpTools,
+            // new Calculator(),
             //             ...s3FileManagementTools,
             //             userInputTool,
             //             createProjectToolBuilder({

@@ -12,10 +12,30 @@ const server = new McpServer({
     version: "1.0.0",
 });
 
-// Add an addition tool
-server.tool("add", { a: z.number(), b: z.number() }, async ({ a, b }) => ({
+server.registerTool("add", {
+    title: "add",              // This title takes precedence
+    description: "Adds two numbers together",
+    inputSchema: { a: z.number(), b: z.number() }
+}, async ({ a, b }) => ({
     content: [{ type: "text", text: String(a + b) }],
 }));
+
+// server.tool(
+//   "add", 
+//   { 
+//     description: "Adds two numbers together and returns the sum",
+//     parameters: { a: z.number(), b: z.number() }
+//   }, 
+//   async ({ a, b }) => ({
+//     content: [{ type: "text", text: String(a + b) }],
+//   })
+// );
+
+
+// // Add an addition tool
+// server.tool("add", { a: z.number(), b: z.number() }, async ({ a, b }) => ({
+//     content: [{ type: "text", text: String(a + b) }],
+// }));
 
 // // Add logging middleware
 // const logMiddleware = () => {

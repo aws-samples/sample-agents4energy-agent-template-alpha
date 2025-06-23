@@ -3,6 +3,7 @@ import { auth } from './auth/resource';
 import { data, reActAgentFunction } from './data/resource';
 import { storage } from './storage/resource';
 import cdk, {
+  aws_apigateway as apigateway,
   aws_athena as athena,
   aws_iam as iam,
   aws_lambda as lambda,
@@ -13,6 +14,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import { PdfToYamlConstruct } from './custom/pdfToYamlConstruct';
+import { McpServerConstruct } from './custom/mcpServer';
+import mcp from 'middy-mcp';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -22,6 +25,8 @@ const backend = defineBackend({
   storage,
   reActAgentFunction
 });
+
+backend.stack.tags.setTag('Project', 'workshop-a4e');
 
 const stackUUID = cdk.Names.uniqueResourceName(
   backend.stack, {}
@@ -126,26 +131,25 @@ const executeAthenaStatementsPolicy = new iam.PolicyStatement({
       `arn:aws:athena:${backend.stack.region}:${backend.stack.account}:workgroup/${athenaWorkgroup.name}`,
     ],
   })
-
+const { 
+  lambdaFunction: awsMcpToolsFunction,
+  api: mcpRestApi,
+  apiKey: apiKey,
+  mcpResource: mcpResource
+} = new McpServerConstruct(backend.stack, "McpServer", {})
 // This enables the Athena notebook console environment to use this service role
 athenaExecutionRole.addToPolicy(executeAthenaStatementsPolicy);
 
-backend.stack.tags.setTag('Project', 'workshop-a4e');
+// new McpServerConstruct(backend.stack, "McpServer", {})
 
-const awsMcpToolsFunction = new lambdaNodeJs.NodejsFunction(backend.stack, 'awsMcpToolsFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      entry: path.join(__dirname, 'functions', 'mcpAwsTools', 'index.ts'),
-      timeout: cdk.Duration.minutes(15),
-      // memorySize: 3000,
-      environment: {
-          HELLO: "world"
-      },
-  });
+// new PdfToYamlConstruct(backend.stack, 'PdfToYamlConstruct', {
+//   s3Bucket: backend.storage.resources.bucket
+// });
 
-const awsMcpToolsFunctionUrl = awsMcpToolsFunction.addFunctionUrl({
-  authType: lambda.FunctionUrlAuthType.AWS_IAM
-  // authType: lambda.FunctionUrlAuthType.NONE
-});
+// const { lambdaFunction: awsMcpToolsFunction } = new McpServerConstruct(backend.stack, "McpServer", {
+
+// })
+
 
 //Add permissions to the lambda functions to invoke the model
 [
@@ -188,6 +192,18 @@ backend.reActAgentFunction.resources.lambda.addToRolePolicy(
   })
 );
 
+//Allow the reActAgentFunction to retrieve the API key used to invoke the MCP server
+backend.reActAgentFunction.resources.lambda.addToRolePolicy(
+  new iam.PolicyStatement({
+    actions: [
+      "apigateway:GET"
+    ],
+    resources: [
+      apiKey.keyArn,
+    ],
+  })
+);
+
 backend.reActAgentFunction.addEnvironment(
   'STORAGE_BUCKET_NAME',
   backend.storage.resources.bucket.bucketName
@@ -198,16 +214,33 @@ backend.reActAgentFunction.addEnvironment(
   athenaWorkgroup.name
 );
 
+// backend.reActAgentFunction.addEnvironment(
+//   'A4E_MCP_SERVER_URL',
+//   awsMcpToolsFunctionUrl.url
+// );
+
 backend.reActAgentFunction.addEnvironment(
-  'A4E_MCP_SERVER_URL',
-  awsMcpToolsFunctionUrl.url
+  'MCP_REST_API_URL',
+  mcpRestApi.urlForPath(mcpResource.path)
+);
+
+backend.reActAgentFunction.addEnvironment(
+  'MCP_REST_API_KEY_ARN',
+  apiKey.keyArn
 );
 
 new PdfToYamlConstruct(backend.stack, 'PdfToYamlConstruct', {
   s3Bucket: backend.storage.resources.bucket
 });
 
-backend.addOutput({ custom: { rootStackName: backend.stack.stackName } });
-backend.addOutput({ custom: { athenaWorkgroupName: athenaWorkgroup.name } });
-backend.addOutput({ custom: { reactAgentLambdaArn: backend.reActAgentFunction.resources.lambda.functionArn } });
-backend.addOutput({ custom: { awsMcpToolsFunctionUrl: awsMcpToolsFunctionUrl.url } });
+backend.addOutput({ custom: { 
+  rootStackName: backend.stack.stackName,  
+  athenaWorkgroupName: athenaWorkgroup.name,
+  reactAgentLambdaArn: backend.reActAgentFunction.resources.lambda.functionArn,
+  mcpRestApiUrl: mcpRestApi.urlForPath(mcpResource.path),
+  // mcpApiPath: mcpResource.path,
+  apiKeyArn: apiKey.keyArn
+} });
+// backend.addOutput({ custom: { athenaWorkgroupName: athenaWorkgroup.name } });
+// backend.addOutput({ custom: { reactAgentLambdaArn: backend.reActAgentFunction.resources.lambda.functionArn } });
+// backend.addOutput({ custom: { awsMcpToolsFunctionUrl: awsMcpToolsFunctionUrl.url } });
