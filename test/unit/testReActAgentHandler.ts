@@ -1,16 +1,10 @@
-import { createChatMessage, createChatSession } from "../../amplify/functions/graphql/mutations";
-import { invokeReActAgent, listChatMessageByChatSessionIdAndCreatedAt } from "../../utils/graphqlStatements";
-
 import { getConfiguredAmplifyClient, setAmplifyEnvVars } from "../../utils/amplifyUtils";
-import * as APITypes from "../../amplify/functions/graphql/API";
-
 
 import { loadOutputs } from '../utils';
 import { getDeployedResourceArn, getLambdaEnvironmentVariables } from "../../utils/testUtils";
 
-const prompt = `
-Use the calculator tool to add 5532432 and 523223.
-`
+import { handler } from '../../amplify/functions/reActAgent/handler';
+
 
 const main = async () => {
     await setAmplifyEnvVars();
@@ -18,85 +12,67 @@ const main = async () => {
     const outputs = loadOutputs()
     const rootStackName = outputs.custom.rootStackName
     await getLambdaEnvironmentVariables(await getDeployedResourceArn(rootStackName, 'reActAgentlambda'))
+    process.env.AMPLIFY_DATA_GRAPHQL_ENDPOINT = outputs.data.url
 
-    // Create a new chat session
-    console.log('Creating new chat session');
-    const { data: newChatSession, errors: newChatSessionErrors } = await amplifyClient.graphql({
-        query: createChatSession,
-        variables: {
-            input: {
-                name: `Test Chat Session`
-            }
-        }
-    });
-
-    if (newChatSessionErrors) {
-        console.error(newChatSessionErrors);
-        // process.exit(1);
-    }
-
-    console.log('Chat session id: ', newChatSession.createChatSession.id)
-
-    const { errors: newChatMessageErrors } = await amplifyClient.graphql({
-        query: createChatMessage,
-        variables: {
-            input: {
-                chatSessionId: newChatSession.createChatSession.id,
-                content: {
-                    text: prompt
-                },
-                role: APITypes.ChatMessageRole.human
-            }
-        }
-    });
-
-    if (newChatMessageErrors) {
-        console.error(newChatMessageErrors);
-        // process.exit(1);
-    }
-
-    console.log('Human chat message created')
-
-    const invokeReActAgentResponse = await amplifyClient.graphql({
-        query: invokeReActAgent,
-        variables: {
-            chatSessionId: newChatSession.createChatSession.id,
-            userId: 'test-user'
+    // Create a dummy event for the handler
+    const dummyEvent = {
+        arguments: {
+            chatSessionId: "test-session-123",  // Required - must be a non-null string
+            foundationModelId: "anthropic.claude-3-5-haiku-20241022-v1:0",  // Optional - will default to process.env.AGENT_MODEL_ID
+            respondToAgent: false,  // Optional - determines if agent should create a tool response
+            userId: "test-user-123"  // Optional if identity.sub is provided
         },
-    });
+        identity: {
+            sub: "test-user-123",  // Used as userId if arguments.userId is not provided
+            claims: {},
+            username: "test-user",
+            sourceIp: ["127.0.0.1"],
+            defaultAuthStrategy: "ALLOW",
+            groups: null,
+            issuer: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_example"
+        },
+        source: null,
+        request: {
+            headers: {
+                "content-type": "application/json"
+            },
+            domainName: null
+        },
+        info: {
+            selectionSetList: ["__typename"],
+            selectionSetGraphQL: "{\n  __typename\n}",
+            parentTypeName: "Query",
+            fieldName: "invokeReActAgent",
+            variables: {}
+        },
+        prev: null,
+        stash: {}
+    };
 
-    console.log('Agent invoked')
+    // Mock context object
+    const mockContext = {
+        callbackWaitsForEmptyEventLoop: true,
+        functionName: "test-function",
+        functionVersion: "$LATEST",
+        invokedFunctionArn: "arn:aws:lambda:us-east-1:123456789012:function:test-function",
+        memoryLimitInMB: "128",
+        awsRequestId: "test-request-id",
+        logGroupName: "/aws/lambda/test-function",
+        logStreamName: "2023/06/23/[$LATEST]abcdef123456",
+        identity: undefined,
+        clientContext: undefined,
+        getRemainingTimeInMillis: () => 3000,
+        done: () => {},
+        fail: () => {},
+        succeed: () => {}
+    };
 
-    let responseComplete = false;
-    const waitStartTime = Date.now();
-    while (!responseComplete) {
-        const { data, errors: lastMessageErrors } = await amplifyClient.graphql({
-            query: listChatMessageByChatSessionIdAndCreatedAt,
-            variables: {
-                chatSessionId: newChatSession.createChatSession.id,
-                sortDirection: APITypes.ModelSortDirection.DESC,
-                limit: 1
-            }
-        });
-        if (lastMessageErrors) {
-            console.error(lastMessageErrors);
-            process.exit(1);
-        }
+    // Mock callback function
+    const mockCallback = () => {};
 
-        const messages = data.listChatMessageByChatSessionIdAndCreatedAt.items;
-        if (messages.length > 0) {
-            const lastMessage = messages[0];
-            responseComplete = lastMessage.responseComplete || false;
-            if (responseComplete) console.log('Assistant response complete. Final response: \n', lastMessage.content?.text);
-        }
-
-        if (!responseComplete) {
-            const elapsedSeconds = Math.floor((Date.now() - waitStartTime) / 1000);
-            console.log(`Waiting for assistant to finish analysis... (${elapsedSeconds} seconds)`);
-            // Wait x seconds before checking again
-            await new Promise(resolve => setTimeout(resolve, 5000));
-        }
-    }
+    console.log('Invoking ReActAgent handler with dummy event...');
+    await handler(dummyEvent, mockContext, mockCallback);
+    console.log('Handler execution completed');
 
 }
 
