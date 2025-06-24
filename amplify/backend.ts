@@ -4,6 +4,7 @@ import { data, reActAgentFunction } from './data/resource';
 import { storage } from './storage/resource';
 import cdk, {
   aws_apigateway as apigateway,
+  aws_appsync as appsync,
   aws_athena as athena,
   aws_iam as iam,
   aws_lambda as lambda,
@@ -31,6 +32,13 @@ backend.stack.tags.setTag('Project', 'workshop-a4e');
 const stackUUID = cdk.Names.uniqueResourceName(
   backend.stack, {}
 ).toLowerCase().replace(/[^a-z0-9-_]/g, '').slice(-3)
+
+const { 
+  lambdaFunction: awsMcpToolsFunction,
+  api: mcpRestApi,
+  apiKey: apiKey,
+  mcpResource: mcpResource
+} = new McpServerConstruct(backend.stack, "McpServer", {})
 
 // Create a dedicated IAM role for Athena execution
 const athenaExecutionRole = new iam.Role(backend.stack, 'AthenaExecutionRole', {
@@ -131,25 +139,9 @@ const executeAthenaStatementsPolicy = new iam.PolicyStatement({
       `arn:aws:athena:${backend.stack.region}:${backend.stack.account}:workgroup/${athenaWorkgroup.name}`,
     ],
   })
-const { 
-  lambdaFunction: awsMcpToolsFunction,
-  api: mcpRestApi,
-  apiKey: apiKey,
-  mcpResource: mcpResource
-} = new McpServerConstruct(backend.stack, "McpServer", {})
+
 // This enables the Athena notebook console environment to use this service role
 athenaExecutionRole.addToPolicy(executeAthenaStatementsPolicy);
-
-// new McpServerConstruct(backend.stack, "McpServer", {})
-
-// new PdfToYamlConstruct(backend.stack, 'PdfToYamlConstruct', {
-//   s3Bucket: backend.storage.resources.bucket
-// });
-
-// const { lambdaFunction: awsMcpToolsFunction } = new McpServerConstruct(backend.stack, "McpServer", {
-
-// })
-
 
 //Add permissions to the lambda functions to invoke the model
 [
@@ -166,6 +158,26 @@ athenaExecutionRole.addToPolicy(executeAthenaStatementsPolicy);
     }),
   )
 })
+
+// const graphQLApi = appsync.GraphqlApi.fromGraphqlApiAttributes(backend.data.stack, 'graphQLApi', {
+//   graphqlApiId: backend.data.apiId
+// })
+
+// awsMcpToolsFunction.addToRolePolicy(
+//   new iam.PolicyStatement({
+//     actions: ["appsync:GraphQL"],
+//     resources: [
+//       `arn:aws:appsync:${backend.stack.region}:${backend.stack.account}:apis/${graphQLApi.apiId}`,
+//       // graphQLApi.arn
+//       // `${graphQLApi.graphQLEndpointArn}/types/Query/*`,
+//       // `${graphQLApi.graphQLEndpointArn}/types/Mutation/*`
+//     ],
+//   })
+// )
+
+// // Allow the MCP server to interact with the GraphQL api
+// graphQLApi.grantQuery(awsMcpToolsFunction)
+// graphQLApi.grantMutation(awsMcpToolsFunction)
 
 // Add Athena permissions to the Lambda
 backend.reActAgentFunction.resources.lambda.addToRolePolicy(executeAthenaStatementsPolicy);
@@ -204,20 +216,25 @@ backend.reActAgentFunction.resources.lambda.addToRolePolicy(
   })
 );
 
-backend.reActAgentFunction.addEnvironment(
+//These allow the MCP server to interact with our file session objects and the athena pyspark environment
+awsMcpToolsFunction.addEnvironment(
   'STORAGE_BUCKET_NAME',
   backend.storage.resources.bucket.bucketName
 );
-
-backend.reActAgentFunction.addEnvironment(
+awsMcpToolsFunction.addEnvironment(
   'ATHENA_WORKGROUP_NAME',
   athenaWorkgroup.name
 );
 
-// backend.reActAgentFunction.addEnvironment(
-//   'A4E_MCP_SERVER_URL',
-//   awsMcpToolsFunctionUrl.url
-// );
+//These do the same for our reAct agent
+backend.reActAgentFunction.addEnvironment(
+  'STORAGE_BUCKET_NAME',
+  backend.storage.resources.bucket.bucketName
+);
+backend.reActAgentFunction.addEnvironment(
+  'ATHENA_WORKGROUP_NAME',
+  athenaWorkgroup.name
+);
 
 backend.reActAgentFunction.addEnvironment(
   'MCP_REST_API_URL',

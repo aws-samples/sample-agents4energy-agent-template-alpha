@@ -6,6 +6,8 @@ import { Schema } from '../../data/resource';
 import { createProject } from '../graphql/mutations';
 import { ProjectStatus } from '../graphql/API';
 
+import { getChatSessionId, getFoundationModelId } from "./toolUtils";
+
 const createProjectToolSchema = z.object({
     name: z.string(),
     description: z.string(),
@@ -27,10 +29,7 @@ const createProjectToolSchema = z.object({
     }).describe("Recommend an action like: 'Schedule Job', 'Send procedure to rig manager', or something else that should be done based on the analysis."),
 });
 
-export const createProjectToolBuilder = (props: {
-    sourceChatSessionId: string;
-    foundationModelId: string;
-}) => tool(
+export const createProjectTool = tool(
     async (args) => {
         try {
             const amplifyClient = getConfiguredAmplifyClient();
@@ -39,8 +38,8 @@ export const createProjectToolBuilder = (props: {
             const projectData = {
                 ...args,
                 status: args.status || "drafting",
-                sourceChatSessionId: props.sourceChatSessionId,
-                foundationModelId: props.foundationModelId,
+                sourceChatSessionId: getChatSessionId(),
+                foundationModelId: getFoundationModelId(),
             };
 
             const result = await amplifyClient.graphql({

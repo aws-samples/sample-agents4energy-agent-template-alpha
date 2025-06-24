@@ -1,10 +1,20 @@
 import middy from "@middy/core";
 import httpErrorHandler from "@middy/http-error-handler";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod";
+import { z, ZodRawShape } from "zod";
 import mcpMiddleware from "middy-mcp";
 
+import { DynamicStructuredTool } from "@langchain/core/tools";
+
 import { APIGatewayProxyEvent } from 'aws-lambda';
+import { setChatSessionId, setFoundationModelId } from "../tools/toolUtils";
+
+import { s3FileManagementTools } from "../tools/s3ToolBox";
+import { userInputTool } from "../tools/userInputTool";
+import { pysparkTool } from "../tools/athenaPySparkTool";
+import { renderAssetTool } from "../tools/renderAssetTool";
+import { createProjectTool } from "../tools/createProjectTool";
+
 
 // Create an MCP server
 const server = new McpServer({
@@ -12,64 +22,75 @@ const server = new McpServer({
     version: "1.0.0",
 });
 
-server.registerTool("add", {
-    title: "add",              // This title takes precedence
-    description: "Adds two numbers together",
-    inputSchema: { a: z.number(), b: z.number() }
-}, async ({ a, b }) => ({
-    content: [{ type: "text", text: String(a + b) }],
-}));
-
-// server.tool(
-//   "add", 
-//   { 
-//     description: "Adds two numbers together and returns the sum",
-//     parameters: { a: z.number(), b: z.number() }
-//   }, 
-//   async ({ a, b }) => ({
-//     content: [{ type: "text", text: String(a + b) }],
-//   })
-// );
-
-
-// // Add an addition tool
-// server.tool("add", { a: z.number(), b: z.number() }, async ({ a, b }) => ({
+// server.registerTool("add", {
+//     title: "add",              // This title takes precedence
+//     description: "Adds two numbers together",
+//     inputSchema: { a: z.number(), b: z.number() }
+// }, async ({ a, b }) => ({
 //     content: [{ type: "text", text: String(a + b) }],
 // }));
 
-// // Add logging middleware
-// const logMiddleware = () => {
-//     return {
-//         before: async (request: any) => {
-//             console.log("Before middleware execution");
-//             console.log("Request:", JSON.stringify(request));
-//         },
-//         after: async (request: any) => {
-//             console.log("After middleware execution");
-//             console.log("Response:", JSON.stringify(request.response));
-//         },
-//         onError: async (request: any) => {
-//             console.error("Middleware error:", request.error);
-//         }
-//     };
-// };
+const langChainToolHandler = (langChainTool: DynamicStructuredTool) => async (args: any) => {
+    // Call the LangChain tool with the arguments
+    const result = await langChainTool.invoke(args);
 
-// // Export the handler wrapped in middy middleware
-// export const handler = middy()
-//     // .use(logMiddleware())
-//     .use(mcpMiddleware({ server }))
-//     .use(httpErrorHandler());
+    // Return the result in the format expected by MCP
+    return {
+        content: [{ type: "text", text: String(result) }],
+    };
+}
 
+const langGraphTools: DynamicStructuredTool[] = [
+    pysparkTool({}),
+    ...s3FileManagementTools,
+    renderAssetTool,
+    userInputTool,
+    createProjectTool
+]
 
+for (const langChainTool of langGraphTools) {
+    console.log('Registering tool ', langChainTool.name)
+    if (!('shape' in langChainTool.schema)) continue
+
+    server.registerTool(
+        langChainTool.name,
+        {
+            title: langChainTool.name,
+            description: langChainTool.description,
+            inputSchema: langChainTool.schema.shape as ZodRawShape
+        },
+        langChainToolHandler(langChainTool) as any
+    );
+}
+
+// Add logging middleware
+const logMiddleware = () => {
+    return {
+        before: async (request: any) => {
+            console.log("Before middleware execution");
+            console.log("Request:", JSON.stringify(request));
+        },
+        after: async (request: any) => {
+            console.log("After middleware execution");
+            console.log("Response:", JSON.stringify(request.response));
+        },
+        onError: async (request: any) => {
+            console.error("Middleware error:", request.error);
+        }
+    };
+};
 
 export const handler = middy(async (
     event: APIGatewayProxyEvent
 ) => {
+
     console.log('Hello from middy!')
     console.log('Event: ', event)
+    setChatSessionId(event.headers["chat-session-id"] ?? "default-session-id");
+    setFoundationModelId(event.headers["foundation-model-id"] ?? "default-foundation-model-id");
     // The return will be handled by the mcp server
     return {};
 })
-    // .use(logMiddleware())
+    .use(logMiddleware())
     .use(mcpMiddleware({ server }))
     .use(httpErrorHandler());

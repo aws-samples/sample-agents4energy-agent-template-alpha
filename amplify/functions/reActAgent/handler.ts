@@ -20,7 +20,7 @@ import { s3FileManagementTools } from "../tools/s3ToolBox";
 import { userInputTool } from "../tools/userInputTool";
 import { pysparkTool } from "../tools/athenaPySparkTool";
 import { renderAssetTool } from "../tools/renderAssetTool";
-import { createProjectToolBuilder } from "../tools/createProjectTool";
+import { createProjectTool } from "../tools/createProjectTool";
 // import { permeabilityCalculator } from "../tools/customWorkshopTool";
 
 import { Schema } from '../../data/resource';
@@ -68,24 +68,33 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
         // console.log('Signed headers: ', getSignedHeaders(process.env.A4E_MCP_SERVER_URL!))
 
         if (!mcpTools) {
+            await amplifyClient.graphql({
+                query: publishResponseStreamChunk,
+                variables: {
+                    chunkText: "Listing MCP tools",
+                    index: 0,
+                    chatSessionId: event.arguments.chatSessionId
+                }
+            })
+
             // process.env.MCP_REST_API_KEY_ARN contains the api key's ARN
             const mcpServerApiKey = await (async () => {
                 // Extract the API key ID from the ARN
                 const apiKeyArn = process.env.MCP_REST_API_KEY_ARN;
                 if (!apiKeyArn) throw new Error("MCP_REST_API_KEY_ARN is not set");
-                
+
                 // ARN format: arn:aws:apigateway:region::/apikeys/key-id
                 const apiKeyId = apiKeyArn.split('/').pop();
-                
+
                 // Create API Gateway client
                 const apiGatewayClient = new APIGatewayClient();
-                
+
                 // Get the API key
                 const command = new GetApiKeyCommand({
                     apiKey: apiKeyId,
                     includeValue: true // This is important to get the actual key value
                 });
-                
+
                 const response = await apiGatewayClient.send(command);
                 if (!response.value) throw new Error("Failed to retrieve API key value");
 
@@ -93,30 +102,32 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
 
                 return response.value; // This is the actual API key value
             })();
-            
+
             const mcpClient = new MultiServerMCPClient({
                 useStandardContentBlocks: true,
                 mcpServers: {
-                    math: {
+                    aws: {
                         url: process.env.MCP_REST_API_URL!,
                         headers: {
                             'X-API-Key': mcpServerApiKey,
                             'accept': 'application/json',
-                            'jsonrpc': '2.0'
+                            'jsonrpc': '2.0',
+                            'chat-session-id': 'test'
                         }
                     }
-                    // math: {
-                    //     url: process.env.A4E_MCP_SERVER_URL!,
-                    //     headers: {
-                    //         // ...getSignedHeaders(process.env.A4E_MCP_SERVER_URL!),
-                    //         'accept': 'application/json',
-                    //         'jsonrpc': '2.0'
-                    //     }
-                    // }
                 }
             })
 
             mcpTools = await mcpClient.getTools()
+
+            await amplifyClient.graphql({
+                query: publishResponseStreamChunk,
+                variables: {
+                    chunkText: "Completed listing MCP tools",
+                    index: 0,
+                    chatSessionId: event.arguments.chatSessionId
+                }
+            })
         }
 
         console.log('Mcp Tools: ', mcpTools)
@@ -126,10 +137,7 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
             // new Calculator(),
             //             ...s3FileManagementTools,
             //             userInputTool,
-            //             createProjectToolBuilder({
-            //                 sourceChatSessionId: event.arguments.chatSessionId,
-            //                 foundationModelId: foundationModelId
-            //             }),
+            //             createProjectTool,
             //             pysparkTool({
             //                 additionalSetupScript: `
             // import plotly.io as pio

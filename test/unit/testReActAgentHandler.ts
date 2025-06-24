@@ -8,7 +8,7 @@ import { createChatSession } from "../../amplify/functions/graphql/mutations";
 import * as APITypes from "../../amplify/functions/graphql/API";
 import { createChatMessage } from "../../utils/graphqlStatements";
 
-const prompt = `Use the calculator tool to add 3525232 and 4522`
+const prompt = `Create a plot showing the the length vs weight of common fruits and vegetables.`
 
 const main = async () => {
   await setAmplifyEnvVars();
