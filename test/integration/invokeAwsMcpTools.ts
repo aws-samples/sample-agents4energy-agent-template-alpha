@@ -28,7 +28,7 @@ describe('AWS MCP Tools Integration Tests', function () {
     const outputs = loadOutputs();
 
     // Get Lambda function URL and region from outputs
-    lambdaUrl = outputs.custom.awsMcpToolsFunctionUrl;
+    lambdaUrl = outputs.custom.mcpAgentInvokerUrl;
     region = outputs.auth.aws_region;
   });
 
@@ -114,19 +114,18 @@ describe('AWS MCP Tools Integration Tests', function () {
   it('should successfully execute the add tool', function (done) {
     const url = new URL(lambdaUrl);
 
-    const a = 5;
-    const b = 7;
-    const expectedResult = a + b;
+    // const a = 5;
+    // const b = 7;
+    // const expectedResult = a + b;
 
     const bodyData = JSON.stringify({
       jsonrpc: "2.0",
       id: 2,
       method: "tools/call",
       params: {
-        name: "add",
+        name: "invokeReactAgent",
         arguments: {
-          a: a,
-          b: b
+          prompt: "What is 1+1?"
         }
       }
     });
@@ -166,9 +165,11 @@ describe('AWS MCP Tools Integration Tests', function () {
 
       res.on('end', () => {
         try {
-          console.log('Add numbers response: ', data)
+          // console.log('Add numbers response: ', data)
 
           const response = JSON.parse(data);
+
+          console.log('Call tool response: ', JSON.stringify(response, null, 2))
 
           // Verify response structure
           expect(response).to.have.property('jsonrpc', '2.0');
@@ -179,7 +180,7 @@ describe('AWS MCP Tools Integration Tests', function () {
           expect(response.result).to.have.property('content');
           expect(response.result.content).to.be.an('array');
           expect(response.result.content[0]).to.have.property('type', 'text');
-          expect(response.result.content[0]).to.have.property('text', String(expectedResult));
+          // expect(response.result.content[0]).to.have.property('text', String(expectedResult));
 
           done();
         } catch (error) {

@@ -20,6 +20,12 @@ export const reActAgentFunction = defineFunction({
   }
 });
 
+export const mcpAgentInvoker = defineFunction({
+  name: 'mcpAgentInvoker',
+  entry: '../functions/mcpAgentInvoker/handler.ts',
+  timeoutSeconds: 900,
+});
+
 export const schema = a.schema({
   Project: a.model({
     name: a.string(),

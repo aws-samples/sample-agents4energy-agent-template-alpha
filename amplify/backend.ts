@@ -1,6 +1,6 @@
 import { defineBackend } from '@aws-amplify/backend';
 import { auth } from './auth/resource';
-import { data, reActAgentFunction } from './data/resource';
+import { data, mcpAgentInvoker, reActAgentFunction } from './data/resource';
 import { storage } from './storage/resource';
 import cdk, {
   aws_apigateway as apigateway,
@@ -24,7 +24,8 @@ const backend = defineBackend({
   auth,
   data,
   storage,
-  reActAgentFunction
+  reActAgentFunction,
+  mcpAgentInvoker
 });
 
 backend.stack.tags.setTag('Project', 'workshop-a4e');
@@ -32,6 +33,12 @@ backend.stack.tags.setTag('Project', 'workshop-a4e');
 const stackUUID = cdk.Names.uniqueResourceName(
   backend.stack, {}
 ).toLowerCase().replace(/[^a-z0-9-_]/g, '').slice(-3)
+
+const mcpAgentInvokerFunctionUrl = backend.mcpAgentInvoker.resources.lambda.addFunctionUrl({
+  authType: lambda.FunctionUrlAuthType.AWS_IAM,
+  // authType: lambda.FunctionUrlAuthType.NONE, //This will generate a Sev2 Sim ticket
+  // invokeMode: lambda.InvokeMode.RESPONSE_STREAM
+});
 
 const {
   lambdaFunction: awsMcpToolsFunction,
@@ -270,8 +277,8 @@ backend.addOutput({
     athenaWorkgroupName: athenaWorkgroup.name,
     reactAgentLambdaArn: backend.reActAgentFunction.resources.lambda.functionArn,
     mcpRestApiUrl: mcpRestApi.urlForPath(mcpResource.path),
-    // mcpApiPath: mcpResource.path,
-    apiKeyArn: apiKey.keyArn
+    apiKeyArn: apiKey.keyArn,
+    mcpAgentInvokerUrl: mcpAgentInvokerFunctionUrl.url
   }
 });
 
