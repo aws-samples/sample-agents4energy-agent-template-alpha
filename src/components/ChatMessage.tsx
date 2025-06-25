@@ -77,7 +77,12 @@ const ChatMessage = (params: {
             return <ThinkingMessageComponent message={message} theme={theme} />
         case 'tool':
             //This set of tools messages will render even if the chain of thought is not being shown
-            switch (message.toolName) {
+            // Remove "mcp__" prefix from toolName if present
+            const toolName = message.toolName?.startsWith("mcp__") 
+                ? message.toolName.substring(5) 
+                : message.toolName;
+                
+            switch (toolName) {
                 case 'renderAssetTool':
                     return <RenderAssetToolComponent
                         content={message.content}

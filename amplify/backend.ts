@@ -33,7 +33,7 @@ const stackUUID = cdk.Names.uniqueResourceName(
   backend.stack, {}
 ).toLowerCase().replace(/[^a-z0-9-_]/g, '').slice(-3)
 
-const { 
+const {
   lambdaFunction: awsMcpToolsFunction,
   api: mcpRestApi,
   apiKey: apiKey,
@@ -120,25 +120,25 @@ const athenaWorkgroup = new athena.CfnWorkGroup(backend.stack, 'SparkWorkgroup',
 });
 
 const executeAthenaStatementsPolicy = new iam.PolicyStatement({
-    actions: [
-      "athena:StartSession",
-      "athena:GetSessionStatus",
-      "athena:TerminateSession",
-      "athena:ListSessions",
-      "athena:StartCalculationExecution",
-      "athena:GetCalculationExecutionCode",
-      "athena:StopCalculationExecution",
-      "athena:ListCalculationExecutions",
-      "athena:GetCalculationExecution",
-      "athena:GetCalculationExecutionStatus",
-      "athena:ListExecutors",
-      "athena:ExportNotebook",
-      "athena:UpdateNotebook"
-    ],
-    resources: [
-      `arn:aws:athena:${backend.stack.region}:${backend.stack.account}:workgroup/${athenaWorkgroup.name}`,
-    ],
-  })
+  actions: [
+    "athena:StartSession",
+    "athena:GetSessionStatus",
+    "athena:TerminateSession",
+    "athena:ListSessions",
+    "athena:StartCalculationExecution",
+    "athena:GetCalculationExecutionCode",
+    "athena:StopCalculationExecution",
+    "athena:ListCalculationExecutions",
+    "athena:GetCalculationExecution",
+    "athena:GetCalculationExecutionStatus",
+    "athena:ListExecutors",
+    "athena:ExportNotebook",
+    "athena:UpdateNotebook"
+  ],
+  resources: [
+    `arn:aws:athena:${backend.stack.region}:${backend.stack.account}:workgroup/${athenaWorkgroup.name}`,
+  ],
+})
 
 // This enables the Athena notebook console environment to use this service role
 athenaExecutionRole.addToPolicy(executeAthenaStatementsPolicy);
@@ -157,6 +157,32 @@ athenaExecutionRole.addToPolicy(executeAthenaStatementsPolicy);
       ],
     }),
   )
+
+  // Add Athena permissions to the Lambda
+  resource.addToRolePolicy(executeAthenaStatementsPolicy);
+
+  // Also grant access to the Athena execution role
+  resource.addToRolePolicy(
+    new iam.PolicyStatement({
+      actions: ["iam:PassRole"],
+      resources: [athenaExecutionRole.roleArn],
+    })
+  );
+
+  resource.addToRolePolicy(
+    new iam.PolicyStatement({
+      actions: [
+        "s3:ListBucket",
+        "s3:GetObject",
+        "s3:PutObject"
+      ],
+      resources: [
+        backend.storage.resources.bucket.bucketArn,
+        `${backend.storage.resources.bucket.bucketArn}/*`,
+      ],
+    })
+  );
+
 })
 
 // const graphQLApi = appsync.GraphqlApi.fromGraphqlApiAttributes(backend.data.stack, 'graphQLApi', {
@@ -179,30 +205,7 @@ athenaExecutionRole.addToPolicy(executeAthenaStatementsPolicy);
 // graphQLApi.grantQuery(awsMcpToolsFunction)
 // graphQLApi.grantMutation(awsMcpToolsFunction)
 
-// Add Athena permissions to the Lambda
-backend.reActAgentFunction.resources.lambda.addToRolePolicy(executeAthenaStatementsPolicy);
 
-// Also grant access to the Athena execution role
-backend.reActAgentFunction.resources.lambda.addToRolePolicy(
-  new iam.PolicyStatement({
-    actions: ["iam:PassRole"],
-    resources: [athenaExecutionRole.roleArn],
-  })
-);
-
-backend.reActAgentFunction.resources.lambda.addToRolePolicy(
-  new iam.PolicyStatement({
-    actions: [
-      "s3:ListBucket",
-      "s3:GetObject",
-      "s3:PutObject"
-    ],
-    resources: [
-      backend.storage.resources.bucket.bucketArn,
-      `${backend.storage.resources.bucket.bucketArn}/*`,
-    ],
-  })
-);
 
 //Allow the reActAgentFunction to retrieve the API key used to invoke the MCP server
 backend.reActAgentFunction.resources.lambda.addToRolePolicy(
@@ -250,14 +253,29 @@ new PdfToYamlConstruct(backend.stack, 'PdfToYamlConstruct', {
   s3Bucket: backend.storage.resources.bucket
 });
 
-backend.addOutput({ custom: { 
-  rootStackName: backend.stack.stackName,  
-  athenaWorkgroupName: athenaWorkgroup.name,
-  reactAgentLambdaArn: backend.reActAgentFunction.resources.lambda.functionArn,
-  mcpRestApiUrl: mcpRestApi.urlForPath(mcpResource.path),
-  // mcpApiPath: mcpResource.path,
-  apiKeyArn: apiKey.keyArn
-} });
+// Add CloudFormation stack output for mcpRestApiUrl and ApiKeyArn
+new cdk.CfnOutput(backend.stack, 'McpRestApiUrl', {
+  value: mcpRestApi.urlForPath(mcpResource.path),
+  description: 'URL for the MCP REST API'
+});
+
+new cdk.CfnOutput(backend.stack, 'McpRestApiKeyArn', {
+  value: apiKey.keyArn,
+  description: 'Api key ARN for the MCP REST API'
+});
+
+backend.addOutput({
+  custom: {
+    rootStackName: backend.stack.stackName,
+    athenaWorkgroupName: athenaWorkgroup.name,
+    reactAgentLambdaArn: backend.reActAgentFunction.resources.lambda.functionArn,
+    mcpRestApiUrl: mcpRestApi.urlForPath(mcpResource.path),
+    // mcpApiPath: mcpResource.path,
+    apiKeyArn: apiKey.keyArn
+  }
+});
+
+
 // backend.addOutput({ custom: { athenaWorkgroupName: athenaWorkgroup.name } });
 // backend.addOutput({ custom: { reactAgentLambdaArn: backend.reActAgentFunction.resources.lambda.functionArn } });
 // backend.addOutput({ custom: { awsMcpToolsFunctionUrl: awsMcpToolsFunctionUrl.url } });

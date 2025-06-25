@@ -1,14 +1,14 @@
 // Global variable for storing the chat session ID provided by the handler
 let _chatSessionId: string | null = null;
-let _foundationModelId: string | null = null;
+// let _foundationModelId: string | null = null;
 
-export function setFoundationModelId(foundationModel: string) {
-    _foundationModelId = foundationModel;
-}
+// export function setFoundationModelId(foundationModel: string) {
+//     _foundationModelId = foundationModel;
+// }
 
-export function getFoundationModelId() {
-    return _foundationModelId;
-}
+// export function getFoundationModelId() {
+//     return _foundationModelId;
+// }
 
 // Function to set the chat session ID from the handler
 export function setChatSessionId(chatSessionId: string) {

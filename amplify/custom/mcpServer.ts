@@ -18,7 +18,8 @@ export class McpServerConstruct extends Construct {
     public readonly apiKey: cdk.aws_apigateway.IApiKey
     public readonly api: apigateway.RestApi
     public readonly mcpResource: cdk.aws_apigateway.Resource
-    
+    public readonly mcpFunctionUrl: lambda.FunctionUrl
+
     constructor(scope: Construct, id: string, props: McpServerProps) {
         super(scope, id);
 
@@ -28,11 +29,21 @@ export class McpServerConstruct extends Construct {
             timeout: cdk.Duration.minutes(15),
             // memorySize: 3000,
             environment: {
-                HELLO: "world"
+                AGENT_MODEL_ID: 'us.anthropic.claude-3-5-haiku-20241022-v1:0',
+
+                // MODEL_ID: 'us.anthropic.claude-3-sonnet-20240229-v1:0',
+                // MODEL_ID: 'us.amazon.nova-pro-v1:0'
+                // TEXT_TO_TABLE_MODEL_ID: 'us.amazon.nova-pro-v1:0'
+                // TEXT_TO_TABLE_MODEL_ID: 'us.anthropic.claude-3-5-haiku-20241022-v1:0',
+                // TEXT_TO_TABLE_MODEL_ID: 'amazon.nova-lite-v1:0',
+                TEXT_TO_TABLE_MODEL_ID: 'anthropic.claude-3-haiku-20240307-v1:0',
+                TEXT_TO_TABLE_CONCURRENCY: '10',
+
+                ORIGIN_BASE_PATH: process.env.ORIGIN_BASE_PATH || ''
             },
         });
 
-        const awsMcpToolsFunctionUrl = this.lambdaFunction.addFunctionUrl({
+        this.mcpFunctionUrl = this.lambdaFunction.addFunctionUrl({
             authType: lambda.FunctionUrlAuthType.AWS_IAM,
             // authType: lambda.FunctionUrlAuthType.NONE, //This will generate a Sev2 Sim ticket
             // invokeMode: lambda.InvokeMode.RESPONSE_STREAM
@@ -58,14 +69,14 @@ export class McpServerConstruct extends Construct {
 
         // Create a usage plan
         const usagePlan = this.api.addUsagePlan('McpToolsUsagePlan', {
-        name: 'mcp-tools-usage-plan',
-        description: 'Usage plan for MCP Tools API',
-        apiStages: [
-            {
-            api: this.api,
-            stage: this.api.deploymentStage,
-            },
-        ],
+            name: 'mcp-tools-usage-plan',
+            description: 'Usage plan for MCP Tools API',
+            apiStages: [
+                {
+                    api: this.api,
+                    stage: this.api.deploymentStage,
+                },
+            ],
         });
 
         // Associate the API key with the usage plan

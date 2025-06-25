@@ -7,7 +7,7 @@ import mcpMiddleware from "middy-mcp";
 import { DynamicStructuredTool } from "@langchain/core/tools";
 
 import { APIGatewayProxyEvent } from 'aws-lambda';
-import { setChatSessionId, setFoundationModelId } from "../tools/toolUtils";
+import { setChatSessionId } from "../tools/toolUtils";
 
 import { s3FileManagementTools } from "../tools/s3ToolBox";
 import { userInputTool } from "../tools/userInputTool";
@@ -33,10 +33,17 @@ const server = new McpServer({
 const langChainToolHandler = (langChainTool: DynamicStructuredTool) => async (args: any) => {
     // Call the LangChain tool with the arguments
     const result = await langChainTool.invoke(args);
+    
+    // Convert result to string - if it's an object, use JSON.stringify, otherwise use as is
+    const resultText = typeof result === 'object' && result !== null 
+        ? JSON.stringify(result) 
+        : String(result);
+
+    console.log(`Result of ${langChainTool.name}: `, resultText)
 
     // Return the result in the format expected by MCP
     return {
-        content: [{ type: "text", text: String(result) }],
+        content: [{ type: "text", text: resultText }],
     };
 }
 
@@ -58,6 +65,7 @@ for (const langChainTool of langGraphTools) {
             title: langChainTool.name,
             description: langChainTool.description,
             inputSchema: langChainTool.schema.shape as ZodRawShape
+            
         },
         langChainToolHandler(langChainTool) as any
     );
@@ -83,11 +91,12 @@ const logMiddleware = () => {
 export const handler = middy(async (
     event: APIGatewayProxyEvent
 ) => {
-
-    console.log('Hello from middy!')
     console.log('Event: ', event)
-    setChatSessionId(event.headers["chat-session-id"] ?? "default-session-id");
-    setFoundationModelId(event.headers["foundation-model-id"] ?? "default-foundation-model-id");
+    const chatSessionId = event.headers["chat-session-id"] ?? "default-session-id"
+    console.log('Chat Session Id: ', chatSessionId)
+
+    setChatSessionId(chatSessionId);
+    // setFoundationModelId(event.headers["foundation-model-id"] ?? "default-foundation-model-id");
     // The return will be handled by the mcp server
     return {};
 })

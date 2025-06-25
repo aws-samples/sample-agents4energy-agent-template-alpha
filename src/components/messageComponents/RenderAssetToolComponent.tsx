@@ -122,7 +122,7 @@ const RenderAssetToolComponent: React.FC<RenderAssetToolComponentProps> = ({ con
           Error rendering asset
         </Typography>
         <pre>
-          {content?.text}
+          {content?.text + "\n" + error}
         </pre>
       </Box>
     );

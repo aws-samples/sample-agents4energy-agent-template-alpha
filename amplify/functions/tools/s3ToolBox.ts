@@ -2,6 +2,7 @@ import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import * as path from "path";
 import { S3Client, PutObjectCommand, ListObjectsV2Command, GetObjectCommand, ListObjectsV2CommandInput } from "@aws-sdk/client-s3";
+import { Upload } from "@aws-sdk/lib-storage"
 import { ChatBedrockConverse } from "@langchain/aws";
 import { getConfiguredAmplifyClient } from '../../../utils/amplifyUtils';
 import { publishResponseStreamChunk } from "../graphql/mutations";
@@ -302,24 +303,19 @@ export async function readS3Object(props: { key: string, maxBytes: number, start
 }
 
 async function writeS3Object(key: string, content: string) {
-    const s3Client = getS3Client();
-    const bucketName = getBucketName();
 
-    const putParams = {
-        Bucket: bucketName,
-        Key: key,
-        Body: content,
-        ContentType: getContentType(key)
-    };
+    const upload = new Upload({
+        client: getS3Client(),
+        params: {
+            Bucket: getBucketName(),
+            Key: key,
+            Body: content
+        }
+    })
 
-    try {
-        const command = new PutObjectCommand(putParams);
-        await s3Client.send(command);
-        return true;
-    } catch (error) {
-        console.error(`Error writing S3 object ${key}:`, error);
-        throw error;
-    }
+    const response = await upload.done()
+
+    console.log(`Response from uploading file to bucket ${getBucketName()} and key ${key}: `, response)
 }
 
 function getContentType(filePath: string): string {

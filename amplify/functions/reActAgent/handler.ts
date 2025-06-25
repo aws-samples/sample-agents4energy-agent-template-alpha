@@ -28,6 +28,8 @@ import { Schema } from '../../data/resource';
 import { getLangChainChatMessagesStartingWithHumanMessage, getLangChainMessageTextContent, publishMessage, stringifyLimitStringLength } from '../../../utils/langChainUtils';
 import { EventEmitter } from "events";
 
+const USE_MCP = false;
+
 let mcpTools: StructuredToolInterface<ToolSchemaBase, any, any>[]
 
 // Increase the default max listeners to prevent warnings
@@ -67,7 +69,7 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
 
         // console.log('Signed headers: ', getSignedHeaders(process.env.A4E_MCP_SERVER_URL!))
 
-        if (!mcpTools) {
+        if (!mcpTools && USE_MCP) {
             await amplifyClient.graphql({
                 query: publishResponseStreamChunk,
                 variables: {
@@ -105,6 +107,9 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
 
             const mcpClient = new MultiServerMCPClient({
                 useStandardContentBlocks: true,
+                prefixToolNameWithServerName: false,
+                additionalToolNamePrefix: "",
+                
                 mcpServers: {
                     aws: {
                         url: process.env.MCP_REST_API_URL!,
@@ -112,13 +117,16 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
                             'X-API-Key': mcpServerApiKey,
                             'accept': 'application/json',
                             'jsonrpc': '2.0',
-                            'chat-session-id': 'test'
+                            'chat-session-id': event.arguments.chatSessionId
                         }
                     }
                 }
             })
+            // const test = await mcpClient.getTools()
 
             mcpTools = await mcpClient.getTools()
+
+            // const slowTool = mcpTools.find(t => t.name.includes('process_large_dataset'));
 
             await amplifyClient.graphql({
                 query: publishResponseStreamChunk,
@@ -133,35 +141,35 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
         console.log('Mcp Tools: ', mcpTools)
 
         const agentTools = [
-            ...mcpTools,
-            // new Calculator(),
-            //             ...s3FileManagementTools,
-            //             userInputTool,
-            //             createProjectTool,
-            //             pysparkTool({
-            //                 additionalSetupScript: `
-            // import plotly.io as pio
-            // import plotly.graph_objects as go
+            // ...mcpTools,
+            new Calculator(),
+                        ...s3FileManagementTools,
+                        userInputTool,
+                        createProjectTool,
+                        pysparkTool({
+                            additionalSetupScript: `
+            import plotly.io as pio
+            import plotly.graph_objects as go
 
-            // # Create a custom layout
-            // custom_layout = go.Layout(
-            //     paper_bgcolor='white',
-            //     plot_bgcolor='white',
-            //     xaxis=dict(showgrid=False),
-            //     yaxis=dict(
-            //         showgrid=True,
-            //         gridcolor='lightgray',
-            //         type='log'  # <-- Set y-axis to logarithmic
-            //     )
-            // )
+            # Create a custom layout
+            custom_layout = go.Layout(
+                paper_bgcolor='white',
+                plot_bgcolor='white',
+                xaxis=dict(showgrid=False),
+                yaxis=dict(
+                    showgrid=True,
+                    gridcolor='lightgray',
+                    type='log'  # <-- Set y-axis to logarithmic
+                )
+            )
 
-            // # Create and register the template
-            // custom_template = go.layout.Template(layout=custom_layout)
-            // pio.templates["white_clean_log"] = custom_template
-            // pio.templates.default = "white_clean_log"
-            //                 `,
-            //             }),
-            //             renderAssetTool
+            # Create and register the template
+            custom_template = go.layout.Template(layout=custom_layout)
+            pio.templates["white_clean_log"] = custom_template
+            pio.templates.default = "white_clean_log"
+                            `,
+                        }),
+                        renderAssetTool
         ]
 
         const agent = createReactAgent({

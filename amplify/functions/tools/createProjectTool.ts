@@ -6,7 +6,7 @@ import { Schema } from '../../data/resource';
 import { createProject } from '../graphql/mutations';
 import { ProjectStatus } from '../graphql/API';
 
-import { getChatSessionId, getFoundationModelId } from "./toolUtils";
+import { getChatSessionId } from "./toolUtils";
 
 const createProjectToolSchema = z.object({
     name: z.string(),
@@ -39,7 +39,7 @@ export const createProjectTool = tool(
                 ...args,
                 status: args.status || "drafting",
                 sourceChatSessionId: getChatSessionId(),
-                foundationModelId: getFoundationModelId(),
+                foundationModelId: process.env.AGENT_MODEL_ID,
             };
 
             const result = await amplifyClient.graphql({

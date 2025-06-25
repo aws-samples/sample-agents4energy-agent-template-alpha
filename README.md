@@ -41,6 +41,21 @@ npm run dev
 7. Create a new chat session by clicking the "Create" button, and try out (or modify) one of the sample prompts.
 
 
+## Model Context Protocol
+The tools in this project are also exposed via an MCP server. You can list the tools using a curl command like the one below. Look in the AWS Cloudformation output for the path to the mcp server, and the ARN of the api key. Use the AWS console to find the value of the api key from it's ARN (navagate to https://console.aws.amazon.com/apigateway/main/api-keys and click the copy button by the key called "mcp-tools-key".)
+
+```bash
+curl -X POST \
+  <Path to MCP Server> \
+  -H 'Content-Type: application/json' \
+  -H 'X-API-Key: <Api Key for MCP Server>' \
+  -H 'accept: application/json' \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": "1",
+    "method": "tools/list"
+}'
+```
 
 ## Security
 
