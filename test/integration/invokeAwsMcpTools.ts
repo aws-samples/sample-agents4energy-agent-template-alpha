@@ -28,7 +28,8 @@ describe('AWS MCP Tools Integration Tests', function () {
     const outputs = loadOutputs();
 
     // Get Lambda function URL and region from outputs
-    lambdaUrl = outputs.custom.mcpAgentInvokerUrl;
+    // lambdaUrl = outputs.custom.mcpAgentInvokerUrl;
+    lambdaUrl = outputs.custom.mcpFunctionUrl;
     region = outputs.auth.aws_region;
   });
 
@@ -62,6 +63,8 @@ describe('AWS MCP Tools Integration Tests', function () {
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
       sessionToken: process.env.AWS_SESSION_TOKEN
     });
+
+    console.log('Full list tools request: ', opts)
 
     // Make the HTTPS request
     const req = https.request(opts, (res) => {

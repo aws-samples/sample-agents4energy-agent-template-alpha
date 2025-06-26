@@ -40,12 +40,17 @@ const mcpAgentInvokerFunctionUrl = backend.mcpAgentInvoker.resources.lambda.addF
   // invokeMode: lambda.InvokeMode.RESPONSE_STREAM
 });
 
+
+
 const {
   lambdaFunction: awsMcpToolsFunction,
   api: mcpRestApi,
   apiKey: apiKey,
-  mcpResource: mcpResource
+  mcpResource: mcpResource,
+  mcpFunctionUrl: awsMcpToolsFunctionUrl
 } = new McpServerConstruct(backend.stack, "McpServer", {})
+
+awsMcpToolsFunction.grantInvokeUrl(backend.reActAgentFunction.resources.lambda)
 
 // Create a dedicated IAM role for Athena execution
 const athenaExecutionRole = new iam.Role(backend.stack, 'AthenaExecutionRole', {
@@ -256,6 +261,13 @@ backend.reActAgentFunction.addEnvironment(
   apiKey.keyArn
 );
 
+backend.reActAgentFunction.addEnvironment(
+  'MCP_FUNCTION_URL',
+  awsMcpToolsFunctionUrl.url
+);
+
+awsMcpToolsFunctionUrl
+
 new PdfToYamlConstruct(backend.stack, 'PdfToYamlConstruct', {
   s3Bucket: backend.storage.resources.bucket
 });
@@ -278,7 +290,8 @@ backend.addOutput({
     reactAgentLambdaArn: backend.reActAgentFunction.resources.lambda.functionArn,
     mcpRestApiUrl: mcpRestApi.urlForPath(mcpResource.path),
     apiKeyArn: apiKey.keyArn,
-    mcpAgentInvokerUrl: mcpAgentInvokerFunctionUrl.url
+    mcpAgentInvokerUrl: mcpAgentInvokerFunctionUrl.url,
+    mcpFunctionUrl: awsMcpToolsFunctionUrl.url
   }
 });
 

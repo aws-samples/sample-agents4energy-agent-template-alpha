@@ -33,10 +33,10 @@ const server = new McpServer({
 const langChainToolHandler = (langChainTool: DynamicStructuredTool) => async (args: any) => {
     // Call the LangChain tool with the arguments
     const result = await langChainTool.invoke(args);
-    
+
     // Convert result to string - if it's an object, use JSON.stringify, otherwise use as is
-    const resultText = typeof result === 'object' && result !== null 
-        ? JSON.stringify(result) 
+    const resultText = typeof result === 'object' && result !== null
+        ? JSON.stringify(result)
         : String(result);
 
     console.log(`Result of ${langChainTool.name}: `, resultText)
@@ -48,7 +48,29 @@ const langChainToolHandler = (langChainTool: DynamicStructuredTool) => async (ar
 }
 
 const langGraphTools: DynamicStructuredTool[] = [
-    pysparkTool({}),
+    pysparkTool({
+        additionalSetupScript: `
+            import plotly.io as pio
+            import plotly.graph_objects as go
+
+            # Create a custom layout
+            custom_layout = go.Layout(
+                paper_bgcolor='white',
+                plot_bgcolor='white',
+                xaxis=dict(showgrid=False),
+                yaxis=dict(
+                    showgrid=True,
+                    gridcolor='lightgray',
+                    type='log'  # <-- Set y-axis to logarithmic
+                )
+            )
+
+            # Create and register the template
+            custom_template = go.layout.Template(layout=custom_layout)
+            pio.templates["white_clean_log"] = custom_template
+            pio.templates.default = "white_clean_log"
+                            `,
+    }),
     ...s3FileManagementTools,
     renderAssetTool,
     userInputTool,
@@ -65,7 +87,7 @@ for (const langChainTool of langGraphTools) {
             title: langChainTool.name,
             description: langChainTool.description,
             inputSchema: langChainTool.schema.shape as ZodRawShape
-            
+
         },
         langChainToolHandler(langChainTool) as any
     );

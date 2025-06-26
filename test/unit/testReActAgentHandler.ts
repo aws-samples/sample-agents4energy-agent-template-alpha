@@ -8,7 +8,8 @@ import { createChatSession } from "../../amplify/functions/graphql/mutations";
 import * as APITypes from "../../amplify/functions/graphql/API";
 import { createChatMessage } from "../../utils/graphqlStatements";
 
-const prompt = `Create a plot showing the the length vs weight of common fruits and vegetables.`
+// const prompt = `Create a plot showing the the length vs weight of common fruits and vegetables.`
+const prompt = 'Why is AWS the best place for energy related workloads?'
 
 const main = async () => {
   await setAmplifyEnvVars();
@@ -109,10 +110,6 @@ const main = async () => {
   console.log('Invoking ReActAgent handler with dummy event...');
   await handler(dummyEvent, mockContext, mockCallback);
   console.log('Handler execution completed');
-
 }
 
-main().catch(error => {
-  console.error('Error in test:', error);
-  process.exit(1);
-})
+main()
