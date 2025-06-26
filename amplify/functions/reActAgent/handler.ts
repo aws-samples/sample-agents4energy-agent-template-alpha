@@ -1,6 +1,8 @@
 import { stringify } from "yaml";
 
 import aws4 from 'aws4';
+import http from 'http';
+import https from 'https';
 import { APIGatewayClient, GetApiKeyCommand } from "@aws-sdk/client-api-gateway";
 
 import { getConfiguredAmplifyClient } from '../../../utils/amplifyUtils';
@@ -28,7 +30,8 @@ import { Schema } from '../../data/resource';
 import { getLangChainChatMessagesStartingWithHumanMessage, getLangChainMessageTextContent, publishMessage, stringifyLimitStringLength } from '../../../utils/langChainUtils';
 import { EventEmitter } from "events";
 
-const USE_MCP = false;
+const USE_MCP = true;
+const LOCAL_PROXY_PORT = 3010
 
 let mcpTools: StructuredToolInterface<ToolSchemaBase, any, any>[]
 
@@ -36,6 +39,96 @@ let mcpTools: StructuredToolInterface<ToolSchemaBase, any, any>[]
 EventEmitter.defaultMaxListeners = 10;
 
 const graphQLFieldName = 'invokeReActAgent'
+
+if (USE_MCP) {
+    const server = http.createServer(async (req, res) => {
+        if (req.url === '/proxy') {
+            const targetUrl = req.headers['target-url'] as string | undefined;
+
+            if (!targetUrl) {
+                console.log('No taget url provided')
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ text: "Listener listening" }));
+            }
+
+            console.log('Signing request to taget URL: ', targetUrl)
+
+            // Parse the target URL to extract hostname and pathname
+            const url = new URL(targetUrl!);
+
+            // Read the request body
+            let body = '';
+            req.on('data', chunk => {
+                body += chunk.toString();
+            });
+
+            req.on('end', () => {
+                // Create the AWS request object
+                const opts: aws4.Request = {
+                    host: url.hostname,
+                    path: url.pathname,
+                    method: req.method,
+                    headers: {
+                        ...req.headers,
+                        host: url.hostname  // Override the host header to match the target host
+                    },
+                    body: body,
+                    service: 'lambda',
+                    region: process.env.AWS_REGION
+                };
+
+                // Sign the request with AWS credentials
+                aws4.sign(opts, {
+                    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+                    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+                    sessionToken: process.env.AWS_SESSION_TOKEN
+                });
+
+                console.log('Full request to be sent to the target host: ', opts)
+
+                // Make the HTTPS request
+                const targetReq = https.request(opts, (targetRes) => {
+                    let data = '';
+
+                    targetReq.on('data', (chunk) => {
+                        data += chunk;
+                    });
+
+                    targetReq.on('end', () => {
+                        try {
+                            console.log('target response body response: ', data)
+
+                            // const response = JSON.parse(data);
+
+                            // console.log('Call tool response: ', JSON.stringify(response, null, 2))
+                            res.writeHead(200, targetRes.headers);
+                            res.end(data);
+                        } catch (error) {
+                            // done(error);
+                        }
+                    });
+                });
+            });
+
+            // const result = await signAndFetch('https://aws-service...', { method: 'GET' });
+            // res.writeHead(200, { 'Content-Type': 'application/json' });
+            // res.end(JSON.stringify(result));
+        } else {
+            res.writeHead(404);
+            res.end();
+        }
+    });
+
+    server.listen(LOCAL_PROXY_PORT,
+        async () => {
+            const proxyRes = await fetch(`http://localhost:${LOCAL_PROXY_PORT}/proxy`);
+            const data = await proxyRes.text();
+            console.log('Proxy result:', data);
+            // server.close();
+        }
+    );
+}
+
 
 export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (event, context) => {
     console.log('event:\n', JSON.stringify(event, null, 2))
@@ -109,17 +202,27 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
                 useStandardContentBlocks: true,
                 prefixToolNameWithServerName: false,
                 additionalToolNamePrefix: "",
-                
+
                 mcpServers: {
                     aws: {
-                        url: process.env.MCP_REST_API_URL!,
+                        url: `http://localhost:${LOCAL_PROXY_PORT}/proxy`,
                         headers: {
                             'X-API-Key': mcpServerApiKey,
+                            'target-url': process.env.MCP_REST_API_URL!,
                             'accept': 'application/json',
                             'jsonrpc': '2.0',
                             'chat-session-id': event.arguments.chatSessionId
                         }
                     }
+                    // aws: {
+                    //     url: process.env.MCP_REST_API_URL!,
+                    //     headers: {
+                    //         'X-API-Key': mcpServerApiKey,
+                    //         'accept': 'application/json',
+                    //         'jsonrpc': '2.0',
+                    //         'chat-session-id': event.arguments.chatSessionId
+                    //     }
+                    // }
                 }
             })
             // const test = await mcpClient.getTools()
@@ -143,11 +246,11 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
         const agentTools = [
             // ...mcpTools,
             new Calculator(),
-                        ...s3FileManagementTools,
-                        userInputTool,
-                        createProjectTool,
-                        pysparkTool({
-                            additionalSetupScript: `
+            ...s3FileManagementTools,
+            userInputTool,
+            createProjectTool,
+            pysparkTool({
+                additionalSetupScript: `
             import plotly.io as pio
             import plotly.graph_objects as go
 
@@ -168,8 +271,8 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
             pio.templates["white_clean_log"] = custom_template
             pio.templates.default = "white_clean_log"
                             `,
-                        }),
-                        renderAssetTool
+            }),
+            renderAssetTool
         ]
 
         const agent = createReactAgent({

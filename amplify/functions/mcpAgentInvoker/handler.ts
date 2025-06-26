@@ -120,7 +120,7 @@ const logMiddleware = () => {
     return {
         before: async (request: any) => {
             console.log("Before middleware execution");
-            console.log("Request:", JSON.stringify(request));
+            // console.log("Request:", JSON.stringify(request));
         },
         after: async (request: any) => {
             console.log("After middleware execution");
