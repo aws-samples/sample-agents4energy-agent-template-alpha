@@ -9,7 +9,14 @@ import { DynamicStructuredTool } from "@langchain/core/tools";
 import { APIGatewayProxyEvent } from 'aws-lambda';
 import { setChatSessionId } from "../tools/toolUtils";
 
-import { s3FileManagementTools } from "../tools/s3ToolBox";
+import { 
+    s3FileManagementTools,
+    listFiles,
+    readFile,
+    writeFile,
+    updateFile,
+    textToTableTool,
+    searchFiles } from "../tools/s3ToolBox";
 import { userInputTool } from "../tools/userInputTool";
 import { pysparkTool } from "../tools/athenaPySparkTool";
 import { renderAssetTool } from "../tools/renderAssetTool";
@@ -71,7 +78,12 @@ const langGraphTools: DynamicStructuredTool[] = [
             pio.templates.default = "white_clean_log"
                             `,
     }),
-    ...s3FileManagementTools,
+    listFiles,
+    readFile,
+    writeFile,
+    // updateFile,
+    // textToTableTool,
+    // searchFiles,
     renderAssetTool,
     userInputTool,
     createProjectTool
@@ -118,7 +130,6 @@ export const handler = middy(async (
     console.log('Chat Session Id: ', chatSessionId)
 
     setChatSessionId(chatSessionId);
-    // setFoundationModelId(event.headers["foundation-model-id"] ?? "default-foundation-model-id");
     // The return will be handled by the mcp server
     return {};
 })

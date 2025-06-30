@@ -89,7 +89,7 @@ export class McpServerConstruct extends Construct {
 
         // Add a resource and method to the API
         this.mcpResource = this.api.root.addResource('mcp');
-        this.mcpResource.addMethod('POST', mcpToolsIntegration, {
+        this.mcpResource.addMethod('ANY', mcpToolsIntegration, {
             apiKeyRequired: true, // This requires the API key for this method
         });
     }

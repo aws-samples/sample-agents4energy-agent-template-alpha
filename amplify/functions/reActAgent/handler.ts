@@ -271,26 +271,29 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
             userInputTool,
             createProjectTool,
             pysparkTool({
+                additionalToolDescription: `
+                By default, plots will have a lograthmic y axis and a white backgrount.
+                `,
                 additionalSetupScript: `
-            import plotly.io as pio
-            import plotly.graph_objects as go
+import plotly.io as pio
+import plotly.graph_objects as go
 
-            # Create a custom layout
-            custom_layout = go.Layout(
-                paper_bgcolor='white',
-                plot_bgcolor='white',
-                xaxis=dict(showgrid=False),
-                yaxis=dict(
-                    showgrid=True,
-                    gridcolor='lightgray',
-                    type='log'  # <-- Set y-axis to logarithmic
-                )
-            )
+# Create a custom layout
+custom_layout = go.Layout(
+    paper_bgcolor='white',
+    plot_bgcolor='white',
+    xaxis=dict(showgrid=False),
+    yaxis=dict(
+        showgrid=True,
+        gridcolor='lightgray',
+        type='log'  # <-- Set y-axis to logarithmic
+    )
+)
 
-            # Create and register the template
-            custom_template = go.layout.Template(layout=custom_layout)
-            pio.templates["white_clean_log"] = custom_template
-            pio.templates.default = "white_clean_log"
+# Create and register the template
+custom_template = go.layout.Template(layout=custom_layout)
+pio.templates["white_clean_log"] = custom_template
+pio.templates.default = "white_clean_log"
                             `,
             }),
             renderAssetTool

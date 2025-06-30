@@ -12,7 +12,7 @@ import { writeFile } from "./s3ToolBox";
 const getAthenaWorkgroup = () => process.env.ATHENA_WORKGROUP_NAME;
 const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
 
-export const getSessionSetupScript = () => { 
+export const getSessionSetupScript = () => {
     return `
 import os
 
@@ -166,11 +166,11 @@ def uploadFileToS3(file_path, s3_path):
 `
 }
 
-export const getPreCodeExecutionScript = (script: string) => { 
+export const getPreCodeExecutionScript = (script: string) => {
     // Match any quoted strings that look like file paths (ending with .xxx where xxx is 2-4 characters)
     const filePathRegex = /['"]([^'"]+\.[a-zA-Z0-9]{2,4})['"](?:\s*[,)}]|\s*$|\s*\n|$)/g;
     const matches = script?.match(filePathRegex) || [];
-    
+
     // Extract just the file paths from the matches
     const filePaths = matches.map(match => {
         const pathMatch = match.match(/['"]([^'"]+\.[a-zA-Z0-9]{2,4})['"]/);
@@ -190,7 +190,7 @@ for s3_path in files_to_download:
 \n\n`
 }
 
-export const getPostCodeExecutionScript = () => { 
+export const getPostCodeExecutionScript = () => {
     // const origin = props?.origin || '';
     return `
 import os
@@ -644,7 +644,7 @@ const pysparkToolSchema = z.object({
     scriptPath: z.string().describe("Path for the script file. If code is provided, the script will be saved here. If code is not provided, an existing script at this path will be executed. Must start with 'scripts/'")
 });
 
-export const pysparkTool = (props: {additionalSetupScript?: string, additionalToolDescription?: string}) => tool(
+export const pysparkTool = (props: { additionalSetupScript?: string, additionalToolDescription?: string }) => tool(
     async (params) => {
         const { code, scriptPath, timeout = 300, description = "PySpark execution" } = params;
         const { additionalSetupScript = '' } = props;
@@ -668,7 +668,7 @@ export const pysparkTool = (props: {additionalSetupScript?: string, additionalTo
             } else {
                 // Load the code from a file
                 const scriptContent = await readS3File(`s3://${process.env.STORAGE_BUCKET_NAME}/${getChatSessionPrefix()}${scriptPath}`);
-                codeToExecute =  getPreCodeExecutionScript(scriptContent) + scriptContent; //Saved scripts will always have the post execution script
+                codeToExecute = getPreCodeExecutionScript(scriptContent) + scriptContent; //Saved scripts will always have the post execution script
                 console.log(`Loaded code from file: ${scriptPath}`);
             }
 
@@ -753,7 +753,7 @@ export const pysparkTool = (props: {additionalSetupScript?: string, additionalTo
                     await new Promise(resolve => setTimeout(resolve, 5000));
 
                     try {
-                        const getSessionStatusResponse = await athenaClient.send( new GetSessionStatusCommand({
+                        const getSessionStatusResponse = await athenaClient.send(new GetSessionStatusCommand({
                             SessionId: sessionId
                         }));
                         sessionState = getSessionStatusResponse.Status?.State || 'UNKNOWN';
@@ -811,7 +811,7 @@ export const pysparkTool = (props: {additionalSetupScript?: string, additionalTo
                 const sessionSetupResult = await executeCalculation(
                     athenaClient,
                     sessionId,
-                    getSessionSetupScript() + additionalSetupScript   ,
+                    getSessionSetupScript() + additionalSetupScript,
                     "Session Setup",
                     chatSessionId,
                     progressIndex,
@@ -825,6 +825,21 @@ export const pysparkTool = (props: {additionalSetupScript?: string, additionalTo
                 );
 
                 progressIndex = sessionSetupResult.newProgressIndex;
+
+                if (!sessionSetupResult.success) {
+                    await publishProgress(chatSessionId, `❌ Setup Script Execution failed with state: ${sessionSetupResult.state} (Session ID: ${sessionId})`, progressIndex++);
+
+                    // Use the helper function to fetch outputs even in failure case
+                    const outputs = await fetchCalculationOutputs(sessionSetupResult.resultData, chatSessionId, progressIndex);
+
+                    return JSON.stringify({
+                        status: sessionSetupResult.state,
+                        error: "PySpark setup script execution did not complete successfully",
+                        details: "Check logs for more information",
+                        output: outputs,
+                        sessionId: sessionId
+                    });
+                }
             }
 
             await publishProgress(chatSessionId, `✅ Submitting your PySpark code for execution... (Session ID: ${sessionId})`, progressIndex++);
