@@ -38,7 +38,8 @@ describe('AWS MCP Tools Integration Tests', function () {
 
     const bodyData = JSON.stringify({
       jsonrpc: "2.0",
-      method: "tools/list",
+      // method: "tools/list",
+      method: "prompts/list",
       id: 1
     });
 

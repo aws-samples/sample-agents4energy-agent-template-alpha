@@ -32,7 +32,7 @@ import { EventEmitter } from "events";
 
 import { startMcpBridgeServer } from "./awsSignedMcpBridge"
 
-const USE_MCP = true;
+const USE_MCP = false;
 const LOCAL_PROXY_PORT = 3010
 
 let mcpTools: StructuredToolInterface<ToolSchemaBase, any, any>[]
@@ -273,8 +273,8 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
         console.log('Mcp Tools: ', mcpTools)
 
         const agentTools = [
-            ...mcpTools,
-//             new Calculator(),
+            // ...mcpTools,
+            new Calculator(),
 //             ...s3FileManagementTools,
 //             userInputTool,
 //             createProjectTool,

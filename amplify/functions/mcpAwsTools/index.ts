@@ -9,14 +9,15 @@ import { DynamicStructuredTool } from "@langchain/core/tools";
 import { APIGatewayProxyEvent } from 'aws-lambda';
 import { setChatSessionId } from "../tools/toolUtils";
 
-import { 
+import {
     s3FileManagementTools,
     listFiles,
     readFile,
     writeFile,
     updateFile,
     textToTableTool,
-    searchFiles } from "../tools/s3ToolBox";
+    searchFiles
+} from "../tools/s3ToolBox";
 import { userInputTool } from "../tools/userInputTool";
 import { pysparkTool } from "../tools/athenaPySparkTool";
 import { renderAssetTool } from "../tools/renderAssetTool";
@@ -28,6 +29,24 @@ const server = new McpServer({
     name: "Lambda hosted MCP Server",
     version: "1.0.0",
 });
+
+server.registerPrompt(
+    "dummy",
+    {
+        title: "Dummy Prompt",
+        description: "Here is a dummy prompt",
+        argsSchema: { myArgString: z.string() }
+    },
+    ({ myArgString }) => ({
+        messages: [{
+            role: "user",
+            content: {
+                type: "text",
+                text: `Here is the arg you sent:\n\n${myArgString}`
+            }
+        }]
+    })
+);
 
 // server.registerTool("add", {
 //     title: "add",              // This title takes precedence
@@ -57,26 +76,26 @@ const langChainToolHandler = (langChainTool: DynamicStructuredTool) => async (ar
 const langGraphTools: DynamicStructuredTool[] = [
     pysparkTool({
         additionalSetupScript: `
-            import plotly.io as pio
-            import plotly.graph_objects as go
+import plotly.io as pio
+import plotly.graph_objects as go
 
-            # Create a custom layout
-            custom_layout = go.Layout(
-                paper_bgcolor='white',
-                plot_bgcolor='white',
-                xaxis=dict(showgrid=False),
-                yaxis=dict(
-                    showgrid=True,
-                    gridcolor='lightgray',
-                    type='log'  # <-- Set y-axis to logarithmic
-                )
-            )
+# Create a custom layout
+custom_layout = go.Layout(
+    paper_bgcolor='white',
+    plot_bgcolor='white',
+    xaxis=dict(showgrid=False),
+    yaxis=dict(
+        showgrid=True,
+        gridcolor='lightgray',
+        type='log'  # <-- Set y-axis to logarithmic
+    )
+)
 
-            # Create and register the template
-            custom_template = go.layout.Template(layout=custom_layout)
-            pio.templates["white_clean_log"] = custom_template
-            pio.templates.default = "white_clean_log"
-                            `,
+# Create and register the template
+custom_template = go.layout.Template(layout=custom_layout)
+pio.templates["white_clean_log"] = custom_template
+pio.templates.default = "white_clean_log"
+`,
     }),
     listFiles,
     readFile,
@@ -110,7 +129,7 @@ const logMiddleware = () => {
     return {
         before: async (request: any) => {
             console.log("Before middleware execution");
-            console.log("Request:", JSON.stringify(request));
+            // console.log("Request:", JSON.stringify(request));
         },
         after: async (request: any) => {
             console.log("After middleware execution");
