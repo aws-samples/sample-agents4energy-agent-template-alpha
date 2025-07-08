@@ -29,6 +29,9 @@ const TopNavBar: React.FC = () => {
 
   const handleCreateNewChat = async () => {
     try {
+      // Invoke the lambda function so that MCP servers initialize before the user is waiting for a response
+      amplifyClient.queries.invokeReActAgent({ chatSessionId: "initilize" })
+
       const newChatSession = await amplifyClient.models.ChatSession.create({});
       router.push(`/chat/${newChatSession.data!.id}`);
     } catch (error) {

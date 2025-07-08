@@ -1,6 +1,6 @@
 import middy from "@middy/core";
 import httpErrorHandler from "@middy/http-error-handler";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z, ZodRawShape } from "zod";
 import mcpMiddleware from "middy-mcp";
 
@@ -47,6 +47,55 @@ server.registerPrompt(
         }]
     })
 );
+
+// Static resource
+server.registerResource(
+    "config",
+    "config://app",
+    {
+        title: "Application Config",
+        description: "Application configuration data",
+        mimeType: "text/plain"
+    },
+    async (uri: any) => ({
+        contents: [{
+            uri: uri.href,
+            text: "App configuration here"
+        }]
+    })
+);
+
+const resource = new ResourceTemplate(`metadata:///{+path}`, {
+    list: async () => {
+        return {
+            resources: [
+                {
+                    name: "metadata-item",
+                    uri: "metadata:///test",
+                    title: "Metadata Item",
+                    description: "A metadata resource item"
+                }
+            ]
+        };
+    },
+    complete: {
+        ["+path"]: async (value) => {
+            return ["test"];
+        },
+    },
+});
+
+server.registerResource("test",
+    resource,
+    {},
+    async (uri: any) => ({
+        contents: [{
+            uri: uri.href,
+            text: "Output here"
+        }]
+    })
+)
+
 
 // server.registerTool("add", {
 //     title: "add",              // This title takes precedence

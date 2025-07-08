@@ -84,12 +84,12 @@ export const startMcpBridgeServer = async (options: McpBridgeOptions = {}) => {
 
     const port = options.port || 3010;
     const region = options.region || process.env.AWS_REGION;
-    const service = options.service || 'execute-api';
-    const accessKeyId = options.accessKeyId || process.env.AWS_ACCESS_KEY_ID;
-    const secretAccessKey = options.secretAccessKey || process.env.AWS_SECRET_ACCESS_KEY;
-    const sessionToken = options.sessionToken || process.env.AWS_SESSION_TOKEN;
+    const service = options.service || 'lambda';
+    // const accessKeyId = options.accessKeyId || process.env.AWS_ACCESS_KEY_ID;
+    // const secretAccessKey = options.secretAccessKey || process.env.AWS_SECRET_ACCESS_KEY;
+    // const sessionToken = options.sessionToken || process.env.AWS_SESSION_TOKEN;
 
-    if (!accessKeyId || !secretAccessKey) {
+    if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
         console.error('AWS credentials not found. Make sure AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY are set.');
     }
 
@@ -119,7 +119,7 @@ export const startMcpBridgeServer = async (options: McpBridgeOptions = {}) => {
                 body += chunk.toString();
             });
 
-            req.on('end', () => {
+            req.on('end', async () => {
                 // Create the AWS request object
                 const opts: aws4.Request = {
                     host: url.hostname,
@@ -136,56 +136,63 @@ export const startMcpBridgeServer = async (options: McpBridgeOptions = {}) => {
 
                 // Sign the request with AWS credentials
                 aws4.sign(opts, {
-                    accessKeyId: accessKeyId,
-                    secretAccessKey: secretAccessKey,
-                    sessionToken: sessionToken
+                    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+                    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+                    sessionToken: process.env.AWS_SESSION_TOKEN
                 });
 
                 console.warn('Full request to be sent to the target host: ', opts)
 
-                // Make the HTTPS request
-                const targetReq = https.request(opts, (targetRes) => {
-                    let data = '';
-
-                    targetRes.on('data', (chunk) => {
-                        data += chunk;
-                    });
-
-                    targetRes.on('end', () => {
-                        try {
-                            console.log('target response body response: ', data)
-
-                            // const response = JSON.parse(data);
-
-                            // console.log('Call tool response: ', JSON.stringify(response, null, 2))
-                            res.writeHead(targetRes.statusCode || 200, targetRes.headers);
-                            res.end(data);
-                        } catch (error) {
-                            console.error('Error processing target response:', error);
-                            res.writeHead(500);
-                            res.end(JSON.stringify({ error: 'Internal Server Error' }));
+                // Convert aws4 signed request to axios config
+                // Create a clean headers object that axios can accept
+                const headers: Record<string, string> = {};
+                if (opts.headers) {
+                    Object.entries(opts.headers).forEach(([key, value]) => {
+                        if (value !== undefined && typeof value === 'string') {
+                            headers[key] = value;
                         }
                     });
-                });
+                }
 
-                // Add error handling for the target request
-                targetReq.on('error', (err) => {
-                    console.error('Target request error:', err);
-                    res.writeHead(500);
-                    res.end(JSON.stringify({ error: 'Error connecting to target server: ' + err.message }));
-                });
+                // Make the request using axios
+                // console.warn(`{"message": "Setting request timeout", "timeout": 300000, "timestamp": "${new Date().toISOString()}"}`);
+                try {
+                    const targetRes = await axios({
+                        method: opts.method as string,
+                        url: targetUrl,
+                        headers: headers,
+                        data: body,
+                        timeout: 300000, // 5 minutes timeout
+                        responseType: 'arraybuffer' // To handle binary responses correctly
+                    });
 
-                // Add timeout to prevent hanging indefinitely
-                console.warn(`{"message": "Setting request timeout", "timeout": 15000, "timestamp": "${new Date().toISOString()}"}`);
-                targetReq.setTimeout(15000, () => {
-                    console.warn(`{"message": "REQUEST TIMEOUT OCCURRED", "targetUrl": "${targetUrl}", "timestamp": "${new Date().toISOString()}"}`);
-                    targetReq.destroy();
-                    res.writeHead(504);
-                    res.end(JSON.stringify({ error: 'Gateway Timeout - request took too long to complete' }));
-                });
+                    console.log('target response body response received: ', targetRes.data);
+                    
+                    // Convert response headers to format expected by http.ServerResponse
+                    const responseHeaders: Record<string, string | string[] | undefined> = {};
+                    Object.entries(targetRes.headers).forEach(([key, value]) => {
+                        responseHeaders[key] = value;
+                    });
 
-                // Send the request body to the target server
-                targetReq.end(body);
+                    res.writeHead(targetRes.status, responseHeaders);
+                    res.end(targetRes.data);
+                } catch (error: any) {
+                    if (axios.isAxiosError(error) && error.code === 'ECONNABORTED') {
+                        console.warn(`{"message": "REQUEST TIMEOUT OCCURRED", "targetUrl": "${targetUrl}", "timestamp": "${new Date().toISOString()}"}`);
+                        res.writeHead(504);
+                        res.end(JSON.stringify({ error: 'Gateway Timeout - request took too long to complete' }));
+                    } else if (axios.isAxiosError(error) && error.response) {
+                        // Forward the error response from the target server
+                        console.error('Target server error response:', error.response.status, ' ', error.response.data);
+                        res.writeHead(error.response.status, error.response.headers as any);
+                        res.end(error.response.data);
+                    } else {
+                        // Handle network or other errors
+                        console.error('Target request error:', error);
+                        res.writeHead(500);
+                        res.end(JSON.stringify({ error: 'Error connecting to target server: ' + (error.message || 'Unknown error') }));
+                    }
+                }
             });
 
             // const result = await signAndFetch('https://aws-service...', { method: 'GET' });
@@ -233,45 +240,10 @@ function parseCommandLineArgs(): McpBridgeOptions {
             options.service = args[++i];
         } else if (arg === '--default-target-url' && i + 1 < args.length) {
             options.defaultTargetUrl = args[++i];
-        } else if (arg === '--access-key-id' && i + 1 < args.length) {
-            options.accessKeyId = args[++i];
-        } else if (arg === '--secret-access-key' && i + 1 < args.length) {
-            options.secretAccessKey = args[++i];
-        } else if (arg === '--session-token' && i + 1 < args.length) {
-            options.sessionToken = args[++i];
-        } else if (arg === '--help') {
-            printUsage();
-            process.exit(0);
         }
     }
 
     return options;
-}
-
-/**
- * Print usage information
- */
-function printUsage() {
-    console.log(`
-AWS Signed MCP Bridge Server
-
-Usage:
-  ts-node awsSignedMcpBridge.ts [options]
-  
-  or after compilation:
-  
-  node awsSignedMcpBridge.js [options]
-
-Options:
-  --port <number>              Port to run the local proxy server on (default: 3010)
-  --region <string>            AWS region for signing requests (default: process.env.AWS_REGION)
-  --service <string>           AWS service name for signing (default: 'execute-api')
-  --default-target-url <url>   Default target URL if not provided in request headers
-  --access-key-id <string>     AWS access key ID (default: process.env.AWS_ACCESS_KEY_ID)
-  --secret-access-key <string> AWS secret access key (default: process.env.AWS_SECRET_ACCESS_KEY)
-  --session-token <string>     AWS session token (default: process.env.AWS_SESSION_TOKEN)
-  --help                       Show this help message
-`);
 }
 
 /**
@@ -281,132 +253,6 @@ Options:
  * @param options Configuration options for the request
  * @returns A promise that resolves with the response data
  */
-// export const processSignedMcpRequest = async (
-//     targetUrl: string,
-//     data: any,
-//     options: SignedMcpRequestOptions = {}
-// ): Promise<any> => {
-//     // await setAmplifyEnvVars();
-
-//     const region = options.region || process.env.AWS_REGION;
-//     const service = options.service || 'execute-api';
-//     const accessKeyId = options.accessKeyId || process.env.AWS_ACCESS_KEY_ID;
-//     const secretAccessKey = options.secretAccessKey || process.env.AWS_SECRET_ACCESS_KEY;
-//     const sessionToken = options.sessionToken || process.env.AWS_SESSION_TOKEN;
-//     const method = options.method || 'POST';
-//     const timeout = options.timeout || 15000;
-
-//     if (!accessKeyId || !secretAccessKey) {
-//         throw new Error('AWS credentials not found. Make sure AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY are set.');
-//     }
-
-//     if (!region) {
-//         throw new Error('AWS region not found. Make sure AWS_REGION is set or provide it in options.');
-//     }
-
-//     // Parse the target URL to extract hostname and pathname
-//     const url = new URL(targetUrl);
-
-//     // Prepare the request body
-//     const body = typeof data === 'string' ? data : JSON.stringify(data);
-
-//     // Create the AWS request object
-//     const opts: aws4.Request = {
-//         host: url.hostname,
-//         path: url.pathname + url.search,
-//         method: method,
-//         headers: {
-//             'Content-Type': 'application/json',
-//             ...options.headers,
-//             host: url.hostname
-//         },
-//         body: body,
-//         service: service,
-//         region: region
-//     };
-
-//     // Sign the request with AWS credentials
-//     aws4.sign(opts, {
-//         accessKeyId: accessKeyId,
-//         secretAccessKey: secretAccessKey,
-//         sessionToken: sessionToken
-//     });
-
-//     // Return a promise that resolves with the response data
-//     return new Promise((resolve, reject) => {
-//         const protocol = url.protocol === 'https:' ? https : http;
-
-//         const req = protocol.request(opts, (res) => {
-//             let responseData = '';
-
-//             res.on('data', (chunk) => {
-//                 responseData += chunk;
-//             });
-
-//             res.on('end', () => {
-//                 try {
-//                     if (res.statusCode && (res.statusCode < 200 || res.statusCode >= 300)) {
-//                         reject(new Error(`Request failed with status code ${res.statusCode}: ${responseData}`));
-//                         return;
-//                     }
-
-//                     // Try to parse as JSON, but return raw if not valid JSON
-//                     try {
-//                         const parsedData = JSON.parse(responseData);
-//                         resolve(parsedData);
-//                     } catch (e) {
-//                         resolve(responseData);
-//                     }
-//                 } catch (error) {
-//                     reject(error);
-//                 }
-//             });
-//         });
-
-//         // Add error handling for the request
-//         req.on('error', (err) => {
-//             reject(new Error(`Error connecting to target server: ${err.message}`));
-//         });
-
-//         // Add timeout to prevent hanging indefinitely
-//         req.setTimeout(timeout, () => {
-//             req.destroy();
-//             reject(new Error('Request timeout - took too long to complete'));
-//         });
-
-//         // Send the request body
-//         req.end(body);
-//     });
-// };
-
-// /**
-//  * Process MCP requests from standard input, sign them, send them to the target URL, and write responses to standard output
-//  * @param targetUrl The URL to send the signed requests to
-//  * @param options Configuration options for the requests
-//  */
-// export const processMcpRequestsFromStdin = async (
-//     targetUrl: string,
-//     options: SignedMcpRequestOptions = {}
-// ): Promise<void> => {
-//     const readline = require('readline');
-
-//     const rl = readline.createInterface({
-//         input: process.stdin,
-//         output: process.stdout,
-//         terminal: false
-//     });
-
-//     for await (const line of rl) {
-//         try {
-//             if (line.trim()) {
-//                 const response = await processSignedMcpRequest(targetUrl, line, options);
-//                 console.log(typeof response === 'string' ? response : JSON.stringify(response));
-//             }
-//         } catch (error) {
-//             console.error('Error processing request:', error);
-//         }
-//     }
-// };
 
 const handleStdioInput = async () => {
     try {
@@ -426,13 +272,7 @@ const handleStdioInput = async () => {
                     options.region = process.argv[++i];
                 } else if (arg === '--service' && i + 1 < process.argv.length) {
                     options.service = process.argv[++i];
-                } else if (arg === '--access-key-id' && i + 1 < process.argv.length) {
-                    options.accessKeyId = process.argv[++i];
-                } else if (arg === '--secret-access-key' && i + 1 < process.argv.length) {
-                    options.secretAccessKey = process.argv[++i];
-                } else if (arg === '--session-token' && i + 1 < process.argv.length) {
-                    options.sessionToken = process.argv[++i];
-                } else if (arg === '--method' && i + 1 < process.argv.length) {
+                }  else if (arg === '--method' && i + 1 < process.argv.length) {
                     options.method = process.argv[++i];
                 } else if (arg === '--timeout' && i + 1 < process.argv.length) {
                     options.timeout = parseInt(process.argv[++i], 10);
@@ -552,140 +392,7 @@ const handleStdioInput = async () => {
     }
 }
 
-const test = async () => {
-    const localTransport = new StdioServerTransport()
-
-    localTransport.onmessage = async (messageObj: any) => {
-        console.warn("Received message:", JSON.stringify(messageObj));
-
-        // Special handling for initialization message
-        if ('method' in messageObj && messageObj.method === 'initialize') {
-            console.warn("Handling initialize message");
-
-            // Respond with a proper initialization response
-            localTransport.send({
-                jsonrpc: "2.0",
-                id: messageObj.id,
-                result: {
-                    data: "Hello World"
-                }
-            });
-
-            // Create an interval to keep the process alive
-            setInterval(() => {
-                console.error("Heartbeat: MCP bridge server is still running");
-            }, 5000);
-        } else {
-            // For all other messages, send a simple response
-            localTransport.send({
-                jsonrpc: "2.0",
-                id: messageObj.id,
-                result: {
-                    data: "Hello World"
-                }
-            }).catch(onClientError);
-        }
-    }
-
-    await localTransport.start()
-
-    // Create a promise that never resolves to keep the function running forever
-    return new Promise((resolve) => {
-        // This promise will never resolve, ensuring the function never returns
-    });
-
-    // process.on('SIGINT', async () => {
-    //     console.warn('\nShutting down...')
-    //     process.exit(0)
-    // })
-
-    // process.on('SIGTERM', () => {
-    //     console.warn("Received SIGTERM signal, shutting down...");
-    //     process.exit(0);
-    // });
-
-    // // Keep the process alive
-    // process.stdin.resume();
-
-    // process.stdin.on('end', async () => {
-    //     console.warn('\nShutting down...')
-    //     process.exit(0)
-    // })
-}
-
-const test2 = async () => {
-    const localTransport = new StdioServerTransport()
-    let messageCounter = 0;
-
-    localTransport.onclose = () => {
-        console.log('Transport Closed')
-    }
-
-    localTransport.onerror = (error) => {
-        console.log('Transport Error: ', error)
-    }
-
-    localTransport.onmessage = async (incomingMessage: any) => {
-        console.warn("Recieved message: ", incomingMessage)
-        if (incomingMessage.method === 'initialize') {
-            localTransport.send({
-                jsonrpc: "2.0",
-                id: 0,
-                result: {
-                    protocolVersion: "2024-11-05",
-                    serverInfo: {
-                        name: "aws-signed-mcp-bridge",
-                        version: "1.0.0"
-                    },
-                    capabilities: {}
-                }
-            });
-        } else {
-            localTransport.send({
-                jsonrpc: "2.0",
-                id: 0,
-                result: {
-                    status: 200,
-                    data: "Hello World"
-                }
-            });
-        }
-    }
-
-
-    setInterval(() => {
-        console.warn("My heart beat to the beat of the drum");
-        // localTransport.send({
-        //     jsonrpc: "2.0",
-        //     id: messageCounter++,
-        //     result: {
-        //         status: 200,
-        //         data: "Hello World",
-        //         serverInfo: {
-        //             name: "aws-signed-mcp-bridge",
-        //             version: "1.0.0"
-        //         },
-        //         capabilities: {}
-        //     }
-        // });
-    }, 2000);
-
-    await localTransport.start()
-
-    console.warn("Started local transport")
-
-    // // Keep the process alive
-    // process.stdin.resume();
-
-
-    // // Create a promise that never resolves to keep the function running forever
-    // return new Promise((resolve) => {
-    //     // This promise will never resolve, ensuring the function never returns
-    // });
-}
-
 // Execute when run directly (not imported)
 if (import.meta.url.startsWith('file:') && process.argv[1] && import.meta.url.endsWith(process.argv[1])) {
     handleStdioInput()
-    // test2()
 }
