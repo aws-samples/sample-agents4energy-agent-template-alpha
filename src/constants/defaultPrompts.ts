@@ -1,7 +1,7 @@
 export const defaultPrompts = [
     `I manage a fleet of wind farms and want to maximize energy production while minimizing operational expense. 
 Let me check our fleet performance for this quarter. Compare the actual production to the forecasted production for each wind farm.
-Generate the necessary time series data to create a dashboard to visualize the performance of each wind farm.`,
+Generate the necessary time series data and render a dashboard to visualize the performance of each wind farm.`,
     `Create a demo to optimize the maintenance schedule for a fleet of wellsite compressors in the San Juan basin.
 Generate non-optimized data with historic maintenance events, compressor failures, and time series compressor data.
 Analyze the data to find an optimized maintenance plan and estimate the cost savings.

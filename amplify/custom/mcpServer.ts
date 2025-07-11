@@ -63,7 +63,7 @@ export class McpServerConstruct extends Construct {
 
         // Create an API key
         this.apiKey = this.api.addApiKey('McpToolsApiKey', {
-            apiKeyName: 'mcp-tools-key',
+            // apiKeyName: 'mcp-tools-key',
             description: 'API Key for MCP Tools',
         });
 
