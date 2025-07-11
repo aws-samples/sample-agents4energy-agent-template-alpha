@@ -150,7 +150,7 @@ custom_layout = go.Layout(
     yaxis=dict(
         showgrid=True,
         gridcolor='lightgray',
-        type='log'  # <-- Set y-axis to logarithmic
+        # type='log'  # <-- Set y-axis to logarithmic
     )
 )
 
