@@ -14,7 +14,7 @@ import "./globals.css";
 import "@aws-amplify/ui-react/styles.css";
 import { FileSystemProvider } from "@/contexts/FileSystemContext";
 
-import WithAuth from "@/components/WithAuth";
+// import WithAuth from "@/components/WithAuth";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -41,7 +41,7 @@ export default function RootLayout({
           <ConfigureAmplify />
           <FileSystemProvider>
             <Providers>
-              <WithAuth>
+              {/* <WithAuth> */}
                 <ThemeProvider theme={theme}>
                   <CssBaseline />
                   <div style={{
@@ -59,7 +59,7 @@ export default function RootLayout({
                     </div>
                   </div>
                 </ThemeProvider>
-              </WithAuth>
+              {/* </WithAuth> */}
             </Providers>
           </FileSystemProvider>
         </AppRouterCacheProvider>
