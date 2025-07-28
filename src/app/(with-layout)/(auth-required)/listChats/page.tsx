@@ -9,7 +9,7 @@ import { Box, Button, Card, CardContent, Typography } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 const amplifyClient = generateClient<Schema>();
 
-import WithAuth, { addAuthToPage } from '@/components/WithAuth';
+// import WithAuth from '@/components/WithAuth';
 
 const Page = () => {
     const { user } = useAuthenticator((context) => [context.user]);
@@ -64,4 +64,4 @@ const Page = () => {
     );
 }
 
-export default addAuthToPage(Page);
+export default Page;

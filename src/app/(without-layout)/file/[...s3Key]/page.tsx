@@ -1,6 +1,5 @@
 "use client"
 
-import { NextResponse } from 'next/server';
 import outputs from '@/../amplify_outputs.json';
 import { getUrl } from 'aws-amplify/storage';
 import { Amplify } from 'aws-amplify';

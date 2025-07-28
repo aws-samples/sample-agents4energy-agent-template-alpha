@@ -10,7 +10,6 @@ import PsychologyIcon from '@mui/icons-material/Psychology';
 import ChatBox from "@/components/ChatBox"
 import EditableTextBox from '@/components/EditableTextBox';
 import FileDrawer from '@/components/FileDrawer';
-import { addAuthToPage } from '@/components/WithAuth';
 
 const amplifyClient = generateClient<Schema>();
 
@@ -205,4 +204,4 @@ function Page({
     );
 }
 
-export default addAuthToPage(Page)
+export default Page
