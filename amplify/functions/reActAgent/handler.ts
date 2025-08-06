@@ -241,132 +241,165 @@ When using the textToTableTool:
         );
 
         let chunkIndex = 0
-        for await (const streamEvent of agentEventStream) {
-            switch (streamEvent.event) {
-                case "on_chat_model_stream":
-                    const tokenStreamChunk = streamEvent.data.chunk as AIMessageChunk
-                    if (!tokenStreamChunk.content) continue
-                    const chunkText = getLangChainMessageTextContent(tokenStreamChunk)
-                    process.stdout.write(chunkText || "")
-                    const publishChunkResponse = await amplifyClient.graphql({
-                        query: publishResponseStreamChunk,
-                        variables: {
-                            chunkText: chunkText || "",
-                            index: chunkIndex++,
-                            chatSessionId: event.arguments.chatSessionId
+        try { // This WILL catch errors from the async iterator
+            for await (const streamEvent of agentEventStream) {
+                switch (streamEvent.event) {
+                    case "on_chat_model_stream":
+                        const tokenStreamChunk = streamEvent.data.chunk as AIMessageChunk
+                        if (!tokenStreamChunk.content) continue
+                        const chunkText = getLangChainMessageTextContent(tokenStreamChunk)
+                        process.stdout.write(chunkText || "")
+                        const publishChunkResponse = await amplifyClient.graphql({
+                            query: publishResponseStreamChunk,
+                            variables: {
+                                chunkText: chunkText || "",
+                                index: chunkIndex++,
+                                chatSessionId: event.arguments.chatSessionId
+                            }
+                        })
+                        // console.log('published chunk response:\n', JSON.stringify(publishChunkResponse, null, 2))
+                        if (publishChunkResponse.errors) console.log('Error publishing response chunk:\n', publishChunkResponse.errors)
+                        break;
+                    case "on_chain_end":
+                        if (streamEvent.data.output?.messages) {
+                            // console.log('received on chain end:\n', stringifyLimitStringLength(streamEvent.data.output.messages))
+                            switch (streamEvent.name) {
+                                case "tools":
+                                case "agent":
+                                    chunkIndex = 0 //reset the stream chunk index
+                                    const streamChunk = streamEvent.data.output.messages[0] as ToolMessage | AIMessageChunk
+                                    console.log('received tool or agent message:\n', stringifyLimitStringLength(streamChunk))
+                                    console.log(streamEvent.name, streamChunk.content, typeof streamChunk.content === 'string')
+                                    if (streamEvent.name === 'tools' && typeof streamChunk.content === 'string' && streamChunk.content.toLowerCase().includes("error")) {
+                                        console.log('Generating error message for tool call')
+                                        const toolCallMessage = streamEvent.data.input.messages[streamEvent.data.input.messages.length - 1] as AIMessageChunk
+                                        const toolCallArgs = toolCallMessage.tool_calls?.[0].args
+                                        const toolName = streamChunk.lc_kwargs.name
+                                        const selectedToolSchema = agentTools.find(tool => tool.name === toolName)?.schema
+
+
+                                        // Check if the schema is a Zod schema with safeParse method
+                                        const isZodSchema = (schema: any): schema is { safeParse: Function } => {
+                                            return schema && typeof schema.safeParse === 'function';
+                                        }
+
+                                        //TODO: If the schema is a json schema, convert it to ZOD and do the same error checking: import { jsonSchemaToZod } from "json-schema-to-zod";
+                                        let zodError;
+                                        if (selectedToolSchema && isZodSchema(selectedToolSchema)) {
+                                            zodError = selectedToolSchema.safeParse(toolCallArgs);
+                                            console.log({ toolCallMessage, toolCallArgs, toolName, selectedToolSchema, zodError, formattedZodError: zodError?.error?.format() });
+
+                                            if (zodError?.error) {
+                                                streamChunk.content += '\n\n' + stringify(zodError.error.format());
+                                            }
+                                        } else {
+                                            selectedToolSchema
+                                            console.log({ toolCallMessage, toolCallArgs, toolName, selectedToolSchema, message: "Schema is not a Zod schema with safeParse method" });
+                                        }
+
+                                        // const zodError = selectedToolSchema?.safeParse(toolCallArgs)
+                                        console.log({ toolCallMessage, toolCallArgs, toolName, selectedToolSchema, zodError, formattedZodError: zodError?.error?.format() })
+
+                                        streamChunk.content += '\n\n' + stringify(zodError?.error?.format())
+                                    }
+
+                                    // Check if this is a table result from textToTableTool and format it properly
+                                    if (streamChunk instanceof ToolMessage && streamChunk.name === 'textToTableTool') {
+                                        try {
+                                            const toolResult = JSON.parse(streamChunk.content as string);
+                                            if (toolResult.messageContentType === 'tool_table') {
+                                                // Attach table data to the message using additional_kwargs which is supported by LangChain
+                                                (streamChunk as any).additional_kwargs = {
+                                                    tableData: toolResult.data,
+                                                    tableColumns: toolResult.columns,
+                                                    matchedFileCount: toolResult.matchedFileCount,
+                                                    messageContentType: 'tool_table'
+                                                };
+                                            }
+                                        } catch (error) {
+                                            console.error("Error processing textToTableTool result:", error);
+                                        }
+                                    }
+
+                                    // Check if this is a PySpark result and format it for better display
+                                    if (streamChunk instanceof ToolMessage && streamChunk.name === 'pysparkTool') {
+                                        try {
+                                            const pysparkResult = JSON.parse(streamChunk.content as string);
+                                            if (pysparkResult.status === "COMPLETED" && pysparkResult.output?.content) {
+                                                // Attach PySpark output data for special rendering
+                                                (streamChunk as any).additional_kwargs = {
+                                                    pysparkOutput: pysparkResult.output.content,
+                                                    pysparkError: pysparkResult.output.stderr,
+                                                    messageContentType: 'pyspark_result'
+                                                };
+                                            }
+                                        } catch (error) {
+                                            console.error("Error processing pysparkTool result:", error);
+                                        }
+                                    }
+
+                                    await publishMessage({
+                                        chatSessionId: event.arguments.chatSessionId,
+                                        fieldName: graphQLFieldName,
+                                        owner: userId,
+                                        message: streamChunk
+                                    })
+                                    break;
+                                default:
+                                    break;
+                            }
                         }
-                    })
-                    // console.log('published chunk response:\n', JSON.stringify(publishChunkResponse, null, 2))
-                    if (publishChunkResponse.errors) console.log('Error publishing response chunk:\n', publishChunkResponse.errors)
-                    break;
-                case "on_chain_end":
-                    if (streamEvent.data.output?.messages) {
-                        // console.log('received on chain end:\n', stringifyLimitStringLength(streamEvent.data.output.messages))
-                        switch (streamEvent.name) {
-                            case "tools":
-                            case "agent":
-                                chunkIndex = 0 //reset the stream chunk index
-                                const streamChunk = streamEvent.data.output.messages[0] as ToolMessage | AIMessageChunk
-                                console.log('received tool or agent message:\n', stringifyLimitStringLength(streamChunk))
-                                console.log(streamEvent.name, streamChunk.content, typeof streamChunk.content === 'string')
-                                if (streamEvent.name === 'tools' && typeof streamChunk.content === 'string' && streamChunk.content.toLowerCase().includes("error")) {
-                                    console.log('Generating error message for tool call')
-                                    const toolCallMessage = streamEvent.data.input.messages[streamEvent.data.input.messages.length - 1] as AIMessageChunk
-                                    const toolCallArgs = toolCallMessage.tool_calls?.[0].args
-                                    const toolName = streamChunk.lc_kwargs.name
-                                    const selectedToolSchema = agentTools.find(tool => tool.name === toolName)?.schema
-
-
-                                    // Check if the schema is a Zod schema with safeParse method
-                                    const isZodSchema = (schema: any): schema is { safeParse: Function } => {
-                                        return schema && typeof schema.safeParse === 'function';
-                                    }
-
-                                    //TODO: If the schema is a json schema, convert it to ZOD and do the same error checking: import { jsonSchemaToZod } from "json-schema-to-zod";
-                                    let zodError;
-                                    if (selectedToolSchema && isZodSchema(selectedToolSchema)) {
-                                        zodError = selectedToolSchema.safeParse(toolCallArgs);
-                                        console.log({ toolCallMessage, toolCallArgs, toolName, selectedToolSchema, zodError, formattedZodError: zodError?.error?.format() });
-
-                                        if (zodError?.error) {
-                                            streamChunk.content += '\n\n' + stringify(zodError.error.format());
-                                        }
-                                    } else {
-                                        selectedToolSchema
-                                        console.log({ toolCallMessage, toolCallArgs, toolName, selectedToolSchema, message: "Schema is not a Zod schema with safeParse method" });
-                                    }
-
-                                    // const zodError = selectedToolSchema?.safeParse(toolCallArgs)
-                                    console.log({ toolCallMessage, toolCallArgs, toolName, selectedToolSchema, zodError, formattedZodError: zodError?.error?.format() })
-
-                                    streamChunk.content += '\n\n' + stringify(zodError?.error?.format())
-                                }
-
-                                // Check if this is a table result from textToTableTool and format it properly
-                                if (streamChunk instanceof ToolMessage && streamChunk.name === 'textToTableTool') {
-                                    try {
-                                        const toolResult = JSON.parse(streamChunk.content as string);
-                                        if (toolResult.messageContentType === 'tool_table') {
-                                            // Attach table data to the message using additional_kwargs which is supported by LangChain
-                                            (streamChunk as any).additional_kwargs = {
-                                                tableData: toolResult.data,
-                                                tableColumns: toolResult.columns,
-                                                matchedFileCount: toolResult.matchedFileCount,
-                                                messageContentType: 'tool_table'
-                                            };
-                                        }
-                                    } catch (error) {
-                                        console.error("Error processing textToTableTool result:", error);
-                                    }
-                                }
-
-                                // Check if this is a PySpark result and format it for better display
-                                if (streamChunk instanceof ToolMessage && streamChunk.name === 'pysparkTool') {
-                                    try {
-                                        const pysparkResult = JSON.parse(streamChunk.content as string);
-                                        if (pysparkResult.status === "COMPLETED" && pysparkResult.output?.content) {
-                                            // Attach PySpark output data for special rendering
-                                            (streamChunk as any).additional_kwargs = {
-                                                pysparkOutput: pysparkResult.output.content,
-                                                pysparkError: pysparkResult.output.stderr,
-                                                messageContentType: 'pyspark_result'
-                                            };
-                                        }
-                                    } catch (error) {
-                                        console.error("Error processing pysparkTool result:", error);
-                                    }
-                                }
-
-                                await publishMessage({
-                                    chatSessionId: event.arguments.chatSessionId,
-                                    fieldName: graphQLFieldName,
-                                    owner: userId,
-                                    message: streamChunk
-                                })
-                                break;
-                            default:
-                                break;
-                        }
-                    }
-                    break;
+                        break;
+                }
             }
+        } catch (streamError: unknown) {
+            console.error("Stream processing error:", streamError);
+
+            let streamErrorMessage = ' Error invoking agent.\n'
+
+            if (streamError instanceof Error) {
+                console.error("Stream error details:", JSON.stringify(streamError, null, 2));
+                streamErrorMessage += streamError.message || streamError.stack
+            }
+
+            const publishChunkResponse = await amplifyClient.graphql({
+                query: publishResponseStreamChunk,
+                variables: {
+                    chunkText: streamErrorMessage,
+                    index: -10,
+                    chatSessionId: event.arguments.chatSessionId
+                }
+            });
+
+            console.log("Publish error message in stream response: ", publishChunkResponse)
+
+            // Re-throw to be caught by main catch block
+            throw streamError;
         }
     } catch (error) {
         const amplifyClient = getConfiguredAmplifyClient();
 
         console.warn("Error responding to user:", JSON.stringify(error, null, 2));
 
-        // Send the complete error message to the client
-        const errorMessage = error instanceof Error ? error.stack || error.message : String(error);
+        let errorMessage = "Error responding to user.\n"
+
+        if (error instanceof Error) {
+            console.error("Stream error details:", JSON.stringify(error, null, 2));
+            errorMessage += error.message || error.stack
+        }
+        // // Send the complete error message to the client
+        // const errorMessage = error instanceof Error ? error.stack || error.message : String(error);
 
         const publishChunkResponse = await amplifyClient.graphql({
             query: publishResponseStreamChunk,
             variables: {
                 chunkText: errorMessage,
-                index: 0,
+                index: -10,
                 chatSessionId: event.arguments.chatSessionId
             }
         })
+
+        console.log("Publish stream chunk with error message response: ", JSON.stringify(publishChunkResponse, null, 2))
 
         throw error;
     } finally {
