@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { CircularProgress, Box, Typography } from '@mui/material';
 
 interface PageProps {
   params: {
@@ -19,11 +20,16 @@ export default function Page({ params }: PageProps) {
   const [fileContent, setFileContent] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [isMarkdown, setIsMarkdown] = useState<boolean>(false);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
     async function fetchFile() {
       try {
+        // Reset states when fetching new file
+        setFileResponse(null);
+        setFileContent("");
+        setError(null);
+        
         const s3Key = params.s3Key.join('/');
         const s3KeyDecoded = s3Key.split('/').map((item: string) => decodeURIComponent(item)).join('/');
 
@@ -42,7 +48,9 @@ export default function Page({ params }: PageProps) {
 
         const response = await fetch(signedUrl);
         setFileResponse(response);
-        setFileContent(await response.text())
+        const content = await response.text();
+        setFileContent(content);
+
       } catch (err) {
         console.error('Error serving file:', err);
         setError(err instanceof Error ? err.message : String(err));
@@ -59,10 +67,6 @@ export default function Page({ params }: PageProps) {
         <p>{error}</p>
       </div>
     );
-  }
-
-  if (!fileResponse) {
-    return <div>Loading file...</div>;
   }
 
   // Return the file response when available
@@ -110,9 +114,8 @@ export default function Page({ params }: PageProps) {
   }
 
   return (
-    <div style={{ height: '100vh', width: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ height: '100vh', width: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
       <iframe 
-        ref={iframeRef}
         style={{ 
           height: '100%', 
           width: '100%', 
@@ -121,7 +124,32 @@ export default function Page({ params }: PageProps) {
           overflow: 'auto'
         }} 
         srcDoc={fileContent}
+        onLoad={() => setIsLoading(false)}
       />
+      
+      {/* Loading overlay */}
+      {isLoading && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+        >
+          <CircularProgress size={40} sx={{ mb: 2 }} />
+          <Typography variant="body1" color="text.secondary">
+            Rendering content...
+          </Typography>
+        </Box>
+      )}
     </div>
   )
 }
