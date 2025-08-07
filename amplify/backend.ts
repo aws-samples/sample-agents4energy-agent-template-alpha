@@ -30,11 +30,11 @@ const stackUUID = cdk.Names.uniqueResourceName(
   backend.stack, {}
 ).toLowerCase().replace(/[^a-z0-9-_]/g, '').slice(-3)
 
-//This will disable the ability for users to sign up in the UI. The administrator will manually create users.
-const { cfnUserPool } = backend.auth.resources.cfnResources;
-cfnUserPool.adminCreateUserConfig = {
-  allowAdminCreateUserOnly: true,
-};
+// //This will disable the ability for users to sign up in the UI. The administrator will manually create users.
+// const { cfnUserPool } = backend.auth.resources.cfnResources;
+// cfnUserPool.adminCreateUserConfig = {
+//   allowAdminCreateUserOnly: true,
+// };
 
 const mcpAgentInvokerFunctionUrl = backend.mcpAgentInvoker.resources.lambda.addFunctionUrl({
   authType: lambda.FunctionUrlAuthType.AWS_IAM,
