@@ -6,9 +6,9 @@ This project shows an example implimenation of hosting a [LangGraph agent](https
 This option will create a public facing URL which let's users interact with your application.
 
 1. Fork this repository in your company's Github account.
-
+  - Be sure to deselect the "Copy the main branch only" field.
 2. Follow the steps in [this tutorial](https://docs.aws.amazon.com/amplify/latest/userguide/getting-started-next.html) to deploy the forked repository with AWS Amplify.
-
+  - Deploy the "no-guest-access" branch so that only the administrator can create users.
 
 ## Deploy the Development Environment
 This option let's you rapidly deploy changes to the code repository, so you can quickly add new features.
