@@ -633,13 +633,15 @@ export const updateFile = tool(
 
 // Helper function to process document links
 async function processDocumentLinks(content: string, chatSessionId: string): Promise<string> {
+
+    const originBasePath = process.env.ORIGIN_BASE_PATH || ""
     // // Get the origin from toolUtils
     // const origin = getOrigin() || '';
 
     // Function to process a path and return the full URL
     const getFullUrl = (filePath: string) => {
         // Only process relative paths that don't start with http/https/. If the path starts with /file/ it's already been processed.
-        if (filePath.startsWith(`${process.env.ORIGIN_BASE_PATH}/file/`) || filePath.startsWith('http://') || filePath.startsWith('https://')) {
+        if (filePath.startsWith(`${originBasePath}/file/`) || filePath.startsWith('http://') || filePath.startsWith('https://')) {
             return filePath;
         }
 
@@ -651,16 +653,16 @@ async function processDocumentLinks(content: string, chatSessionId: string): Pro
 
         // Handle global files differently
         if (filePath.startsWith('global/')) {
-            return `${process.env.ORIGIN_BASE_PATH}/file/${filePath}`;
+            return `${originBasePath}/file/${filePath}`;
         }
         
         // If the path starts with preview, assume it's a formated link to the preview page as returned by the textToTable tool.
-        if (filePath.startsWith(`${process.env.ORIGIN_BASE_PATH}/preview`)){
+        if (filePath.startsWith(`${originBasePath}/preview`)){
             return filePath
         }
 
         // Construct the full asset path for session-specific files
-        return `${process.env.ORIGIN_BASE_PATH}/file/chatSessionArtifacts/sessionId=${chatSessionId}/${filePath}`;
+        return `${originBasePath}/file/chatSessionArtifacts/sessionId=${chatSessionId}/${filePath}`;
     };
 
     // Regular expression to match href="path/to/file" patterns
