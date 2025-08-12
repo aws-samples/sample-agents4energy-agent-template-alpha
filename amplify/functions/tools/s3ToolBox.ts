@@ -639,7 +639,7 @@ async function processDocumentLinks(content: string, chatSessionId: string): Pro
     // Function to process a path and return the full URL
     const getFullUrl = (filePath: string) => {
         // Only process relative paths that don't start with http/https/. If the path starts with /file/ it's already been processed.
-        if (filePath.startsWith('/file/') || filePath.startsWith('http://') || filePath.startsWith('https://')) {
+        if (filePath.startsWith(`${process.env.ORIGIN_BASE_PATH}/file/`) || filePath.startsWith('http://') || filePath.startsWith('https://')) {
             return filePath;
         }
 
@@ -651,16 +651,16 @@ async function processDocumentLinks(content: string, chatSessionId: string): Pro
 
         // Handle global files differently
         if (filePath.startsWith('global/')) {
-            return `/file/${filePath}`;
+            return `${process.env.ORIGIN_BASE_PATH}/file/${filePath}`;
         }
         
         // If the path starts with preview, assume it's a formated link to the preview page as returned by the textToTable tool.
-        if (filePath.startsWith('/preview')){
+        if (filePath.startsWith(`${process.env.ORIGIN_BASE_PATH}/preview`)){
             return filePath
         }
 
         // Construct the full asset path for session-specific files
-        return `/file/chatSessionArtifacts/sessionId=${chatSessionId}/${filePath}`;
+        return `${process.env.ORIGIN_BASE_PATH}/file/chatSessionArtifacts/sessionId=${chatSessionId}/${filePath}`;
     };
 
     // Regular expression to match href="path/to/file" patterns
