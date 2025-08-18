@@ -9,7 +9,7 @@ import { getChatSessionId, getChatSessionPrefix } from "./toolUtils";
 import { writeFile } from "./s3ToolBox";
 
 // Environment variables
-const getAthenaWorkgroup = () => process.env.ATHENA_WORKGROUP_NAME;
+const getAthenaWorkgroup = () => process.env.ATHENA_PYSPARK_WORKGROUP_NAME;
 const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
 
 export const getSessionSetupScript = () => {

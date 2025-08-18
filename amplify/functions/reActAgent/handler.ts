@@ -27,7 +27,7 @@ import { EventEmitter } from "events";
 
 import { startMcpBridgeServer } from "./awsSignedMcpBridge"
 
-const USE_MCP = false;
+const USE_MCP = true;
 const LOCAL_PROXY_PORT = 3020
 
 let mcpTools: StructuredToolInterface<ToolSchemaBase, any, any>[] = []

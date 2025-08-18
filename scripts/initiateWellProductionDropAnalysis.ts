@@ -26,9 +26,9 @@ const END_INDEX = 200
 // Set environment variables first`
 const outputs = loadOutputs();
 process.env.STORAGE_BUCKET_NAME = outputs?.storage?.bucket_name;    
-process.env.ATHENA_WORKGROUP_NAME = outputs?.custom?.athenaWorkgroupName;
+process.env.ATHENA_PYSPARK_WORKGROUP_NAME = outputs?.custom?.athenaWorkgroupName;
 console.log("Storage Bucket: ", process.env.STORAGE_BUCKET_NAME);
-console.log("Athena Workgroup: ", process.env.ATHENA_WORKGROUP_NAME);
+console.log("Athena Workgroup: ", process.env.ATHENA_PYSPARK_WORKGROUP_NAME);
 
 const s3Client = new S3Client({ region: outputs.storage.aws_region });
 
