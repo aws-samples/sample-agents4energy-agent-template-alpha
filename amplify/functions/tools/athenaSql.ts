@@ -8,7 +8,7 @@ import { getChatSessionId, getChatSessionPrefix } from "./toolUtils";
 import { writeFile } from "./s3ToolBox";
 
 // Environment variables
-const getAthenaWorkgroup = () => process.env.ATHENA_WORKGROUP_NAME;
+const getAthenaWorkgroup = () => process.env.ATHENA_SQL_WORKGROUP_NAME;
 const getAthenaDatabase = () => process.env.ATHENA_DATABASE_NAME || 'default';
 const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
 
@@ -45,16 +45,14 @@ export async function executeSqlQuery(
     let currentProgressIndex = progressIndex;
 
     // Start the query execution
-    const clientRequestToken = uuidv4();
     const startCommand = new StartQueryExecutionCommand({
         QueryString: sqlQuery,
-        ClientRequestToken: clientRequestToken,
         WorkGroup: getAthenaWorkgroup(),
         QueryExecutionContext: {
             Database: database
         },
         ResultConfiguration: {
-            OutputLocation: `s3://${process.env.STORAGE_BUCKET_NAME}/${getChatSessionPrefix()}athena-sql-results/`
+            OutputLocation: `s3://${process.env.STORAGE_BUCKET_NAME}/${getChatSessionPrefix()}athena-sql-results/`,
         }
     });
 

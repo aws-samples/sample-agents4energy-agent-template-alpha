@@ -1,7 +1,5 @@
 import { expect } from 'chai';
 import { textToTableTool } from '../../amplify/functions/tools/s3ToolBox';
-import { writeFile } from '../../amplify/functions/tools/s3ToolBox';
-// import { setOrigin } from '../../amplify/functions/tools/toolUtils';
 import { setAmplifyEnvVars } from '../../utils/amplifyUtils';
 import { setChatSessionId } from '../../amplify/functions/tools/toolUtils';
 import { loadOutputs } from '../utils';

@@ -137,7 +137,6 @@ const athenaSqlWorkgroup = new athena.CfnWorkGroup(backend.stack, 'SqlWorkgroup'
     resultConfiguration: {
       outputLocation: `s3://${backend.storage.resources.bucket.bucketName}/athena-sql-results/`,
     },
-    enforceWorkGroupConfiguration: true,
     executionRole: athenaExecutionRole.roleArn
   },
 });
@@ -258,7 +257,7 @@ awsMcpToolsFunction.addEnvironment(
   athenaPysparkWorkgroup.name
 );
 awsMcpToolsFunction.addEnvironment(
-  'ATHENA_WORKGROUP_NAME',
+  'ATHENA_SQL_WORKGROUP_NAME',
   athenaSqlWorkgroup.name
 );
 
@@ -272,7 +271,7 @@ backend.reActAgentFunction.addEnvironment(
   athenaPysparkWorkgroup.name
 );
 backend.reActAgentFunction.addEnvironment(
-  'ATHENA_WORKGROUP_NAME',
+  'ATHENA_SQL_WORKGROUP_NAME',
   athenaSqlWorkgroup.name
 );
 
