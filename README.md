@@ -40,6 +40,16 @@ npm run dev
 
 7. Create a new chat session by clicking the "Create" button, and try out (or modify) one of the sample prompts.
 
+## Enabling User Self-Registration
+
+By default, user registration is restricted to administrators. To enable user self-registration so that users can create their own accounts:
+
+1. Navigate to the AWS Cognito console
+2. Select your User Pool
+3. Go to the "Authentication -> Sign-up" tab
+4. Under "Self-service sign-up", change the "Self-registration" field to "Enabled"
+
+For more detailed information, see the [AWS Cognito documentation on signing up users](https://docs.aws.amazon.com/cognito/latest/developerguide/signing-up-users-in-your-app.html?icmpid=docs_cognito_console_help_panel).
 
 ## Model Context Protocol
 The tools in this project are also exposed via an MCP server. You can list the tools using a curl command like the one below. Look in the AWS Cloudformation output for the path to the mcp server, and the ARN of the api key. Use the AWS console to find the value of the api key from it's ARN (navagate to https://console.aws.amazon.com/apigateway/main/api-keys and click the copy button by the key called "mcp-tools-key".)
@@ -64,4 +74,3 @@ See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more inform
 ## License
 
 This library is licensed under the MIT-0 License. See the LICENSE file.
-
