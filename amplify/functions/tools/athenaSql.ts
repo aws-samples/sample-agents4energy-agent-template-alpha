@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { AthenaClient, StartQueryExecutionCommand, GetQueryExecutionCommand, GetQueryResultsCommand } from '@aws-sdk/client-athena';
+import { AthenaClient, StartQueryExecutionCommand, GetQueryExecutionCommand, GetQueryResultsCommand, GetQueryExecutionCommandOutput } from '@aws-sdk/client-athena';
 import { v4 as uuidv4 } from 'uuid';
 import { getConfiguredAmplifyClient } from '../../../utils/amplifyUtils';
 import { publishResponseStreamChunk } from "../graphql/mutations";
@@ -27,13 +27,7 @@ export async function executeSqlQuery(
         failureMessage?: string,
         continueOnFailure?: boolean
     } = {}
-): Promise<{
-    success: boolean,
-    state: string,
-    queryExecutionId?: string,
-    resultData?: any,
-    newProgressIndex: number
-}> {
+): Promise<GetQueryExecutionCommandOutput> {
     const {
         timeoutSeconds = 300,
         waitMessage = "⏳ Executing SQL query...",
@@ -61,11 +55,7 @@ export async function executeSqlQuery(
 
     if (!startResponse.QueryExecutionId) {
         await publishProgress(chatSessionId, `${failureMessage}: No query execution ID returned`, currentProgressIndex++);
-        return {
-            success: false,
-            state: 'FAILED',
-            newProgressIndex: currentProgressIndex
-        };
+        throw new Error(`${failureMessage}: No query execution ID returned`);
     }
 
     const queryExecutionId = startResponse.QueryExecutionId;
@@ -74,8 +64,7 @@ export async function executeSqlQuery(
     // Poll for completion
     await publishProgress(chatSessionId, waitMessage, currentProgressIndex++);
     let finalState = 'QUEUED';
-    let resultData = null;
-    let resultLocation = null;
+    let getQueryExecutionResponse: GetQueryExecutionCommandOutput;
     const startTime = Date.now();
     const timeoutMs = timeoutSeconds * 1000;
 
@@ -91,57 +80,25 @@ export async function executeSqlQuery(
             QueryExecutionId: queryExecutionId
         });
 
-        try {
-            const getResponse = await athenaClient.send(getCommand);
-            finalState = getResponse.QueryExecution?.Status?.State || 'UNKNOWN';
+        getQueryExecutionResponse = await athenaClient.send(getCommand);
 
-            if (getResponse.QueryExecution?.Status?.StateChangeReason) {
-                console.log(`State change reason: ${getResponse.QueryExecution.Status.StateChangeReason}`);
-            }
+        finalState = getQueryExecutionResponse.QueryExecution?.Status?.State || 'UNKNOWN';
 
-            if (getResponse.QueryExecution?.ResultConfiguration?.OutputLocation) {
-                resultLocation = getResponse.QueryExecution.ResultConfiguration.OutputLocation;
+        if (finalState === 'SUCCEEDED') {
+            await publishProgress(chatSessionId, successMessage, currentProgressIndex++);
+        } else {
+            if (!continueOnFailure) {
+                await publishProgress(chatSessionId, `${failureMessage}: ${finalState}`, currentProgressIndex++);
+            } else {
+                await publishProgress(chatSessionId, `⚠️ Warning: ${failureMessage}: ${finalState}`, currentProgressIndex++);
             }
-
-            if (finalState === 'SUCCEEDED') {
-                resultData = {
-                    outputLocation: resultLocation,
-                    statistics: getResponse.QueryExecution?.Statistics,
-                    queryExecutionId: queryExecutionId
-                };
-            }
-        } catch (error) {
-            console.error(`Error getting query execution status: ${error}`);
         }
 
         const elapsedSeconds = Math.round((Date.now() - startTime) / 1000);
         console.log(`Query state: ${finalState} (${elapsedSeconds}s elapsed / ${timeoutSeconds}s timeout)`);
     }
 
-    if (finalState === 'SUCCEEDED') {
-        await publishProgress(chatSessionId, successMessage, currentProgressIndex++);
-        return {
-            success: true,
-            state: finalState,
-            queryExecutionId,
-            resultData,
-            newProgressIndex: currentProgressIndex
-        };
-    } else {
-        if (!continueOnFailure) {
-            await publishProgress(chatSessionId, `${failureMessage}: ${finalState}`, currentProgressIndex++);
-        } else {
-            await publishProgress(chatSessionId, `⚠️ Warning: ${failureMessage}: ${finalState}`, currentProgressIndex++);
-        }
-
-        return {
-            success: false,
-            state: finalState,
-            queryExecutionId,
-            resultData,
-            newProgressIndex: currentProgressIndex
-        };
-    }
+    return getQueryExecutionResponse
 }
 
 // Helper function to publish progress updates
@@ -188,7 +145,7 @@ export async function fetchQueryResults(
         });
 
         const resultsResponse = await athenaClient.send(getResultsCommand);
-        
+
         if (!resultsResponse.ResultSet?.Rows || resultsResponse.ResultSet.Rows.length === 0) {
             await publishProgress(chatSessionId, "⚠️ Query returned no results", currentProgressIndex++);
             return {
@@ -201,17 +158,17 @@ export async function fetchQueryResults(
 
         const rows = resultsResponse.ResultSet.Rows;
         const columnInfo = resultsResponse.ResultSet.ResultSetMetadata?.ColumnInfo || [];
-        
+
         // Extract column names from the first row or metadata
         const columnNames = columnInfo.map(col => col.Name || 'Unknown');
         const columnCount = columnNames.length;
 
         // Convert results to CSV format
         let csvContent = columnNames.join(',') + '\n';
-        
+
         // Skip the first row if it contains column headers (which it usually does in Athena results)
         const dataRows = rows.slice(1);
-        
+
         for (const row of dataRows) {
             const values = row.Data?.map(data => {
                 const value = data.VarCharValue || '';
@@ -229,7 +186,7 @@ export async function fetchQueryResults(
         // Save results to S3 as CSV
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const filename = `data/athena-query-results-${timestamp}.csv`;
-        
+
         await writeFile.invoke({
             filename,
             content: csvContent
@@ -321,6 +278,7 @@ export async function fetchQueryResults(
     }
 }
 
+
 // Function to add Athena SQL tool to MCP server
 export function addAthenaSqlTool(server: McpServer) {
     server.registerTool("athenaSqlTool", {
@@ -389,7 +347,7 @@ DESCRIBE my_database.my_table;
         const { sqlQuery, database, timeout = 300, description = "SQL query execution", saveResults = true } = args;
         let progressIndex = 0;
         const chatSessionId = getChatSessionId();
-        
+
         if (!chatSessionId) {
             throw new Error("Chat session ID not found");
         }
@@ -403,7 +361,7 @@ DESCRIBE my_database.my_table;
 
             // Use provided database or default
             const targetDatabase = database || getAthenaDatabase();
-            
+
             await publishProgress(chatSessionId, `📊 Executing query against database: ${targetDatabase}`, progressIndex++);
 
             // Execute the SQL query
@@ -440,8 +398,8 @@ DESCRIBE my_database.my_table;
                 await publishProgress(chatSessionId, `🎉 SQL query execution completed successfully!`, progressIndex++);
 
                 return {
-                    content: [{ 
-                        type: "text", 
+                    content: [{
+                        type: "text",
                         text: JSON.stringify({
                             status: "SUCCEEDED",
                             queryExecutionId: queryResult.queryExecutionId,
@@ -461,8 +419,8 @@ DESCRIBE my_database.my_table;
                 await publishProgress(chatSessionId, `🎉 SQL query execution completed successfully!`, progressIndex++);
 
                 return {
-                    content: [{ 
-                        type: "text", 
+                    content: [{
+                        type: "text",
                         text: JSON.stringify({
                             status: "SUCCEEDED",
                             queryExecutionId: queryResult.queryExecutionId,
@@ -477,26 +435,30 @@ DESCRIBE my_database.my_table;
                 await publishProgress(chatSessionId, `❌ Query execution failed with state: ${queryResult.state}`, progressIndex++);
 
                 return {
-                    content: [{ 
-                        type: "text", 
+                    content: [{
+                        type: "text",
                         text: JSON.stringify({
                             status: queryResult.state,
                             error: "SQL query execution did not complete successfully",
-                            details: "Check the query syntax and database permissions",
+                            details: queryResult.resultData,
                             queryExecutionId: queryResult.queryExecutionId,
-                            database: targetDatabase
+                            database: targetDatabase,
+                            sqlQuery: sqlQuery,
+                            workgroup: getAthenaWorkgroup()
                         })
                     }],
                 };
             }
         } catch (error: any) {
             return {
-                content: [{ 
-                    type: "text", 
+                content: [{
+                    type: "text",
                     text: JSON.stringify({
                         error: `Error executing SQL query: ${error.message}`,
                         suggestion: "Check your SQL syntax and database configuration",
-                        database: database || getAthenaDatabase()
+                        database: database || getAthenaDatabase(),
+                        sqlQuery: sqlQuery,
+                        progressIndex: progressIndex
                     })
                 }],
             };

@@ -200,8 +200,12 @@ athenaExecutionRole.addToPolicy(executeAthenaStatementsPolicy);
   resource.addToRolePolicy(
     new iam.PolicyStatement({
       actions: [
-        "s3:ListBucket",
+        "s3:GetBucketLocation",
         "s3:GetObject",
+        "s3:ListBucket",
+        "s3:ListBucketMultipartUploads",
+        "s3:ListMultipartUploadParts",
+        "s3:AbortMultipartUpload",
         "s3:PutObject"
       ],
       resources: [
@@ -289,8 +293,6 @@ backend.reActAgentFunction.addEnvironment(
   'MCP_FUNCTION_URL',
   awsMcpToolsFunctionUrl.url
 );
-
-awsMcpToolsFunctionUrl
 
 new PdfToYamlConstruct(backend.stack, 'PdfToYamlConstruct', {
   s3Bucket: backend.storage.resources.bucket
