@@ -135,7 +135,8 @@ export async function fetchQueryResults(
     csvContent: string,
     rowCount: number,
     columnCount: number,
-    newProgressIndex: number
+    newProgressIndex: number,
+    sampleRows: any[]
 }> {
     let currentProgressIndex = progressIndex;
 
@@ -156,7 +157,8 @@ export async function fetchQueryResults(
                 csvContent: '',
                 rowCount: 0,
                 columnCount: 0,
-                newProgressIndex: currentProgressIndex
+                newProgressIndex: currentProgressIndex,
+                sampleRows: []
             };
         }
 
@@ -186,6 +188,16 @@ export async function fetchQueryResults(
         }
 
         const rowCount = dataRows.length;
+
+        // Capture first 20 rows for sample data
+        const sampleRows = dataRows.slice(0, 20).map(row => {
+            const rowObject: { [key: string]: string } = {};
+            const values = row.Data?.map(data => data.VarCharValue || '') || [];
+            columnNames.forEach((columnName, index) => {
+                rowObject[columnName] = values[index] || '';
+            });
+            return rowObject;
+        });
 
         // Save results to S3 as CSV
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -267,7 +279,8 @@ export async function fetchQueryResults(
             csvContent,
             rowCount,
             columnCount,
-            newProgressIndex: currentProgressIndex
+            newProgressIndex: currentProgressIndex,
+            sampleRows
         };
 
     } catch (error) {
@@ -277,7 +290,8 @@ export async function fetchQueryResults(
             csvContent: '',
             rowCount: 0,
             columnCount: 0,
-            newProgressIndex: currentProgressIndex
+            newProgressIndex: currentProgressIndex,
+            sampleRows: []
         };
     }
 }
@@ -414,7 +428,8 @@ DESCRIBE my_database.my_table;
                             files: {
                                 csv: `data/athena-query-results-${new Date().toISOString().replace(/[:.]/g, '-')}.csv`,
                                 html: `data/athena-query-results-${new Date().toISOString().replace(/[:.]/g, '-')}.html`
-                            }
+                            },
+                            sampleRows: resultsInfo.sampleRows
                         })
                     }],
                 };
