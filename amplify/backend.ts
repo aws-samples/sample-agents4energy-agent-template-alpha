@@ -30,6 +30,8 @@ const stackUUID = cdk.Names.uniqueResourceName(
   backend.stack, {}
 ).toLowerCase().replace(/[^a-z0-9-_]/g, '').slice(-3)
 
+console.log(`Stack UUID: ${stackUUID}`)
+
 //This will disable the ability for users to sign up in the UI. The administrator will manually create users.
 const { cfnUserPool } = backend.auth.resources.cfnResources;
 cfnUserPool.adminCreateUserConfig = {
@@ -140,9 +142,11 @@ const athenaSqlWorkgroup = new athena.CfnWorkGroup(backend.stack, 'SqlWorkgroup'
     executionRole: athenaExecutionRole.roleArn
   },
 });
+athenaSqlWorkgroup.recursiveDeleteOption = true
 
 const executeAthenaStatementsPolicy = new iam.PolicyStatement({
   actions: [
+    "athena:GetWorkGroup",
     "athena:StartSession",
     "athena:GetSessionStatus",
     "athena:TerminateSession",
@@ -237,6 +241,21 @@ athenaExecutionRole.addToPolicy(executeAthenaStatementsPolicy);
         "glue:BatchGetPartition"
       ],
       resources: [`arn:aws:glue:${backend.stack.region}:${backend.stack.account}:*`],
+    })
+  )
+
+  resource.addToRolePolicy(
+    new iam.PolicyStatement({
+      actions: [
+        "athena:GetDataCatalog",
+        "lambda:InvokeFunction"
+      ],
+      resources: ["*"],
+      conditions: {
+        StringEquals: {
+          [`aws:ResourceTag/Allow_${stackUUID}`]: "True"
+        }
+      }
     })
   )
 
@@ -343,6 +362,7 @@ backend.addOutput({
     mcpRestApiUrl: mcpRestApi.urlForPath(mcpResource.path),
     apiKeyArn: apiKey.keyArn,
     mcpAgentInvokerUrl: mcpAgentInvokerFunctionUrl.url,
-    mcpFunctionUrl: awsMcpToolsFunctionUrl.url
+    mcpFunctionUrl: awsMcpToolsFunctionUrl.url,
+    stackUUID: stackUUID
   }
 });
