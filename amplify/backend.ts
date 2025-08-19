@@ -215,6 +215,31 @@ athenaExecutionRole.addToPolicy(executeAthenaStatementsPolicy);
     })
   );
 
+  //This enables the MCP agent to query the data lake using Athena SQL
+  resource.addToRolePolicy(
+    new iam.PolicyStatement({
+      actions: [
+        "glue:CreateDatabase",
+        "glue:GetDatabase",
+        "glue:GetDatabases",
+        "glue:UpdateDatabase",
+        "glue:DeleteDatabase",
+        "glue:CreateTable",
+        "glue:UpdateTable",
+        "glue:GetTable",
+        "glue:GetTables",
+        "glue:DeleteTable",
+        "glue:BatchCreatePartition",
+        "glue:CreatePartition",
+        "glue:UpdatePartition",
+        "glue:GetPartition",
+        "glue:GetPartitions",
+        "glue:BatchGetPartition"
+      ],
+      resources: [`arn:aws:glue:${backend.stack.region}:${backend.stack.account}:*`],
+    })
+  )
+
 })
 
 // const graphQLApi = appsync.GraphqlApi.fromGraphqlApiAttributes(backend.data.stack, 'graphQLApi', {

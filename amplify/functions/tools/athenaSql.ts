@@ -84,21 +84,25 @@ export async function executeSqlQuery(
 
         finalState = getQueryExecutionResponse.QueryExecution?.Status?.State || 'UNKNOWN';
 
-        if (finalState === 'SUCCEEDED') {
-            await publishProgress(chatSessionId, successMessage, currentProgressIndex++);
-        } else {
-            if (!continueOnFailure) {
-                await publishProgress(chatSessionId, `${failureMessage}: ${finalState}`, currentProgressIndex++);
-            } else {
-                await publishProgress(chatSessionId, `⚠️ Warning: ${failureMessage}: ${finalState}`, currentProgressIndex++);
-            }
-        }
-
         const elapsedSeconds = Math.round((Date.now() - startTime) / 1000);
         console.log(`Query state: ${finalState} (${elapsedSeconds}s elapsed / ${timeoutSeconds}s timeout)`);
     }
 
-    return getQueryExecutionResponse
+    // Handle final state and publish appropriate progress message
+    if (finalState === 'SUCCEEDED') {
+        await publishProgress(chatSessionId, successMessage, currentProgressIndex++);
+    } else if (finalState === 'FAILED' || finalState === 'CANCELLED') {
+        if (!continueOnFailure) {
+            await publishProgress(chatSessionId, `${failureMessage}: ${finalState}`, currentProgressIndex++);
+        } else {
+            await publishProgress(chatSessionId, `⚠️ Warning: ${failureMessage}: ${finalState}`, currentProgressIndex++);
+        }
+    } else {
+        // Timeout case
+        await publishProgress(chatSessionId, `⚠️ Query execution timed out after ${timeoutSeconds} seconds`, currentProgressIndex++);
+    }
+
+    return getQueryExecutionResponse!;
 }
 
 // Helper function to publish progress updates
@@ -379,34 +383,33 @@ DESCRIBE my_database.my_table;
                 }
             );
 
-            progressIndex = queryResult.newProgressIndex;
+            const finalState = queryResult.QueryExecution?.Status?.State;
+            const queryExecutionId = queryResult.QueryExecution?.QueryExecutionId;
 
             // Check final state
-            if (queryResult.success && queryResult.resultData && saveResults) {
+            if (finalState === 'SUCCEEDED' && queryExecutionId && saveResults) {
                 // Fetch and save query results
                 const resultsInfo = await fetchQueryResults(
                     athenaClient,
-                    queryResult.queryExecutionId!,
-                    queryResult.resultData,
+                    queryExecutionId,
+                    queryResult,
                     chatSessionId,
-                    progressIndex,
+                    progressIndex + 3, // Approximate progress after query execution
                     description
                 );
 
-                progressIndex = resultsInfo.newProgressIndex;
-
-                await publishProgress(chatSessionId, `🎉 SQL query execution completed successfully!`, progressIndex++);
+                await publishProgress(chatSessionId, `🎉 SQL query execution completed successfully!`, resultsInfo.newProgressIndex);
 
                 return {
                     content: [{
                         type: "text",
                         text: JSON.stringify({
                             status: "SUCCEEDED",
-                            queryExecutionId: queryResult.queryExecutionId,
+                            queryExecutionId: queryExecutionId,
                             database: targetDatabase,
                             rowCount: resultsInfo.rowCount,
                             columnCount: resultsInfo.columnCount,
-                            statistics: queryResult.resultData.statistics,
+                            statistics: queryResult.QueryExecution?.Statistics,
                             message: `SQL query executed successfully. Results saved to chat session artifacts.`,
                             files: {
                                 csv: `data/athena-query-results-${new Date().toISOString().replace(/[:.]/g, '-')}.csv`,
@@ -415,33 +418,33 @@ DESCRIBE my_database.my_table;
                         })
                     }],
                 };
-            } else if (queryResult.success && !saveResults) {
-                await publishProgress(chatSessionId, `🎉 SQL query execution completed successfully!`, progressIndex++);
+            } else if (finalState === 'SUCCEEDED' && !saveResults) {
+                await publishProgress(chatSessionId, `🎉 SQL query execution completed successfully!`, progressIndex + 3);
 
                 return {
                     content: [{
                         type: "text",
                         text: JSON.stringify({
                             status: "SUCCEEDED",
-                            queryExecutionId: queryResult.queryExecutionId,
+                            queryExecutionId: queryExecutionId,
                             database: targetDatabase,
-                            statistics: queryResult.resultData?.statistics,
+                            statistics: queryResult.QueryExecution?.Statistics,
                             message: `SQL query executed successfully. Results not saved (saveResults=false).`,
-                            outputLocation: queryResult.resultData?.outputLocation
+                            outputLocation: queryResult.QueryExecution?.ResultConfiguration?.OutputLocation
                         })
                     }],
                 };
             } else {
-                await publishProgress(chatSessionId, `❌ Query execution failed with state: ${queryResult.state}`, progressIndex++);
+                await publishProgress(chatSessionId, `❌ Query execution failed with state: ${finalState}`, progressIndex + 3);
 
                 return {
                     content: [{
                         type: "text",
                         text: JSON.stringify({
-                            status: queryResult.state,
+                            status: finalState || 'UNKNOWN',
                             error: "SQL query execution did not complete successfully",
-                            details: queryResult.resultData,
-                            queryExecutionId: queryResult.queryExecutionId,
+                            details: queryResult.QueryExecution?.Status?.StateChangeReason,
+                            queryExecutionId: queryExecutionId,
                             database: targetDatabase,
                             sqlQuery: sqlQuery,
                             workgroup: getAthenaWorkgroup()
