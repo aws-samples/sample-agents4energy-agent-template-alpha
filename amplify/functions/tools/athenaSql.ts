@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { AthenaClient, StartQueryExecutionCommand, GetQueryExecutionCommand, GetQueryResultsCommand, GetQueryExecutionCommandOutput } from '@aws-sdk/client-athena';
+import { S3Client, CopyObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
 import { getConfiguredAmplifyClient } from '../../../utils/amplifyUtils';
 import { publishResponseStreamChunk } from "../graphql/mutations";
@@ -123,6 +124,14 @@ async function publishProgress(chatSessionId: string, message: string, index: nu
     }
 }
 
+// Helper function to parse S3 URL and extract bucket and key
+function parseS3Url(s3Url: string): { bucket: string; key: string } {
+    const url = new URL(s3Url);
+    const bucket = url.hostname.split('.')[0]; // Extract bucket from s3://bucket-name/key
+    const key = url.pathname.substring(1); // Remove leading slash
+    return { bucket, key };
+}
+
 // Helper function to fetch query results and save to artifacts
 export async function fetchQueryResults(
     athenaClient: AthenaClient,
@@ -143,18 +152,12 @@ export async function fetchQueryResults(
     let currentProgressIndex = progressIndex;
 
     try {
-        await publishProgress(chatSessionId, "📥 Fetching query results...", currentProgressIndex++);
+        await publishProgress(chatSessionId, "📥 Copying query results from Athena output location...", currentProgressIndex++);
 
-        // Get query results using Athena API
-        const getResultsCommand = new GetQueryResultsCommand({
-            QueryExecutionId: queryExecutionId,
-            MaxResults: 1000 // Limit to prevent memory issues
-        });
-
-        const resultsResponse = await athenaClient.send(getResultsCommand);
-
-        if (!resultsResponse.ResultSet?.Rows || resultsResponse.ResultSet.Rows.length === 0) {
-            await publishProgress(chatSessionId, "⚠️ Query returned no results", currentProgressIndex++);
+        // Get the Athena output location from the query execution result
+        const outputLocation = resultData.QueryExecution?.ResultConfiguration?.OutputLocation;
+        if (!outputLocation) {
+            await publishProgress(chatSessionId, "⚠️ No output location found for query results", currentProgressIndex++);
             return {
                 csvContent: '',
                 rowCount: 0,
@@ -165,44 +168,36 @@ export async function fetchQueryResults(
             };
         }
 
-        const rows = resultsResponse.ResultSet.Rows;
-        const columnInfo = resultsResponse.ResultSet.ResultSetMetadata?.ColumnInfo || [];
+        console.log(`Athena output location: ${outputLocation}`);
 
-        // Extract column names from the first row or metadata
-        const columnNames = columnInfo.map(col => col.Name || 'Unknown');
-        const columnCount = columnNames.length;
+        // Parse the S3 URL to get source bucket and key
+        const { bucket: sourceBucket, key: sourceKey } = parseS3Url(outputLocation);
+        
+        // Create S3 client
+        const s3Client = new S3Client({ region: AWS_REGION });
 
-        // Convert results to CSV format
-        let csvContent = columnNames.join(',') + '\n';
-
-        // Skip the first row if it contains column headers (which it usually does in Athena results)
-        const dataRows = rows.slice(1);
-
-        for (const row of dataRows) {
-            const values = row.Data?.map(data => {
-                const value = data.VarCharValue || '';
-                // Escape commas and quotes in CSV
-                if (value.includes(',') || value.includes('"') || value.includes('\n')) {
-                    return `"${value.replace(/"/g, '""')}"`;
-                }
-                return value;
-            }) || [];
-            csvContent += values.join(',') + '\n';
+        // Check if the source file exists and get its metadata
+        try {
+            const headCommand = new HeadObjectCommand({
+                Bucket: sourceBucket,
+                Key: sourceKey
+            });
+            const headResponse = await s3Client.send(headCommand);
+            console.log(`Source file size: ${headResponse.ContentLength} bytes`);
+        } catch (headError) {
+            console.error('Error checking source file:', headError);
+            await publishProgress(chatSessionId, "⚠️ Query results file not found in Athena output location", currentProgressIndex++);
+            return {
+                csvContent: '',
+                rowCount: 0,
+                columnCount: 0,
+                newProgressIndex: currentProgressIndex,
+                sampleRows: [],
+                savedFileName: ''
+            };
         }
 
-        const rowCount = dataRows.length;
-
-        // Capture first 20 rows for sample data
-        const sampleRows = dataRows.slice(0, 20).map(row => {
-            const rowObject: { [key: string]: string } = {};
-            const values = row.Data?.map(data => data.VarCharValue || '') || [];
-            columnNames.forEach((columnName, index) => {
-                rowObject[columnName] = values[index] || '';
-            });
-            return rowObject;
-        });
-
-        // Determine filename - use custom name if provided, otherwise generate timestamp-based name
+        // Determine target filename - use custom name if provided, otherwise generate timestamp-based name
         let filename: string;
         if (csvFileName) {
             // Ensure the filename has .csv extension and is in the data directory
@@ -213,16 +208,77 @@ export async function fetchQueryResults(
             filename = `data/athena-query-results-${timestamp}.csv`;
         }
 
-        await writeFile.invoke({
-            filename,
-            content: csvContent
+        // Construct target S3 key for the chat session artifacts
+        const targetBucket = process.env.STORAGE_BUCKET_NAME!;
+        const targetKey = `${getChatSessionPrefix()}${filename}`;
+
+        await publishProgress(chatSessionId, `📋 Copying large CSV file directly from S3...`, currentProgressIndex++);
+
+        // Copy the file from Athena output location to chat session artifacts
+        const copyCommand = new CopyObjectCommand({
+            Bucket: targetBucket,
+            Key: targetKey,
+            CopySource: `${sourceBucket}/${sourceKey}`,
+            MetadataDirective: 'COPY'
         });
 
-        await publishProgress(chatSessionId, `✅ Query results saved to ${filename} (${rowCount} rows, ${columnCount} columns)`, currentProgressIndex++);
+        await s3Client.send(copyCommand);
+
+        // Get a small sample of the data for metadata (first 1000 rows only)
+        const getResultsCommand = new GetQueryResultsCommand({
+            QueryExecutionId: queryExecutionId,
+            MaxResults: 1000 // Small sample for metadata only
+        });
+
+        const resultsResponse = await athenaClient.send(getResultsCommand);
+        
+        let rowCount = 0;
+        let columnCount = 0;
+        let sampleRows: any[] = [];
+        let csvContent = '';
+
+        if (resultsResponse.ResultSet?.Rows && resultsResponse.ResultSet.Rows.length > 0) {
+            const rows = resultsResponse.ResultSet.Rows;
+            const columnInfo = resultsResponse.ResultSet.ResultSetMetadata?.ColumnInfo || [];
+
+            // Extract column names from metadata
+            const columnNames = columnInfo.map(col => col.Name || 'Unknown');
+            columnCount = columnNames.length;
+
+            // Skip the first row if it contains column headers (which it usually does in Athena results)
+            const dataRows = rows.slice(1);
+            rowCount = dataRows.length; // This is just the sample size, not the full file
+
+            // Capture first 20 rows for sample data
+            sampleRows = dataRows.slice(0, 20).map(row => {
+                const rowObject: { [key: string]: string } = {};
+                const values = row.Data?.map(data => data.VarCharValue || '') || [];
+                columnNames.forEach((columnName, index) => {
+                    rowObject[columnName] = values[index] || '';
+                });
+                return rowObject;
+            });
+
+            // Create a small CSV sample for the csvContent field (just headers + sample rows)
+            csvContent = columnNames.join(',') + '\n';
+            for (const row of dataRows.slice(0, 20)) {
+                const values = row.Data?.map(data => {
+                    const value = data.VarCharValue || '';
+                    // Escape commas and quotes in CSV
+                    if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+                        return `"${value.replace(/"/g, '""')}"`;
+                    }
+                    return value;
+                }) || [];
+                csvContent += values.join(',') + '\n';
+            }
+        }
+
+        await publishProgress(chatSessionId, `✅ Large CSV file copied successfully to ${filename}`, currentProgressIndex++);
 
         return {
-            csvContent,
-            rowCount,
+            csvContent, // Small sample for compatibility
+            rowCount, // Sample row count (actual file may be much larger)
             columnCount,
             newProgressIndex: currentProgressIndex,
             sampleRows,
@@ -230,8 +286,8 @@ export async function fetchQueryResults(
         };
 
     } catch (error) {
-        console.error('Error fetching query results:', error);
-        await publishProgress(chatSessionId, `⚠️ Warning: Error while fetching results: ${error}`, currentProgressIndex++);
+        console.error('Error copying query results:', error);
+        await publishProgress(chatSessionId, `⚠️ Warning: Error while copying results: ${error}`, currentProgressIndex++);
         return {
             csvContent: '',
             rowCount: 0,

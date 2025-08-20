@@ -23,7 +23,8 @@ import DefaultToolMessageComponent from './messageComponents/DefaultToolMessageC
 import DuckDuckGoSearchToolComponent from './messageComponents/DuckDuckGoSearchToolComponent';
 import WebBrowserToolComponent from './messageComponents/WebBrowserToolComponent';
 import CreateProjectToolComponent from './messageComponents/CreateProjectToolComponent';
-import CustomWorkshopComponent from './messageComponents/CustomWorkshopComponent'
+import CustomWorkshopComponent from './messageComponents/CustomWorkshopComponent';
+import AthenaSqlComponent from './messageComponents/AthenaSqlComponent';
 
 const ChatMessage = (params: {
     message: Message,
@@ -121,6 +122,12 @@ const ChatMessage = (params: {
                     return <DuckDuckGoSearchToolComponent content={message.content} theme={theme} />;
                 case 'webBrowserTool':
                     return <WebBrowserToolComponent content={message.content} theme={theme} />;
+                case 'athenaSqlTool':
+                    return <AthenaSqlComponent
+                        content={message.content}
+                        theme={theme}
+                        chatSessionId={message.chatSessionId || ''}
+                    />;
                 // case 'permeabilityCalculator':
                 //     return <CustomWorkshopComponent content={message.content} theme={theme} />;
                 default:
