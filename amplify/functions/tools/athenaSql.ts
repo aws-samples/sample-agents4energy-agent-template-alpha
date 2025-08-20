@@ -130,13 +130,15 @@ export async function fetchQueryResults(
     resultData: any,
     chatSessionId: string,
     progressIndex: number,
-    queryDescription: string
+    queryDescription: string,
+    csvFileName?: string
 ): Promise<{
     csvContent: string,
     rowCount: number,
     columnCount: number,
     newProgressIndex: number,
-    sampleRows: any[]
+    sampleRows: any[],
+    savedFileName: string
 }> {
     let currentProgressIndex = progressIndex;
 
@@ -158,7 +160,8 @@ export async function fetchQueryResults(
                 rowCount: 0,
                 columnCount: 0,
                 newProgressIndex: currentProgressIndex,
-                sampleRows: []
+                sampleRows: [],
+                savedFileName: ''
             };
         }
 
@@ -199,9 +202,16 @@ export async function fetchQueryResults(
             return rowObject;
         });
 
-        // Save results to S3 as CSV
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const filename = `data/athena-query-results-${timestamp}.csv`;
+        // Determine filename - use custom name if provided, otherwise generate timestamp-based name
+        let filename: string;
+        if (csvFileName) {
+            // Ensure the filename has .csv extension and is in the data directory
+            const cleanFileName = csvFileName.endsWith('.csv') ? csvFileName : `${csvFileName}.csv`;
+            filename = cleanFileName.startsWith('data/') ? cleanFileName : `data/${cleanFileName}`;
+        } else {
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            filename = `data/athena-query-results-${timestamp}.csv`;
+        }
 
         await writeFile.invoke({
             filename,
@@ -210,77 +220,13 @@ export async function fetchQueryResults(
 
         await publishProgress(chatSessionId, `✅ Query results saved to ${filename} (${rowCount} rows, ${columnCount} columns)`, currentProgressIndex++);
 
-        // Also create an HTML table for better visualization
-        const htmlFilename = `data/athena-query-results-${timestamp}.html`;
-        let htmlContent = `
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Athena Query Results - ${queryDescription}</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; font-weight: bold; }
-        tr:nth-child(even) { background-color: #f9f9f9; }
-        tr:hover { background-color: #f1f1f1; }
-        h1 { color: #333; }
-        .query-info { background-color: #f0f8ff; padding: 10px; border-radius: 5px; margin-bottom: 20px; }
-        .stats { font-size: 0.9em; color: #666; }
-    </style>
-</head>
-<body>
-    <h1>Athena Query Results</h1>
-    <div class="query-info">
-        <strong>Query Description:</strong> ${queryDescription}<br>
-        <strong>Execution ID:</strong> ${queryExecutionId}<br>
-        <strong>Results:</strong> ${rowCount} rows, ${columnCount} columns<br>
-        <strong>Generated:</strong> ${new Date().toLocaleString()}
-    </div>
-    <table>
-        <thead>
-            <tr>
-                ${columnNames.map(name => `<th>${name}</th>`).join('')}
-            </tr>
-        </thead>
-        <tbody>
-`;
-
-        // Add data rows to HTML (limit to first 100 rows for performance)
-        const displayRows = dataRows.slice(0, 100);
-        for (const row of displayRows) {
-            htmlContent += '<tr>';
-            const values = row.Data?.map(data => data.VarCharValue || '') || [];
-            for (const value of values) {
-                htmlContent += `<td>${value}</td>`;
-            }
-            htmlContent += '</tr>';
-        }
-
-        if (dataRows.length > 100) {
-            htmlContent += `<tr><td colspan="${columnCount}" style="text-align: center; font-style: italic; color: #666;">... and ${dataRows.length - 100} more rows (see CSV file for complete results)</td></tr>`;
-        }
-
-        htmlContent += `
-        </tbody>
-    </table>
-</body>
-</html>
-`;
-
-        await writeFile.invoke({
-            filename: htmlFilename,
-            content: htmlContent
-        });
-
-        await publishProgress(chatSessionId, `✅ HTML visualization saved to ${htmlFilename}`, currentProgressIndex++);
-
         return {
             csvContent,
             rowCount,
             columnCount,
             newProgressIndex: currentProgressIndex,
-            sampleRows
+            sampleRows,
+            savedFileName: filename
         };
 
     } catch (error) {
@@ -291,7 +237,8 @@ export async function fetchQueryResults(
             rowCount: 0,
             columnCount: 0,
             newProgressIndex: currentProgressIndex,
-            sampleRows: []
+            sampleRows: [],
+            savedFileName: ''
         };
     }
 }
@@ -303,13 +250,12 @@ export function addAthenaSqlTool(server: McpServer) {
         title: "athenaSqlTool",
         description: `
 Use this tool to execute SQL queries against Amazon Athena. The tool will execute the provided SQL query,
-wait for completion, and optionally save the results to the chat session artifacts.
+wait for completion, and optionally save the results to the chat session artifacts as a CSV file.
 
 Important notes:
 - Queries are executed against the configured Athena workgroup and database
-- Results are automatically saved as both CSV and HTML files in the chat session artifacts
-- The HTML file provides a formatted table view of the results (limited to first 100 rows for performance)
-- The CSV file contains the complete results
+- Results are saved as CSV files in the chat session artifacts
+- You can specify a custom filename for the CSV file using the csvFileName parameter
 - Query execution is limited by the specified timeout (default 300 seconds)
 - Large result sets are handled efficiently with pagination
 - Failed queries will return error details for debugging
@@ -319,6 +265,7 @@ Example usage:
 - Perform data analysis using standard SQL
 - Generate reports from structured data
 - Join data across multiple tables and databases
+- Save results with meaningful filenames like 'anomalyDetectionResults.csv'
 
 Common SQL patterns:
 \`\`\`sql
@@ -359,10 +306,11 @@ DESCRIBE my_database.my_table;
             database: z.string().optional().describe("Database name to execute the query against. If not provided, uses the default configured database."),
             timeout: z.number().optional().default(300).describe("Timeout in seconds for the query execution"),
             description: z.string().optional().describe("Optional description for the query execution"),
-            saveResults: z.boolean().optional().default(true).describe("Whether to save query results to chat session artifacts as CSV and HTML files")
+            saveResults: z.boolean().optional().default(true).describe("Whether to save query results to chat session artifacts as CSV file"),
+            csvFileName: z.string().optional().describe("Custom filename for the CSV file (e.g., 'anomalyDetectionResults.csv'). If not provided, a timestamp-based filename will be used.")
         }
     }, async (args) => {
-        const { sqlQuery, database, timeout = 300, description = "SQL query execution", saveResults = true } = args;
+        const { sqlQuery, database, timeout = 300, description = "SQL query execution", saveResults = true, csvFileName } = args;
         let progressIndex = 0;
         const chatSessionId = getChatSessionId();
 
@@ -409,7 +357,8 @@ DESCRIBE my_database.my_table;
                     queryResult,
                     chatSessionId,
                     progressIndex + 3, // Approximate progress after query execution
-                    description
+                    description,
+                    csvFileName
                 );
 
                 await publishProgress(chatSessionId, `🎉 SQL query execution completed successfully!`, resultsInfo.newProgressIndex);
@@ -426,8 +375,7 @@ DESCRIBE my_database.my_table;
                             statistics: queryResult.QueryExecution?.Statistics,
                             message: `SQL query executed successfully. Results saved to chat session artifacts.`,
                             files: {
-                                csv: `data/athena-query-results-${new Date().toISOString().replace(/[:.]/g, '-')}.csv`,
-                                html: `data/athena-query-results-${new Date().toISOString().replace(/[:.]/g, '-')}.html`
+                                csv: resultsInfo.savedFileName
                             },
                             sampleRows: resultsInfo.sampleRows
                         })
