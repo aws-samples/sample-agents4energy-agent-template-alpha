@@ -3,7 +3,7 @@ import { setAmplifyEnvVars } from '../../utils/amplifyUtils';
 import { setChatSessionId } from '../../amplify/functions/tools/toolUtils';
 import { loadOutputs } from '../utils';
 import { getDeployedResourceArn, getLambdaEnvironmentVariables } from "../../utils/testUtils";
-import { executeSqlQuery, addAthenaSqlTool } from '../../amplify/functions/tools/athenaSql'
+import { executeSqlQuery, addAthenaSqlTool } from '@/../amplify/functions/tools/athenaSql'
 import { AthenaClient } from '@aws-sdk/client-athena';
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
