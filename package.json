@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "test": "mocha --require tsx test/**/*.ts",
-    "test:specific": "mocha --require tsx"
+    "test:specific": "mocha --require tsx",
+    "ecrAuth": "aws ecr-public get-login-password | docker login --username AWS --password-stdin public.ecr.aws"
   },
   "dependencies": {
     "@aws-amplify/backend-output-schemas": "^1.4.0",
