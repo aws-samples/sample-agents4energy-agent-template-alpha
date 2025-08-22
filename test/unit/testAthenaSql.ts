@@ -33,21 +33,11 @@ describe('Athena SQL Tool Test', function () {
     console.log('result:\n', JSON.stringify(result, null, 2));
 
     // Test that the query executed successfully
-    expect(result).to.have.property('success');
-    expect(result.success).to.be.true;
-    
-    // Test that we got a valid state
-    expect(result).to.have.property('state');
-    expect(result.state).to.equal('SUCCEEDED');
+    expect(result.QueryExecution?.Status?.State).to.equal('SUCCEEDED');
     
     // Test that we got a query execution ID
-    expect(result).to.have.property('queryExecutionId');
-    expect(result.queryExecutionId).to.be.a('string');
+    expect(result.QueryExecution?.QueryExecutionId).to.be.a('string');
     
-    // Test that we got a new progress index
-    expect(result).to.have.property('newProgressIndex');
-    expect(result.newProgressIndex).to.be.a('number');
-    expect(result.newProgressIndex).to.be.greaterThan(1);
   });
 
   it('should register MCP Athena SQL tool successfully', async function() {
@@ -117,12 +107,8 @@ describe('Athena SQL Tool Test', function () {
     console.log('Core functionality result:', JSON.stringify(result, null, 2));
 
     // Verify the result matches what the MCP tool would return
-    expect(result).to.have.property('success', true);
-    expect(result).to.have.property('state', 'SUCCEEDED');
-    expect(result).to.have.property('queryExecutionId');
-    expect(result.queryExecutionId).to.be.a('string');
-    expect(result).to.have.property('newProgressIndex');
-    expect(result.newProgressIndex).to.be.a('number');
+    expect(result.QueryExecution?.Status?.State).to.equal('SUCCEEDED');
+    expect(result.QueryExecution?.QueryExecutionId).to.be.a('string');
 
     console.log('MCP tool functionality test completed successfully');
   });

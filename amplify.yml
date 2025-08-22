@@ -4,6 +4,9 @@ backend:
     install:
       runtime-versions:
         nodejs: 20
+      commands:
+        - echo "Backend - Node.js version:" && node --version
+        - echo "Backend - npm version:" && npm --version
     build:
       commands:
         - echo "Build environment is $CODEBUILD_BUILD_IMAGE"
@@ -11,6 +14,12 @@ backend:
         - npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID --debug
 frontend:
   phases:
+    install:
+      runtime-versions:
+        nodejs: 20
+      commands:
+        - echo "Frontend - Node.js version:" && node --version
+        - echo "Frontend - npm version:" && npm --version
     build:
       commands:
         - npm run build
