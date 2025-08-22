@@ -4,6 +4,10 @@ backend:
     install:
       runtime-versions:
         nodejs: 20
+      commands:
+        - nvm install 20
+        - nvm use 20
+        - nvm alias default 20
     build:
       commands:
         - echo "Build environment is $CODEBUILD_BUILD_IMAGE"
@@ -16,6 +20,10 @@ frontend:
     install:
       runtime-versions:
         nodejs: 20
+      commands:
+        - nvm install 20
+        - nvm use 20
+        - nvm alias default 20
     build:
       commands:
         - echo "Frontend - Node.js version:" && node --version
