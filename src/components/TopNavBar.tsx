@@ -10,6 +10,11 @@ import { useUserAttributes } from '@/components/UserAttributesProvider';
 
 import { type Schema } from "@/../amplify/data/resource";
 import { generateClient } from 'aws-amplify/api';
+
+import { loadOutputs } from '../../utils/amplifyUtils';
+
+const outputs = loadOutputs();
+
 const amplifyClient = generateClient<Schema>();
 
 const TopNavBar: React.FC = () => {
@@ -97,6 +102,7 @@ const TopNavBar: React.FC = () => {
                   </MenuItem>
                 )}
                 <MenuItem onClick={signOut}>Logout</MenuItem>
+                <MenuItem>Agent ID: {outputs.custom.stackUUID}</MenuItem>
               </Menu>
             </>
           ) : (

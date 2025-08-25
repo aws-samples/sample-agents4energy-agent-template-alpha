@@ -5,7 +5,7 @@ import { Message } from "./types";
 import { STSClient } from "@aws-sdk/client-sts";
 
 // Function to safely load outputs
-const loadOutputs = () => {
+export const loadOutputs = () => {
   try {
     return require('../amplify_outputs.json');
   } catch (error) {

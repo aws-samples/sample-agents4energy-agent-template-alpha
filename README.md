@@ -56,10 +56,10 @@ The Lambda functions in this project have been configured with fine-grained acce
 ### Tag-Based Access Control
 
 The policy uses the following condition:
-- **Tag Key**: `Allow_<stackUUID>` (where `<stackUUID>` is a unique 3-character identifier generated for each stack deployment)
+- **Tag Key**: `Allow_<agentID>` (where `<agentID>` is a unique 3-character identifier generated for each stack deployment)
 - **Tag Value**: `True`
 
-This means that both the Lambda functions and the Athena Connection must be tagged with `Allow_<stackUUID>=True` to enable proper access. The Lambda functions can only access Athena data catalog resources that have been explicitly tagged with this pattern. This provides an additional layer of security by ensuring that only properly tagged resources are accessible.
+This means that both the Lambda functions and the Athena Connection must be tagged with `Allow_<agentID>=True` to enable proper access. The Lambda functions can only access Athena data catalog resources that have been explicitly tagged with this pattern. This provides an additional layer of security by ensuring that only properly tagged resources are accessible.
 
 ### Implementation Details
 
@@ -73,14 +73,14 @@ resource.addToRolePolicy(
     resources: ["*"],
     conditions: {
       StringEquals: {
-        [`aws:ResourceTag/Allow_${stackUUID}`]: "True"
+        [`aws:ResourceTag/Allow_${agentID}`]: "True"
       }
     }
   })
 )
 ```
 
-To grant access to specific Athena data catalog resources, ensure they are tagged with the appropriate `Allow_<stackUUID>=True` tag, where the `stackUUID` can be found in the CloudFormation stack outputs.
+To grant access to specific Athena data catalog resources, ensure they are tagged with the appropriate `Allow_<agentID>=True` tag, where the `agentID` can be found in the UI by clicking the user icon.
 
 ## Model Context Protocol
 The tools in this project are also exposed via an MCP server. You can list the tools using a curl command like the one below. Look in the AWS Cloudformation output for the path to the mcp server, and the ARN of the api key. Use the AWS console to find the value of the api key from it's ARN (navagate to https://console.aws.amazon.com/apigateway/main/api-keys and click the copy button by the key called "mcp-tools-key".)
