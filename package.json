@@ -4,14 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "NODE_OPTIONS='--max-old-space-size=8192' next build",
-    "build:fast": "NODE_OPTIONS='--max-old-space-size=8192' next build",
+    "build": "next build",
+    "build:fast": "next build",
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
-    "type-check": "NODE_OPTIONS='--max-old-space-size=8192' tsc --noEmit",
-    "type-check:watch": "NODE_OPTIONS='--max-old-space-size=8192' tsc --noEmit --watch",
-    "build:analyze": "ANALYZE=true NODE_OPTIONS='--max-old-space-size=8192' next build",
     "test": "mocha --require tsx test/**/*.ts",
     "test:specific": "mocha --require tsx",
     "ecrAuth": "aws ecr-public get-login-password | docker login --username AWS --password-stdin public.ecr.aws"
