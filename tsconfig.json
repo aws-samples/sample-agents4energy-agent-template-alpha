@@ -13,7 +13,6 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    "tsBuildInfoFile": ".next/cache/tsbuildinfo",
     "plugins": [
       {
         "name": "next"
@@ -27,20 +26,6 @@
     },
     "typeRoots": ["./node_modules/@types", "./types"]
   },
-  "include": [
-    "next-env.d.ts", 
-    "src/**/*.ts", 
-    "src/**/*.tsx", 
-    "amplify/**/*.ts",
-    ".next/types/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "scripts/**/*",
-    "test/**/*",
-    "labs/**/*",
-    ".next",
-    "dist",
-    "build"
-  ]
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
 }
