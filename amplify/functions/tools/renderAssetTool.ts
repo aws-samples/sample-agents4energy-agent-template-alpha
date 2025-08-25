@@ -14,7 +14,8 @@ export const renderAssetTool = tool(
     async (renderAssetToolArgs) => {
         return {
             ...renderAssetToolArgs,
-            fullS3Path: `s3://${process.env.STORAGE_BUCKET_NAME}/${getChatSessionPrefix()}${renderAssetToolArgs.filePath}`,
+            s3Key: `${renderAssetToolArgs.filePath.startsWith('global/') ? '' : getChatSessionPrefix()}${renderAssetToolArgs.filePath}`,
+            s3Bucket: process.env.STORAGE_BUCKET_NAME,
             renderType: 'asset' // Indicates to frontend this is an asset to be rendered
         };
     },
