@@ -65,8 +65,8 @@ export const schema = a.schema({
   }),
 
   McpServer: a.model({
-    name: a.string(),
-    url: a.string(),
+    name: a.string().required(),
+    url: a.string().required(),
     headers: a.ref("HeaderEntry").array(),
     signRequestsWithAwsCreds: a.boolean().default(false),
     enabled: a.boolean().default(true),

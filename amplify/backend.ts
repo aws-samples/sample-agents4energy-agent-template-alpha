@@ -61,7 +61,6 @@ awsMcpToolsFunction.grantInvokeUrl(backend.reActAgentFunction.resources.lambda)
 
 // Create an element in the mcp server registry for the A4E Mcp Server
 const McpServerRegistryDdbTable = backend.data.resources.tables["McpServer"]
-const currentDTTM = new Date().toISOString()
 
 new custom_resources.AwsCustomResource(backend.stack, 'McpServerRegistryInit', {
   onCreate: {
@@ -77,8 +76,8 @@ new custom_resources.AwsCustomResource(backend.stack, 'McpServerRegistryInit', {
 
         id: { S: 'A4EMcpRegistryEntry' },
         __typename: {S: 'McpServer'},
-        createdAt: { S: currentDTTM },
-        updatedAt: { S: currentDTTM },
+        createdAt: { S: '2000-01-01T00:00:00.000Z' },
+        updatedAt: { S: '2000-01-01T00:00:00.000Z' },
         owner: { S: 'system' },
       }
     },

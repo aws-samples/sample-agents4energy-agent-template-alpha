@@ -98,26 +98,35 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
             })
 
             //Get the configured mcp servers from the MCP registry
-            const {data: mcpServers} = await amplifyClient.graphql({
+            const {data: {listMcpServers: {items: mcpServers} } } = await amplifyClient.graphql({
                 query: listMcpServers
             })
+
+            console.log({ mcpServers })
+
+            // Build the mcpServers configuration dynamically from enabled servers
+            const mcpServersConfig: Record<string, any> = {}
+            
+            mcpServers
+                .filter(server => server.enabled && server.name && server.url) // Only include enabled servers with valid name and url
+                .forEach(server => {
+                    mcpServersConfig[server.name!] = {
+                        url: `http://localhost:${LOCAL_PROXY_PORT}/proxy`,
+                        headers: {
+                            'target-url': server.url,
+                            'accept': 'application/json',
+                            'jsonrpc': '2.0',
+                            'chat-session-id': event.arguments.chatSessionId
+                        }
+                    }
+                })
 
             const mcpClient = new MultiServerMCPClient({
                 useStandardContentBlocks: true,
                 prefixToolNameWithServerName: false,
                 // additionalToolNamePrefix: "",
 
-                mcpServers: {
-                    a4e: {
-                        url: `http://localhost:${LOCAL_PROXY_PORT}/proxy`,
-                        headers: {
-                            'target-url': process.env.MCP_FUNCTION_URL!,
-                            'accept': 'application/json',
-                            'jsonrpc': '2.0',
-                            'chat-session-id': event.arguments.chatSessionId
-                        }
-                    }
-                }
+                mcpServers: mcpServersConfig
             })
 
             mcpTools = await mcpClient.getTools()
