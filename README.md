@@ -98,7 +98,8 @@ The IAM policy statement in `amplify/backend.ts` includes:
 resource.addToRolePolicy(
   new iam.PolicyStatement({
     actions: [
-      "athena:GetDataCatalog"
+      "athena:GetDataCatalog",
+      "lambda:InvokeFunction"
     ],
     resources: ["*"],
     conditions: {
@@ -127,6 +128,44 @@ curl -X POST \
     "method": "tools/list"
 }'
 ```
+
+### MCP Server Browser Configuration
+
+To configure MCP servers in the browser, the IAM role associated with AWS Amplify when hosting the app will need to have the `lambda:InvokeFunction` permission added.
+
+#### Steps to Update the Amplify Service Role
+
+1. Navigate to the [AWS Amplify console](https://console.aws.amazon.com/amplify/home)
+2. Select your app and choose your deployment branch
+3. Go to **App settings** → **IAM roles**
+4. Click on the service role name to open it in the IAM console
+5. In the IAM console, choose **Add permissions** → **Create inline policy**
+6. Use the JSON editor to add the following policy:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "lambda:InvokeFunction"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/Allow_${agentID}": "True"
+        }
+      }
+    }
+  ]
+}
+```
+
+7. Name the policy `MCPLambdaInvokePolicy`
+8. Choose **Create policy**
+
+This additional permission enables MCP servers to invoke Lambda functions that serve as tools or data processors in the browser environment.
 
 ## Security
 

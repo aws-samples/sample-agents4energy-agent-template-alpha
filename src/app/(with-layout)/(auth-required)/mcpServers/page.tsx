@@ -61,12 +61,13 @@ const McpServersPage = () => {
     const fetchMcpServers = async () => {
         try {
             const result = await amplifyClient.models.McpServer.list({
-                filter: {
-                    owner: {
-                        contains: user.userId
-                    }
-                }
+                // filter: {
+                //     owner: {
+                //         contains: user.userId
+                //     }
+                // }
             });
+            console.log({result})
             const sortedServers = result.data.sort((a, b) => 
                 new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
             );

@@ -6,6 +6,7 @@ import cdk, {
   aws_athena as athena,
   aws_iam as iam,
   aws_lambda as lambda,
+  custom_resources,
 } from 'aws-cdk-lib'
 
 import path from 'path';
@@ -32,6 +33,8 @@ const stackUUID = cdk.Names.uniqueResourceName(
 
 console.log(`Stack UUID: ${stackUUID}`)
 
+
+
 //This will disable the ability for users to sign up in the UI. The administrator will manually create users.
 const { cfnUserPool } = backend.auth.resources.cfnResources;
 cfnUserPool.adminCreateUserConfig = {
@@ -55,6 +58,40 @@ const {
 cdk.Tags.of(awsMcpToolsFunction).add(`Allow_${stackUUID}`, "True")
 
 awsMcpToolsFunction.grantInvokeUrl(backend.reActAgentFunction.resources.lambda)
+
+// Create an element in the mcp server registry for the A4E Mcp Server
+const McpServerRegistryDdbTable = backend.data.resources.tables["McpServer"]
+const currentDTTM = new Date().toISOString()
+
+new custom_resources.AwsCustomResource(backend.stack, 'McpServerRegistryInit', {
+  onCreate: {
+    service: 'DynamoDB', //The service can also take this form: '@aws-sdk/client-bedrock-agent',
+    action: 'putItem',
+    parameters: {
+      TableName: McpServerRegistryDdbTable.tableName,
+      Item: {
+        name: { S: 'A4EMcpTools' },
+        signRequestsWithAwsCreds: { BOOL: true },
+        enabled: { BOOL: true },
+        url: { S: awsMcpToolsFunctionUrl.url },
+
+        id: { S: 'A4EMcpRegistryEntry' },
+        __typename: {S: 'McpServer'},
+        createdAt: { S: currentDTTM },
+        updatedAt: { S: currentDTTM },
+        owner: { S: 'system' },
+      }
+    },
+    physicalResourceId: custom_resources.PhysicalResourceId.of('A4EMcpRegistryEntry')
+  },
+  policy: custom_resources.AwsCustomResourcePolicy.fromStatements([
+    new iam.PolicyStatement({
+      actions: ['dynamodb:PutItem'],
+      resources: [McpServerRegistryDdbTable.tableArn],
+    }),
+  ]),
+});
+
 
 // Create a dedicated IAM role for Athena execution
 const athenaExecutionRole = new iam.Role(backend.stack, 'AthenaExecutionRole', {
