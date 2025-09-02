@@ -58,13 +58,19 @@ export const schema = a.schema({
     value: a.string(),
   }),
 
+  Tool: a.customType({
+    name: a.string(),
+    description: a.string(),
+    schema: a.string()
+  }),
+
   McpServer: a.model({
     name: a.string(),
     url: a.string(),
     headers: a.ref("HeaderEntry").array(),
-    signRequestsWithAwsCreds: a.boolean(),
-    enabled: a.boolean(),
-    // listToolsResponse: 
+    signRequestsWithAwsCreds: a.boolean().default(false),
+    enabled: a.boolean().default(true),
+    tools: a.ref("Tool").array()
   })
   .authorization((allow) => [allow.owner(), allow.authenticated(), allow.guest()]),
 

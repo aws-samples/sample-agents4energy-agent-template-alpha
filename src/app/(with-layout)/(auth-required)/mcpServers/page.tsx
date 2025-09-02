@@ -41,7 +41,8 @@ const McpServersPage = () => {
         name: '',
         url: '',
         headers: [] as HeaderEntry[],
-        signRequestsWithAwsCreds: false
+        signRequestsWithAwsCreds: false,
+        enabled: true
     });
 
     useEffect(() => {
@@ -73,7 +74,8 @@ const McpServersPage = () => {
                 name: server.name || '',
                 url: server.url || '',
                 headers: (server.headers || []).filter((h): h is HeaderEntry => h !== null && h !== undefined),
-                signRequestsWithAwsCreds: server.signRequestsWithAwsCreds || false
+                signRequestsWithAwsCreds: server.signRequestsWithAwsCreds || false,
+                enabled: server.enabled ?? true
             });
         } else {
             setEditingServer(null);
@@ -81,7 +83,8 @@ const McpServersPage = () => {
                 name: '',
                 url: '',
                 headers: [],
-                signRequestsWithAwsCreds: false
+                signRequestsWithAwsCreds: false,
+                enabled: true
             });
         }
         setIsDialogOpen(true);
@@ -94,7 +97,8 @@ const McpServersPage = () => {
             name: '',
             url: '',
             headers: [],
-            signRequestsWithAwsCreds: false
+            signRequestsWithAwsCreds: false,
+            enabled: true
         });
     };
 
@@ -108,7 +112,8 @@ const McpServersPage = () => {
                     name: formData.name,
                     url: formData.url,
                     headers: formData.headers,
-                    signRequestsWithAwsCreds: formData.signRequestsWithAwsCreds
+                    signRequestsWithAwsCreds: formData.signRequestsWithAwsCreds,
+                    enabled: formData.enabled
                 });
             } else {
                 console.log('creating new server')
@@ -118,7 +123,8 @@ const McpServersPage = () => {
                     name: formData.name,
                     url: formData.url,
                     headers: formData.headers,
-                    signRequestsWithAwsCreds: formData.signRequestsWithAwsCreds
+                    signRequestsWithAwsCreds: formData.signRequestsWithAwsCreds,
+                    enabled: formData.enabled
                 });
 
                 console.log({createServerResponse})
@@ -238,7 +244,12 @@ const McpServersPage = () => {
                                         <strong>URL:</strong> {server.url}
                                     </Typography>
 
-                                    <Box mb={2}>
+                                    <Box mb={2} display="flex" gap={1} flexWrap="wrap">
+                                        <Chip
+                                            label={server.enabled ?? true ? "Enabled" : "Disabled"}
+                                            color={server.enabled ?? true ? "success" : "error"}
+                                            size="small"
+                                        />
                                         <Chip
                                             label={server.signRequestsWithAwsCreds ? "AWS Signed" : "No AWS Signing"}
                                             color={server.signRequestsWithAwsCreds ? "success" : "default"}
@@ -308,7 +319,21 @@ const McpServersPage = () => {
                                 />
                             }
                             label="Sign requests with AWS credentials"
-                            sx={{ mt: 2, mb: 2 }}
+                            sx={{ mt: 2, mb: 1 }}
+                        />
+
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={formData.enabled}
+                                    onChange={(e) => setFormData({ 
+                                        ...formData, 
+                                        enabled: e.target.checked 
+                                    })}
+                                />
+                            }
+                            label="Enable server"
+                            sx={{ mt: 2, mb: 1 }}
                         />
 
                         <Box>
