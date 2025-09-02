@@ -20,12 +20,20 @@ import {
     Chip,
     Grid2 as Grid,
     Paper,
-    Divider
+    Divider,
+    Accordion,
+    AccordionSummary,
+    AccordionDetails,
+    CircularProgress,
+    Alert
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import AddIcon from '@mui/icons-material/Add';
 import ServerIcon from '@mui/icons-material/Storage';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import BuildIcon from '@mui/icons-material/Build';
+import { Switch } from '@mui/material';
 
 const amplifyClient = generateClient<Schema>();
 
@@ -37,6 +45,7 @@ const McpServersPage = () => {
     const [mcpServers, setMcpServers] = useState<McpServer[]>([]);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingServer, setEditingServer] = useState<McpServer | null>(null);
+    const [loadingTools, setLoadingTools] = useState<string | null>(null);
     const [formData, setFormData] = useState({
         name: '',
         url: '',
@@ -105,9 +114,11 @@ const McpServersPage = () => {
     const handleSave = async () => {
         console.log('handle save triggered')
         try {
+            let savedServer: McpServer;
+            
             if (editingServer) {
                 // Update existing server
-                await amplifyClient.models.McpServer.update({
+                const updateResponse = await amplifyClient.models.McpServer.update({
                     id: editingServer.id!,
                     name: formData.name,
                     url: formData.url,
@@ -115,6 +126,7 @@ const McpServersPage = () => {
                     signRequestsWithAwsCreds: formData.signRequestsWithAwsCreds,
                     enabled: formData.enabled
                 });
+                savedServer = updateResponse.data!;
             } else {
                 console.log('creating new server')
                 console.log({formData})
@@ -126,14 +138,44 @@ const McpServersPage = () => {
                     signRequestsWithAwsCreds: formData.signRequestsWithAwsCreds,
                     enabled: formData.enabled
                 });
-
+                savedServer = createServerResponse.data!;
                 console.log({createServerResponse})
             }
+            
             handleCloseDialog();
             fetchMcpServers();
+            
+            // If the server is enabled, fetch its tools
+            if (savedServer.enabled) {
+                await fetchAndUpdateServerTools(savedServer);
+            }
         } catch (error) {
             console.error('Error saving MCP server:', error);
             alert(`Failed to save MCP server: ${error}`);
+        }
+    };
+    const handleToggleEnabled = async (server: McpServer) => {
+        try {
+            const newEnabledState = !(server.enabled ?? true);
+            await amplifyClient.models.McpServer.update({
+                id: server.id!,
+                enabled: newEnabledState
+            });
+            
+            const updatedServer = { ...server, enabled: newEnabledState };
+            
+            // Update the local state
+            setMcpServers(mcpServers.map(s => 
+                s.id === server.id ? updatedServer : s
+            ));
+            
+            // If enabling the server, fetch its tools
+            if (newEnabledState) {
+                await fetchAndUpdateServerTools(updatedServer);
+            }
+        } catch (error) {
+            console.error('Error toggling MCP server:', error);
+            alert('Failed to toggle MCP server status.');
         }
     };
 
@@ -171,6 +213,61 @@ const McpServersPage = () => {
             ...formData,
             headers: newHeaders
         });
+    };
+
+    const fetchAndUpdateServerTools = async (server: McpServer) => {
+        if (!server.enabled || !server.url) return;
+
+        setLoadingTools(server.id!);
+        try {
+            // Convert headers to the format expected by the API
+            const headersObj: Record<string, string> = {};
+            if (server.headers) {
+                server.headers.forEach(header => {
+                    if (header && header.key && header.value) {
+                        headersObj[header.key] = header.value;
+                    }
+                });
+            }
+
+            const response = await fetch('/api/mcp-tools', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    serverUrl: server.url,
+                    signWithAwsCreds: server.signRequestsWithAwsCreds,
+                    headers: headersObj
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch tools: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            
+            if (data.tools) {
+                // Update the server with the fetched tools
+                await amplifyClient.models.McpServer.update({
+                    id: server.id!,
+                    tools: data.tools
+                });
+
+                // Update local state
+                setMcpServers(prevServers => 
+                    prevServers.map(s => 
+                        s.id === server.id ? { ...s, tools: data.tools } : s
+                    )
+                );
+            }
+        } catch (error) {
+            console.error('Error fetching MCP tools:', error);
+            // You might want to show a user-friendly error message here
+        } finally {
+            setLoadingTools(null);
+        }
     };
 
     return (
@@ -244,17 +341,29 @@ const McpServersPage = () => {
                                         <strong>URL:</strong> {server.url}
                                     </Typography>
 
-                                    <Box mb={2} display="flex" gap={1} flexWrap="wrap">
-                                        <Chip
-                                            label={server.enabled ?? true ? "Enabled" : "Disabled"}
-                                            color={server.enabled ?? true ? "success" : "error"}
-                                            size="small"
-                                        />
+                                    <Box mb={2} display="flex" gap={1} flexWrap="wrap" alignItems="center">
                                         <Chip
                                             label={server.signRequestsWithAwsCreds ? "AWS Signed" : "No AWS Signing"}
                                             color={server.signRequestsWithAwsCreds ? "success" : "default"}
                                             size="small"
                                         />
+                                    </Box>
+
+                                    <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+                                        <Typography variant="body2" color="text.secondary">
+                                            <strong>Status:</strong>
+                                        </Typography>
+                                        <Box display="flex" alignItems="center" gap={1}>
+                                            <Typography variant="body2" color="text.secondary">
+                                                {server.enabled ?? true ? "Enabled" : "Disabled"}
+                                            </Typography>
+                                            <Switch
+                                                checked={server.enabled ?? true}
+                                                onChange={() => handleToggleEnabled(server)}
+                                                size="small"
+                                                color="primary"
+                                            />
+                                        </Box>
                                     </Box>
 
                                     {server.headers && server.headers.length > 0 && (
@@ -270,6 +379,93 @@ const McpServersPage = () => {
                                                     </Typography>
                                                 )
                                             ))}
+                                        </>
+                                    )}
+
+                                    {/* Tools Section */}
+                                    {server.enabled && (
+                                        <>
+                                            <Divider sx={{ my: 2 }} />
+                                            <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    <strong>Available Tools:</strong>
+                                                </Typography>
+                                                {loadingTools === server.id && (
+                                                    <CircularProgress size={16} />
+                                                )}
+                                                {!loadingTools && server.tools && server.tools.length === 0 && (
+                                                    <Button
+                                                        size="small"
+                                                        onClick={() => fetchAndUpdateServerTools(server)}
+                                                        startIcon={<BuildIcon />}
+                                                        variant="outlined"
+                                                    >
+                                                        Fetch Tools
+                                                    </Button>
+                                                )}
+                                            </Box>
+                                            
+                                            {server.tools && server.tools.length > 0 ? (
+                                                <Accordion>
+                                                    <AccordionSummary
+                                                        expandIcon={<ExpandMoreIcon />}
+                                                        aria-controls="tools-content"
+                                                        id="tools-header"
+                                                    >
+                                                        <Typography variant="body2">
+                                                            {server.tools.length} tool{server.tools.length !== 1 ? 's' : ''} available
+                                                        </Typography>
+                                                    </AccordionSummary>
+                                                    <AccordionDetails>
+                                                        <Box>
+                                                            {server.tools.map((tool, index) => (
+                                                                tool && (
+                                                                    <Box key={index} mb={2} p={2} bgcolor="grey.50" borderRadius={1}>
+                                                                        <Typography variant="subtitle2" gutterBottom>
+                                                                            <BuildIcon sx={{ fontSize: 16, mr: 1, verticalAlign: 'middle' }} />
+                                                                            {tool.name}
+                                                                        </Typography>
+                                                                        <Typography variant="caption" color="text.secondary" display="block" mb={1}>
+                                                                            {tool.description}
+                                                                        </Typography>
+                                                        {tool.schema && (
+                                                            <Accordion>
+                                                                <AccordionSummary
+                                                                    expandIcon={<ExpandMoreIcon />}
+                                                                    sx={{ minHeight: 'auto', '& .MuiAccordionSummary-content': { margin: '8px 0' } }}
+                                                                >
+                                                                    <Typography variant="caption">
+                                                                        View Schema
+                                                                    </Typography>
+                                                                </AccordionSummary>
+                                                                <AccordionDetails sx={{ pt: 0 }}>
+                                                                    <Box
+                                                                        component="pre"
+                                                                        sx={{
+                                                                            fontSize: '0.75rem',
+                                                                            bgcolor: 'grey.100',
+                                                                            p: 1,
+                                                                            borderRadius: 1,
+                                                                            overflow: 'auto',
+                                                                            maxHeight: 200
+                                                                        }}
+                                                                    >
+                                                                        {JSON.stringify(JSON.parse(tool.schema), null, 2)}
+                                                                    </Box>
+                                                                </AccordionDetails>
+                                                            </Accordion>
+                                                        )}
+                                                                    </Box>
+                                                                )
+                                                            ))}
+                                                        </Box>
+                                                    </AccordionDetails>
+                                                </Accordion>
+                                            ) : !loadingTools && server.enabled && (
+                                                <Alert severity="info" sx={{ mt: 1 }}>
+                                                    No tools found. Click "Fetch Tools" to retrieve available tools from this server.
+                                                </Alert>
+                                            )}
                                         </>
                                     )}
 

@@ -40,7 +40,7 @@ export class McpServerConstruct extends Construct {
                 TEXT_TO_TABLE_CONCURRENCY: '10',
 
                 ORIGIN_BASE_PATH: process.env.ORIGIN_BASE_PATH || ''
-            },
+            }
         });
 
         this.mcpFunctionUrl = this.lambdaFunction.addFunctionUrl({

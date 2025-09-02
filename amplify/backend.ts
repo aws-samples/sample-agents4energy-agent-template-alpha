@@ -51,6 +51,9 @@ const {
   mcpFunctionUrl: awsMcpToolsFunctionUrl
 } = new McpServerConstruct(backend.stack, "McpServer", {})
 
+//Allow the agent's lambda function to invoke the aws mcp tools function
+cdk.Tags.of(awsMcpToolsFunction).add(`Allow_${stackUUID}`, "True")
+
 awsMcpToolsFunction.grantInvokeUrl(backend.reActAgentFunction.resources.lambda)
 
 // Create a dedicated IAM role for Athena execution
