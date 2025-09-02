@@ -53,17 +53,24 @@ export const schema = a.schema({
   })
     .authorization((allow) => [allow.owner(), allow.authenticated(), allow.guest()]),
 
-  WorkStep: a.customType({
-    name: a.string(),
-    description: a.string(),
-    status: a.enum(["pending", "in_progress", "completed", "failed"]),
-    result: a.string()
+  HeaderEntry: a.customType({
+    key: a.string(),
+    value: a.string(),
   }),
+
+  McpServer: a.model({
+    name: a.string(),
+    url: a.string(),
+    headers: a.ref("HeaderEntry").array(),
+    signRequestsWithAwsCreds: a.boolean(),
+    enabled: a.boolean(),
+    // listToolsResponse: 
+  })
+  .authorization((allow) => [allow.owner(), allow.authenticated(), allow.guest()]),
 
   ChatSession: a.model({
     name: a.string(),
     messages: a.hasMany("ChatMessage", "chatSessionId"),
-    workSteps: a.ref("WorkStep").array(),
   })
     .authorization((allow) => [allow.owner(), allow.authenticated(), allow.guest()]),
 

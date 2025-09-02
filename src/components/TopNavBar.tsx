@@ -60,6 +60,9 @@ const TopNavBar: React.FC = () => {
               <Link href="/listChats" passHref>
                 <Button color="inherit">List Chats</Button>
               </Link>
+              <Link href="/mcpServers" passHref>
+                <Button color="inherit">MCP Servers</Button>
+              </Link>
               <Button color="inherit" onClick={handleCreateNewChat}>Create</Button>
             </>
           )}
