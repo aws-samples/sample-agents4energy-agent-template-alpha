@@ -30,6 +30,7 @@ import { startMcpBridgeServer } from "./awsSignedMcpBridge"
 const USE_MCP = true;
 const LOCAL_PROXY_PORT = 3020
 
+let mcpInitilized = false
 let mcpTools: StructuredToolInterface<ToolSchemaBase, any, any>[] = []
 
 // Increase the default max listeners to prevent warnings
@@ -81,7 +82,8 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
             // temperature: 0
         });
 
-        if (mcpTools.length === 0 && USE_MCP) {
+        if (!mcpInitilized && USE_MCP) {
+            mcpInitilized = true
             await amplifyClient.graphql({
                 query: publishResponseStreamChunk,
                 variables: {
@@ -121,15 +123,20 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
                     }
                 })
 
-            const mcpClient = new MultiServerMCPClient({
-                useStandardContentBlocks: true,
-                prefixToolNameWithServerName: false,
-                // additionalToolNamePrefix: "",
+            // Only initialize MCP client and get tools if there are enabled servers
+            if (Object.keys(mcpServersConfig).length > 0) {
+                const mcpClient = new MultiServerMCPClient({
+                    useStandardContentBlocks: true,
+                    prefixToolNameWithServerName: false,
+                    // additionalToolNamePrefix: "",
 
-                mcpServers: mcpServersConfig
-            })
+                    mcpServers: mcpServersConfig
+                })
 
-            mcpTools = await mcpClient.getTools()
+                mcpTools = await mcpClient.getTools()
+            } else {
+                console.log('No enabled MCP servers found, skipping MCP client initialization')
+            }
 
             await amplifyClient.graphql({
                 query: publishResponseStreamChunk,

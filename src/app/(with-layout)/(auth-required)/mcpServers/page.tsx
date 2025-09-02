@@ -33,6 +33,8 @@ import AddIcon from '@mui/icons-material/Add';
 import ServerIcon from '@mui/icons-material/Storage';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import BuildIcon from '@mui/icons-material/Build';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { Switch } from '@mui/material';
 
 const amplifyClient = generateClient<Schema>();
@@ -46,6 +48,7 @@ const McpServersPage = () => {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingServer, setEditingServer] = useState<McpServer | null>(null);
     const [loadingTools, setLoadingTools] = useState<string | null>(null);
+    const [visibleHeaders, setVisibleHeaders] = useState<Record<string, boolean>>({});
     const [formData, setFormData] = useState({
         name: '',
         url: '',
@@ -271,6 +274,13 @@ const McpServersPage = () => {
         }
     };
 
+    const toggleHeaderVisibility = (serverId: string) => {
+        setVisibleHeaders(prev => ({
+            ...prev,
+            [serverId]: !prev[serverId]
+        }));
+    };
+
     return (
         <Box p={3}>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
@@ -370,13 +380,23 @@ const McpServersPage = () => {
                                     {server.headers && server.headers.length > 0 && (
                                         <>
                                             <Divider sx={{ my: 1 }} />
-                                            <Typography variant="body2" color="text.secondary" gutterBottom>
-                                                <strong>Headers:</strong>
-                                            </Typography>
+                                            <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    <strong>Headers:</strong>
+                                                </Typography>
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => toggleHeaderVisibility(server.id!)}
+                                                    color="primary"
+                                                    title={visibleHeaders[server.id!] ? "Hide header values" : "Show header values"}
+                                                >
+                                                    {visibleHeaders[server.id!] ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                                                </IconButton>
+                                            </Box>
                                             {server.headers.map((header, index) => (
                                                 header && (
                                                     <Typography key={index} variant="caption" display="block">
-                                                        {header.key}: {header.value}
+                                                        {header.key}: {visibleHeaders[server.id!] ? header.value : '••••••••'}
                                                     </Typography>
                                                 )
                                             ))}
