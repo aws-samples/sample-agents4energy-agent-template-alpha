@@ -21,7 +21,7 @@ import { createProjectTool } from "../tools/createProjectTool";
 // import { permeabilityCalculator } from "../tools/customWorkshopTool";
 
 import { Schema } from '../../data/resource';
-
+import { listMcpServers } from '../graphql/queries'
 import { getLangChainChatMessagesStartingWithHumanMessage, getLangChainMessageTextContent, publishMessage, stringifyLimitStringLength } from '../../../utils/langChainUtils';
 import { EventEmitter } from "events";
 
@@ -95,6 +95,11 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
             startMcpBridgeServer({
                 port: LOCAL_PROXY_PORT,
                 service: 'lambda'
+            })
+
+            //Get the configured mcp servers from the MCP registry
+            const {data: mcpServers} = await amplifyClient.graphql({
+                query: listMcpServers
             })
 
             const mcpClient = new MultiServerMCPClient({

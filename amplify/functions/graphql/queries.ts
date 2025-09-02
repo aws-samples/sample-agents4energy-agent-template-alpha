@@ -51,13 +51,6 @@ export const getChatSession = /* GraphQL */ `query GetChatSession($id: ID!) {
     name
     owner
     updatedAt
-    workSteps {
-      description
-      name
-      result
-      status
-      __typename
-    }
     __typename
   }
 }
@@ -83,6 +76,34 @@ export const getDummyModelToAddIamDirective = /* GraphQL */ `query GetDummyModel
 ` as GeneratedQuery<
   APITypes.GetDummyModelToAddIamDirectiveQueryVariables,
   APITypes.GetDummyModelToAddIamDirectiveQuery
+>;
+export const getMcpServer = /* GraphQL */ `query GetMcpServer($id: ID!) {
+  getMcpServer(id: $id) {
+    createdAt
+    enabled
+    headers {
+      key
+      value
+      __typename
+    }
+    id
+    name
+    owner
+    signRequestsWithAwsCreds
+    tools {
+      description
+      name
+      schema
+      __typename
+    }
+    updatedAt
+    url
+    __typename
+  }
+}
+` as GeneratedQuery<
+  APITypes.GetMcpServerQueryVariables,
+  APITypes.GetMcpServerQuery
 >;
 export const getProject = /* GraphQL */ `query GetProject($id: ID!) {
   getProject(id: $id) {
@@ -122,14 +143,12 @@ export const getProject = /* GraphQL */ `query GetProject($id: ID!) {
 export const invokeReActAgent = /* GraphQL */ `query InvokeReActAgent(
   $chatSessionId: ID!
   $foundationModelId: String
-  $origin: String
   $respondToAgent: Boolean
   $userId: String
 ) {
   invokeReActAgent(
     chatSessionId: $chatSessionId
     foundationModelId: $foundationModelId
-    origin: $origin
     respondToAgent: $respondToAgent
     userId: $userId
   ) {
@@ -291,6 +310,31 @@ export const listDummyModelToAddIamDirectives = /* GraphQL */ `query ListDummyMo
 ` as GeneratedQuery<
   APITypes.ListDummyModelToAddIamDirectivesQueryVariables,
   APITypes.ListDummyModelToAddIamDirectivesQuery
+>;
+export const listMcpServers = /* GraphQL */ `query ListMcpServers(
+  $filter: ModelMcpServerFilterInput
+  $limit: Int
+  $nextToken: String
+) {
+  listMcpServers(filter: $filter, limit: $limit, nextToken: $nextToken) {
+    items {
+      createdAt
+      enabled
+      id
+      name
+      owner
+      signRequestsWithAwsCreds
+      updatedAt
+      url
+      __typename
+    }
+    nextToken
+    __typename
+  }
+}
+` as GeneratedQuery<
+  APITypes.ListMcpServersQueryVariables,
+  APITypes.ListMcpServersQuery
 >;
 export const listProjects = /* GraphQL */ `query ListProjects(
   $filter: ModelProjectFilterInput
