@@ -49,6 +49,7 @@ const McpServersPage = () => {
     const [editingServer, setEditingServer] = useState<McpServer | null>(null);
     const [loadingTools, setLoadingTools] = useState<string | null>(null);
     const [visibleHeaders, setVisibleHeaders] = useState<Record<string, boolean>>({});
+    const [dialogHeadersVisible, setDialogHeadersVisible] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
         url: '',
@@ -100,6 +101,7 @@ const McpServersPage = () => {
                 enabled: true
             });
         }
+        setDialogHeadersVisible(false); // Reset dialog header visibility
         setIsDialogOpen(true);
     };
 
@@ -556,13 +558,25 @@ const McpServersPage = () => {
                         <Box>
                             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                                 <Typography variant="h6">Headers</Typography>
-                                <Button
-                                    size="small"
-                                    onClick={handleAddHeader}
-                                    startIcon={<AddIcon />}
-                                >
-                                    Add Header
-                                </Button>
+                                <Box display="flex" gap={1}>
+                                    {formData.headers.length > 0 && (
+                                        <IconButton
+                                            size="small"
+                                            onClick={() => setDialogHeadersVisible(!dialogHeadersVisible)}
+                                            color="primary"
+                                            title={dialogHeadersVisible ? "Hide header values" : "Show header values"}
+                                        >
+                                            {dialogHeadersVisible ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                                        </IconButton>
+                                    )}
+                                    <Button
+                                        size="small"
+                                        onClick={handleAddHeader}
+                                        startIcon={<AddIcon />}
+                                    >
+                                        Add Header
+                                    </Button>
+                                </Box>
                             </Box>
                             
                             {formData.headers.map((header, index) => (
@@ -576,6 +590,7 @@ const McpServersPage = () => {
                                     />
                                     <TextField
                                         label="Value"
+                                        type={dialogHeadersVisible ? "text" : "password"}
                                         value={header.value}
                                         onChange={(e) => handleHeaderChange(index, 'value', e.target.value)}
                                         size="small"

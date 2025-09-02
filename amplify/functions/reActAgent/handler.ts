@@ -21,8 +21,8 @@ import { createProjectTool } from "../tools/createProjectTool";
 // import { permeabilityCalculator } from "../tools/customWorkshopTool";
 
 import { Schema } from '../../data/resource';
-import { listMcpServers } from '../graphql/queries'
 import { getLangChainChatMessagesStartingWithHumanMessage, getLangChainMessageTextContent, publishMessage, stringifyLimitStringLength } from '../../../utils/langChainUtils';
+import { listMcpServers } from '../../../utils/graphqlStatements'
 import { EventEmitter } from "events";
 
 import { startMcpBridgeServer } from "./awsSignedMcpBridge"
@@ -112,13 +112,29 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
             mcpServers
                 .filter(server => server.enabled && server.name && server.url) // Only include enabled servers with valid name and url
                 .forEach(server => {
+                    // Build base headers
+                    const baseHeaders = {
+                        'target-url': server.url,
+                        'accept': 'application/json',
+                        'jsonrpc': '2.0',
+                        'chat-session-id': event.arguments.chatSessionId
+                    }
+
+                    // Add server-specific headers if they exist
+                    const serverHeaders: Record<string, string> = {}
+                    if (server.headers && Array.isArray(server.headers)) {
+                        server.headers.forEach(header => {
+                            if (header && header.key && header.value) {
+                                serverHeaders[header.key] = header.value
+                            }
+                        })
+                    }
+
                     mcpServersConfig[server.name!] = {
                         url: `http://localhost:${LOCAL_PROXY_PORT}/proxy`,
                         headers: {
-                            'target-url': server.url,
-                            'accept': 'application/json',
-                            'jsonrpc': '2.0',
-                            'chat-session-id': event.arguments.chatSessionId
+                            ...baseHeaders,
+                            ...serverHeaders
                         }
                     }
                 })

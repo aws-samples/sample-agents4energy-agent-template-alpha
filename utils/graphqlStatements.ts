@@ -78,6 +78,28 @@ export type ListChatMessageByChatSessionIdAndCreatedAtOutputType = Omit<APITypes
   } | null
 };
 
+export type ListMcpServersOutputType = Omit<APITypes.ListMcpServersQuery, 'listMcpServers'> & {
+  listMcpServers?: {
+    __typename: "ModelMcpServerConnection",
+    items: Array<{
+      __typename: "McpServer",
+      headers?: Array<{
+        key?: string | null,
+        value?: string | null,
+      } | null> | null,
+      createdAt?: string | null,
+      enabled?: boolean | null,
+      id: string,
+      name?: string | null,
+      owner?: string | null,
+      signRequestsWithAwsCreds?: boolean | null,
+      updatedAt: string,
+      url?: string | null,
+    } | null>,
+    nextToken?: string | null,
+  } | null
+};
+
 export const listChatMessageByChatSessionIdAndCreatedAt = /* GraphQL */ `query ListChatMessageByChatSessionIdAndCreatedAt(
   $chatSessionId: ID!
   $createdAt: ModelStringKeyConditionInput
@@ -139,4 +161,34 @@ export const invokeReActAgent = /* GraphQL */ `query InvokeReActAgent(
 ` as GeneratedQuery<
   APITypes.InvokeReActAgentQueryVariables,
   APITypes.InvokeReActAgentQuery
+>;
+
+export const listMcpServers = /* GraphQL */ `query ListMcpServers(
+  $filter: ModelMcpServerFilterInput
+  $limit: Int
+  $nextToken: String
+) {
+  listMcpServers(filter: $filter, limit: $limit, nextToken: $nextToken) {
+    items {
+      headers {
+        key
+        value
+      }
+      createdAt
+      enabled
+      id
+      name
+      owner
+      signRequestsWithAwsCreds
+      updatedAt
+      url
+      __typename
+    }
+    nextToken
+    __typename
+  }
+}
+` as GeneratedQuery<
+  APITypes.ListMcpServersQueryVariables,
+  ListMcpServersOutputType
 >;
