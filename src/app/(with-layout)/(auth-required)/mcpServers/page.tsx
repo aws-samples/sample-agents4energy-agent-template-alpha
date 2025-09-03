@@ -543,7 +543,7 @@ const McpServersPage = () => {
                                                 </Accordion>
                                             ) : !loadingTools && server.enabled && (
                                                 <Alert severity="info" sx={{ mt: 1 }}>
-                                                    No tools found. Click "Fetch Tools" to retrieve available tools from this server.
+                                                    No tools found. Toggle the server enabled on and off to retrieve available tools from this server.
                                                 </Alert>
                                             )}
                                         </>
