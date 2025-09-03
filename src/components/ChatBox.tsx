@@ -371,7 +371,7 @@ const ChatBox = (params: {
                 case 'ai':
                   return message.responseComplete
                 case 'tool':
-                  return ['renderAssetTool','userInputTool','createProject'].includes(message.toolName!);
+                  return ['renderAssetTool','userInputTool','createProject'].some(toolName => message.toolName!.includes(toolName));
                 default:
                   return true;
               }

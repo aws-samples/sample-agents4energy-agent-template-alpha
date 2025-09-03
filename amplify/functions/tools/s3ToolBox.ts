@@ -758,7 +758,9 @@ export const writeFile = tool(
             return JSON.stringify({
                 success: true,
                 message: `File ${filename} written successfully to S3`,
-                targetPath: targetPath
+                targetPath: targetPath,
+                s3Key: s3Key,
+                s3Bucket: getBucketName()
             });
         } catch (error: any) {
             return JSON.stringify({ error: `Error writing file: ${error.message}` });
