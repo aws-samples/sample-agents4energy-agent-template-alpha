@@ -72,10 +72,7 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
         // by ensuring no message content is empty when sent to Bedrock
         const chatSessionMessages = await getLangChainChatMessagesStartingWithHumanMessage(event.arguments.chatSessionId)
 
-        if (chatSessionMessages.length === 0) {
-            console.warn('No messages found in chat session')
-            return
-        }
+        
 
         const agentModel = new ChatBedrockConverse({
             model: process.env.AGENT_MODEL_ID,
@@ -199,6 +196,13 @@ pio.templates.default = "white_clean_log"
             }),
             renderAssetTool
         ]
+
+
+        // The initial invocation can generate the MCP server connection information and tools. Then, if there are no messages, return no response. That way the subsequent invocation which the user sends with a chat message won't have to wait for the mcp tools to load. 
+        if (chatSessionMessages.length === 0) {
+            console.warn('No messages found in chat session')
+            return
+        }
 
         const agent = createReactAgent({
             llm: agentModel,
