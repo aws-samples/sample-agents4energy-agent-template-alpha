@@ -52,20 +52,20 @@ export const fetchMcpTools = async (
     if (typeof window !== 'undefined') {
       throw new Error('AWS signing not supported in browser context. Use server-side API.');
     }
-    
+
     // For server-side usage, use fetchMcpToolsServerSide instead
     throw new Error('Use fetchMcpToolsServerSide for AWS signed requests.');
   }
 
   try {
     const response = await fetch(serverUrl, requestOptions);
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     const data: McpToolsResponse = await response.json();
-    
+
     if (data.result && data.result.tools) {
       return data.result.tools.map(tool => ({
         name: tool.name,
@@ -73,7 +73,7 @@ export const fetchMcpTools = async (
         schema: JSON.stringify(tool.schema)
       }));
     }
-    
+
     return [];
   } catch (error) {
     console.error('Error fetching MCP tools:', error);
@@ -98,25 +98,15 @@ export const fetchMcpToolsServerSide = async (
 
   // Try different header configurations based on the server URL
   let requestHeaders: Record<string, string>;
-  
-  if (serverUrl.includes('mcp.exa.ai')) {
-    // Specific headers for Exa MCP server - must accept both application/json and text/event-stream
-    requestHeaders = {
-      'accept': 'application/json, text/event-stream',
-      'content-type': 'application/json',
-      'user-agent': 'mcp-remote/0.1.29',
-      ...headers
-    };
-  } else {
-    // Standard MCP headers for other servers
-    requestHeaders = {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-      'User-Agent': 'mcp-remote/0.1.29',
-      'Content-Length': Buffer.byteLength(bodyData, 'utf8').toString(),
-      ...headers
-    };
-  }
+
+
+  requestHeaders = {
+    'accept': 'application/json, text/event-stream',
+    'content-type': 'application/json',
+    'user-agent': 'mcp-remote/0.1.29',
+    ...headers
+  };
+
 
   // Remove any undefined or null headers
   Object.keys(requestHeaders).forEach(key => {
@@ -172,7 +162,7 @@ export const fetchMcpToolsServerSide = async (
         headers: Object.fromEntries(response.headers.entries()),
         body: responseText
       });
-      
+
       throw new Error(`HTTP error! status: ${response.status} ${response.statusText}. Response: ${responseText}`);
     }
 
@@ -180,14 +170,14 @@ export const fetchMcpToolsServerSide = async (
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('text/event-stream')) {
       console.log('Processing SSE response from MCP server...');
-      
+
       const responseText = await response.text();
       console.log('SSE Response:', responseText);
-      
+
       // Parse SSE format to extract JSON data
       const lines = responseText.split('\n');
       let jsonData = '';
-      
+
       for (const line of lines) {
         if (line.startsWith('data: ')) {
           const data = line.substring(6); // Remove 'data: ' prefix
@@ -196,7 +186,7 @@ export const fetchMcpToolsServerSide = async (
           }
         }
       }
-      
+
       if (jsonData) {
         try {
           const data: McpToolsResponse = JSON.parse(jsonData);
@@ -216,7 +206,7 @@ export const fetchMcpToolsServerSide = async (
     } else {
       // Handle regular JSON response
       const data: McpToolsResponse = await response.json();
-      
+
       if (data.result && data.result.tools) {
         return data.result.tools.map(tool => ({
           name: tool.name,
@@ -225,7 +215,7 @@ export const fetchMcpToolsServerSide = async (
         }));
       }
     }
-    
+
     return [];
   } catch (error) {
     console.error('MCP Request failed:', error);
