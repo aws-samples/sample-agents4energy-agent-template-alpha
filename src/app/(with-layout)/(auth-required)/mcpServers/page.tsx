@@ -236,6 +236,13 @@ const McpServersPage = () => {
                 });
             }
 
+            console.log('Fetching tools for server:', {
+                name: server.name,
+                url: server.url,
+                signWithAwsCreds: server.signRequestsWithAwsCreds,
+                headerCount: Object.keys(headersObj).length
+            });
+
             const response = await fetch('/api/mcp-tools', {
                 method: 'POST',
                 headers: {
@@ -249,12 +256,39 @@ const McpServersPage = () => {
             });
 
             if (!response.ok) {
-                throw new Error(`Failed to fetch tools: ${response.statusText}`);
+                const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                console.error('MCP Tools API Error:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    errorData
+                });
+                
+                let userFriendlyMessage = 'Failed to fetch tools from MCP server';
+                
+                if (response.status === 406) {
+                    userFriendlyMessage = 'Server rejected request format. This may be due to incompatible headers or content negotiation issues.';
+                } else if (response.status === 401) {
+                    userFriendlyMessage = 'Authentication failed. Please check your API key in the server headers.';
+                } else if (response.status === 403) {
+                    userFriendlyMessage = 'Access forbidden. Please check your permissions.';
+                } else if (response.status === 404) {
+                    userFriendlyMessage = 'MCP server not found. Please check the server URL.';
+                } else if (response.status === 429) {
+                    userFriendlyMessage = 'Rate limit exceeded. Please try again later.';
+                }
+                
+                throw new Error(`${userFriendlyMessage} (${response.status}: ${errorData.error || response.statusText})`);
             }
 
             const data = await response.json();
             
             if (data.tools) {
+                console.log('Successfully fetched tools:', {
+                    serverName: server.name,
+                    toolCount: data.tools.length,
+                    toolNames: data.tools.map((t: any) => t.name)
+                });
+
                 // Update the server with the fetched tools
                 await amplifyClient.models.McpServer.update({
                     id: server.id!,
@@ -267,10 +301,15 @@ const McpServersPage = () => {
                         s.id === server.id ? { ...s, tools: data.tools } : s
                     )
                 );
+            } else {
+                console.warn('No tools returned from server:', server.name);
             }
         } catch (error) {
             console.error('Error fetching MCP tools:', error);
-            // You might want to show a user-friendly error message here
+            
+            // Show user-friendly error message
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+            alert(`Failed to fetch tools for "${server.name}": ${errorMessage}`);
         } finally {
             setLoadingTools(null);
         }

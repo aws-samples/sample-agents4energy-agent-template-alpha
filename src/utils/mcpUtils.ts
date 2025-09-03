@@ -96,67 +96,139 @@ export const fetchMcpToolsServerSide = async (
     id: 1
   });
 
-  if (signWithAwsCreds) {
-    // Create AWS client for signing requests
-    const aws = new AwsClient({
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-      sessionToken: process.env.AWS_SESSION_TOKEN,
-      region: process.env.AWS_REGION || 'us-east-1'
-    });
-
-    // Make the signed request using aws4fetch
-    const response = await aws.fetch(serverUrl, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'accept': 'application/json',
-        'jsonrpc': '2.0',
-        ...headers
-      },
-      body: bodyData
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error after sending signed request! status: ${response.status}`);
-    }
-
-    const data: McpToolsResponse = await response.json();
-    
-    if (data.result && data.result.tools) {
-      return data.result.tools.map(tool => ({
-        name: tool.name,
-        description: tool.description,
-        schema: JSON.stringify(tool.schema)
-      }));
-    }
-  } else {
-    // Make unsigned request
-    const response = await fetch(serverUrl, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'accept': 'application/json',
-        'jsonrpc': '2.0',
-        ...headers
-      },
-      body: bodyData
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data: McpToolsResponse = await response.json();
-    
-    if (data.result && data.result.tools) {
-      return data.result.tools.map(tool => ({
-        name: tool.name,
-        description: tool.description,
-        schema: JSON.stringify(tool.schema)
-      }));
-    }
-  }
+  // Try different header configurations based on the server URL
+  let requestHeaders: Record<string, string>;
   
-  return [];
+  if (serverUrl.includes('mcp.exa.ai')) {
+    // Specific headers for Exa MCP server - must accept both application/json and text/event-stream
+    requestHeaders = {
+      'accept': 'application/json, text/event-stream',
+      'content-type': 'application/json',
+      'user-agent': 'mcp-remote/0.1.29',
+      ...headers
+    };
+  } else {
+    // Standard MCP headers for other servers
+    requestHeaders = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'User-Agent': 'mcp-remote/0.1.29',
+      'Content-Length': Buffer.byteLength(bodyData, 'utf8').toString(),
+      ...headers
+    };
+  }
+
+  // Remove any undefined or null headers
+  Object.keys(requestHeaders).forEach(key => {
+    if (requestHeaders[key] === undefined || requestHeaders[key] === null) {
+      delete requestHeaders[key];
+    }
+  });
+
+  console.log('MCP Request Details:', {
+    url: serverUrl,
+    method: 'POST',
+    headers: requestHeaders,
+    bodyLength: bodyData.length,
+    signWithAwsCreds,
+    body: bodyData
+  });
+
+  try {
+    let response: Response;
+
+    if (signWithAwsCreds) {
+      // Create AWS client for signing requests
+      const aws = new AwsClient({
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+        sessionToken: process.env.AWS_SESSION_TOKEN,
+        region: process.env.AWS_REGION || 'us-east-1'
+      });
+
+      // Make the signed request using aws4fetch
+      response = await aws.fetch(serverUrl, {
+        method: 'POST',
+        headers: requestHeaders,
+        body: bodyData
+      });
+    } else {
+      // Make unsigned request
+      response = await fetch(serverUrl, {
+        method: 'POST',
+        headers: requestHeaders,
+        body: bodyData
+      });
+    }
+
+    console.log('MCP Response Status:', response.status, response.statusText);
+    console.log('MCP Response Headers:', Object.fromEntries(response.headers.entries()));
+
+    if (!response.ok) {
+      const responseText = await response.text().catch(() => 'Unable to read response body');
+      console.error('MCP Error Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+        body: responseText
+      });
+      
+      throw new Error(`HTTP error! status: ${response.status} ${response.statusText}. Response: ${responseText}`);
+    }
+
+    // Check if response is Server-Sent Events (SSE) format
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('text/event-stream')) {
+      console.log('Processing SSE response from MCP server...');
+      
+      const responseText = await response.text();
+      console.log('SSE Response:', responseText);
+      
+      // Parse SSE format to extract JSON data
+      const lines = responseText.split('\n');
+      let jsonData = '';
+      
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.substring(6); // Remove 'data: ' prefix
+          if (data.trim() && data !== '[DONE]') {
+            jsonData += data;
+          }
+        }
+      }
+      
+      if (jsonData) {
+        try {
+          const data: McpToolsResponse = JSON.parse(jsonData);
+          if (data.result && data.result.tools) {
+            return data.result.tools.map(tool => ({
+              name: tool.name,
+              description: tool.description,
+              schema: JSON.stringify(tool.schema)
+            }));
+          }
+        } catch (parseError) {
+          console.error('Failed to parse SSE JSON data:', parseError);
+          console.error('Raw JSON data:', jsonData);
+          throw new Error(`Failed to parse SSE response: ${parseError}`);
+        }
+      }
+    } else {
+      // Handle regular JSON response
+      const data: McpToolsResponse = await response.json();
+      
+      if (data.result && data.result.tools) {
+        return data.result.tools.map(tool => ({
+          name: tool.name,
+          description: tool.description,
+          schema: JSON.stringify(tool.schema)
+        }));
+      }
+    }
+    
+    return [];
+  } catch (error) {
+    console.error('MCP Request failed:', error);
+    throw error;
+  }
 };
