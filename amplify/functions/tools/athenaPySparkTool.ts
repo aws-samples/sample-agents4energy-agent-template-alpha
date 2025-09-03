@@ -25,6 +25,9 @@ chatSessionS3Prefix = '${getChatSessionPrefix()}'
 globalS3Uri = 's3://${process.env.STORAGE_BUCKET_NAME}/global/'
 # sc.addPyFile('s3://${process.env.STORAGE_BUCKET_NAME}/pypi/pypi_libs.zip')
 
+print('s3 bucket: ', s3BucketName)
+print('chat session prefix: ', chatSessionS3Prefix)
+
 def uploadDfToS3(df, file_path):
     """
     Save a PySpark DataFrame to S3 as a CSV file.
