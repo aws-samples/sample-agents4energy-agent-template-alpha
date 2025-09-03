@@ -49,6 +49,7 @@ const McpServersPage = () => {
     const [editingServer, setEditingServer] = useState<McpServer | null>(null);
     const [loadingTools, setLoadingTools] = useState<string | null>(null);
     const [visibleHeaders, setVisibleHeaders] = useState<Record<string, boolean>>({});
+    const [visibleUrls, setVisibleUrls] = useState<Record<string, boolean>>({});
     const [dialogHeadersVisible, setDialogHeadersVisible] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
@@ -322,6 +323,13 @@ const McpServersPage = () => {
         }));
     };
 
+    const toggleUrlVisibility = (serverId: string) => {
+        setVisibleUrls(prev => ({
+            ...prev,
+            [serverId]: !prev[serverId]
+        }));
+    };
+
     return (
         <Box p={3}>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
@@ -389,9 +397,19 @@ const McpServersPage = () => {
                                         </Box>
                                     </Box>
 
-                                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                                        <strong>URL:</strong> {server.url}
-                                    </Typography>
+                                    <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
+                                        <Typography variant="body2" color="text.secondary">
+                                            <strong>URL:</strong> {visibleUrls[server.id!] ? server.url : '••••••••'}
+                                        </Typography>
+                                        <IconButton
+                                            size="small"
+                                            onClick={() => toggleUrlVisibility(server.id!)}
+                                            color="primary"
+                                            title={visibleUrls[server.id!] ? "Hide URL" : "Show URL"}
+                                        >
+                                            {visibleUrls[server.id!] ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                                        </IconButton>
+                                    </Box>
 
                                     <Box mb={2} display="flex" gap={1} flexWrap="wrap" alignItems="center">
                                         <Chip
