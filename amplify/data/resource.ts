@@ -28,7 +28,7 @@ export const mcpAgentInvoker = defineFunction({
   timeoutSeconds: 900,
 });
 
-export const mcpServerTest = defineFunction({
+export const mcpServerTestFunction = defineFunction({
   name: 'mcpServerTest',
   entry: '../functions/mcpServerTest/handler.ts',
   timeoutSeconds: 900,
@@ -170,12 +170,13 @@ export const schema = a.schema({
         error: a.string()
       })
     )
-    .handler(a.handler.function(mcpServerTest))
+    .handler(a.handler.function(mcpServerTestFunction))
     .authorization((allow) => [allow.authenticated()]),
 
 })
   .authorization((allow) => [
-    allow.resource(reActAgentFunction)
+    allow.resource(reActAgentFunction),
+    allow.resource(mcpServerTestFunction)
   ]);
 
 export type Schema = ClientSchema<typeof schema>;

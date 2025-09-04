@@ -239,9 +239,18 @@ const McpServersPage = () => {
 
             const {data: serverTools, errors: testMcpServerQueryErrors} = await amplifyClient.queries.testMcpServer({ mcpServerId: server.id! });
             
+            console.log({testMcpServerQueryErrors})
+
             if (testMcpServerQueryErrors) {
                 console.error('GraphQL query errors:', testMcpServerQueryErrors);
-                throw new Error(`GraphQL errors: ${testMcpServerQueryErrors.map(e => e.message).join(', ')}`);
+                // const errorMessages = testMcpServerQueryErrors.map(e => {
+                //     if (typeof e === 'string') return e;
+                //     if (e && typeof e === 'object') {
+                //         return e.message || e.toString() || JSON.stringify(e);
+                //     }
+                //     return String(e);
+                // }).join(', ');
+                // throw new Error(`Failed to test MCP server "${server.name}" (${server.url}): ${testMcpServerQueryErrors.map(e => JSON.stringify(e.message) || e.toString()).join(', ')}`);
             }
 
             if (!serverTools) {

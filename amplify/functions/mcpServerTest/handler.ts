@@ -8,6 +8,7 @@ let proxyServerInitilized = false
 let port: number | null
 
 export const handler: Schema["testMcpServer"]["functionHandler"] = async (event, context) => {
+    console.log('event:\n', JSON.stringify(event, null, 2))
 
     const amplifyClient = getConfiguredAmplifyClient();
 

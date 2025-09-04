@@ -1,6 +1,6 @@
 import { defineBackend } from '@aws-amplify/backend';
 import { auth } from './auth/resource';
-import { data, mcpAgentInvoker, reActAgentFunction } from './data/resource';
+import { data, mcpAgentInvoker, reActAgentFunction, mcpServerTestFunction } from './data/resource';
 import { storage } from './storage/resource';
 import cdk, {
   aws_athena as athena,
@@ -22,7 +22,8 @@ const backend = defineBackend({
   data,
   storage,
   reActAgentFunction,
-  mcpAgentInvoker
+  mcpAgentInvoker,
+  mcpServerTestFunction
 });
 
 backend.stack.tags.setTag('Project', 'workshop-a4e');
