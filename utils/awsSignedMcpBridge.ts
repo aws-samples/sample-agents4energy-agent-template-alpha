@@ -4,7 +4,7 @@ import axios from 'axios';
 // Removing dependency on amplifyUtils for testing
 // import { setAmplifyEnvVars } from '../../../utils/amplifyUtils';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
-import { setAmplifyEnvVars } from '../../../utils/amplifyUtils';
+import { setAmplifyEnvVars } from './amplifyUtils';
 
 /**
  * Options for processing a signed MCP request
@@ -56,7 +56,7 @@ export interface McpBridgeOptions {
 export const startMcpBridgeServer = async (options: McpBridgeOptions = {}) => {
     // await setAmplifyEnvVars();
 
-    const port = options.port || 3010;
+    const port = options.port || 3020;
     const region = options.region || process.env.AWS_REGION;
     const service = options.service || 'lambda';
     // const accessKeyId = options.accessKeyId || process.env.AWS_ACCESS_KEY_ID;

@@ -157,9 +157,14 @@ export const schema = a.schema({
 
   testMcpServer: a.query()
     .arguments({
-      mcpServerId: a.string()
+      mcpServerId: a.string().required()
     })
-    .returns(a.ref("Tool").array())
+    .returns(
+      a.customType({ 
+        tools: a.ref("Tool").array(),
+        error: a.string()
+      })
+    )
     .handler(a.handler.function(mcpServerTest))
     .authorization((allow) => [allow.authenticated()]),
 

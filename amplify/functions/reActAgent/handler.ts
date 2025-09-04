@@ -25,10 +25,10 @@ import { getLangChainChatMessagesStartingWithHumanMessage, getLangChainMessageTe
 import { listMcpServers } from '../../../utils/graphqlStatements'
 import { EventEmitter } from "events";
 
-import { startMcpBridgeServer } from "./awsSignedMcpBridge"
+import { startMcpBridgeServer } from "../../../utils/awsSignedMcpBridge"
 
 const USE_MCP = true;
-const LOCAL_PROXY_PORT = 3020
+// const LOCAL_PROXY_PORT = 3020
 
 let mcpInitilized = false
 let mcpTools: StructuredToolInterface<ToolSchemaBase, any, any>[] = []
@@ -91,10 +91,14 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
             })
 
             // Start the MCP bridge server with default options
-            startMcpBridgeServer({
-                port: LOCAL_PROXY_PORT,
+            const mcpBridgeServer = await startMcpBridgeServer({
+                // port: LOCAL_PROXY_PORT,
                 service: 'lambda'
             })
+            // Get the port after the server is listening
+            const address = mcpBridgeServer.address()
+            const port = typeof address === 'object' && address !== null ? address.port : null
+            console.log('Server is listening on port:', port)
 
             //Get the configured mcp servers from the MCP registry
             const {data: {listMcpServers: {items: mcpServers} } } = await amplifyClient.graphql({
@@ -128,7 +132,7 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
                     }
 
                     mcpServersConfig[server.name!] = {
-                        url: `http://localhost:${LOCAL_PROXY_PORT}/proxy`,
+                        url: `http://localhost:${port}/proxy`,
                         headers: {
                             ...baseHeaders,
                             ...serverHeaders
