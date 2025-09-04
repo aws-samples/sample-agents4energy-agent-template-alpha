@@ -67,6 +67,7 @@ export const handler: Schema["testMcpServer"]["functionHandler"] = async (event,
     const tools = await mcpClient.getTools()
 
     return {
-        tools: []
+        // tools: [],
+        error: "Error Message Here"
     }
 }
