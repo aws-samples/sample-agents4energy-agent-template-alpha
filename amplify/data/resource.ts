@@ -28,6 +28,12 @@ export const mcpAgentInvoker = defineFunction({
   timeoutSeconds: 900,
 });
 
+export const mcpServerTest = defineFunction({
+  name: 'mcpServerTest',
+  entry: '../functions/mcpServerTest/handler.ts',
+  timeoutSeconds: 900,
+});
+
 export const schema = a.schema({
   Project: a.model({
     name: a.string(),
@@ -72,7 +78,7 @@ export const schema = a.schema({
     enabled: a.boolean().default(true),
     tools: a.ref("Tool").array()
   })
-  .authorization((allow) => [allow.owner(), allow.authenticated(), allow.guest()]),
+    .authorization((allow) => [allow.owner(), allow.authenticated(), allow.guest()]),
 
   ChatSession: a.model({
     name: a.string(),
@@ -139,8 +145,8 @@ export const schema = a.schema({
     .authorization(allow => [allow.authenticated()]),
 
   invokeReActAgent: a.query()
-    .arguments({ 
-      chatSessionId: a.id().required(), 
+    .arguments({
+      chatSessionId: a.id().required(),
       foundationModelId: a.string(), // Optionally, chose the foundation model to use for the agent
       respondToAgent: a.boolean(), //When an agent is invoked by another agent, the agent will create a tool response message with it's output
       userId: a.string(), //When invoking the agent programatically, specify which user should be the owner of the message
@@ -148,6 +154,15 @@ export const schema = a.schema({
     })
     .handler(a.handler.function(reActAgentFunction).async())
     .authorization((allow) => [allow.authenticated()]),
+
+  testMcpServer: a.query()
+    .arguments({
+      mcpServerId: a.string()
+    })
+    .returns(a.ref("Tool").array())
+    .handler(a.handler.function(mcpServerTest))
+    .authorization((allow) => [allow.authenticated()]),
+
 })
   .authorization((allow) => [
     allow.resource(reActAgentFunction)
