@@ -65,9 +65,9 @@ export const schema = a.schema({
   }),
 
   Tool: a.customType({
-    name: a.string(),
-    description: a.string(),
-    schema: a.string()
+    name: a.string().required(),
+    description: a.string().required(),
+    schema: a.string().required()
   }),
 
   McpServer: a.model({
@@ -160,8 +160,13 @@ export const schema = a.schema({
       mcpServerId: a.string().required()
     })
     .returns(
-      a.customType({ 
+      a.customType({
         tools: a.ref("Tool").array(),
+        // tools: a.customType({
+        //   name: a.string(),
+        //   description: a.string(),
+        //   schema: a.string()
+        // }).array(),
         error: a.string()
       })
     )
