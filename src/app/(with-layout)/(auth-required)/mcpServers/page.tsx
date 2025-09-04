@@ -154,6 +154,8 @@ const McpServersPage = () => {
             
             // If the server is enabled, fetch its tools
             if (savedServer.enabled) {
+
+
                 await fetchAndUpdateServerTools(savedServer);
             }
         } catch (error) {
@@ -226,80 +228,51 @@ const McpServersPage = () => {
         if (!server.enabled || !server.url) return;
 
         setLoadingTools(server.id!);
-        try {
-            // Convert headers to the format expected by the API
-            const headersObj: Record<string, string> = {};
-            if (server.headers) {
-                server.headers.forEach(header => {
-                    if (header && header.key && header.value) {
-                        headersObj[header.key] = header.value;
-                    }
-                });
-            }
 
+        try {
             console.log('Fetching tools for server:', {
                 name: server.name,
+                serverId: server.id,
                 url: server.url,
-                signWithAwsCreds: server.signRequestsWithAwsCreds,
-                headerCount: Object.keys(headersObj).length
+                signWithAwsCreds: server.signRequestsWithAwsCreds
             });
 
-            const response = await fetch('/api/mcp-tools', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    serverUrl: server.url,
-                    signWithAwsCreds: server.signRequestsWithAwsCreds,
-                    headers: headersObj
-                })
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-                console.error('MCP Tools API Error:', {
-                    status: response.status,
-                    statusText: response.statusText,
-                    errorData
-                });
-                
-                let userFriendlyMessage = 'Failed to fetch tools from MCP server';
-                
-                if (response.status === 406) {
-                    userFriendlyMessage = 'Server rejected request format. This may be due to incompatible headers or content negotiation issues.';
-                } else if (response.status === 401) {
-                    userFriendlyMessage = 'Authentication failed. Please check your API key in the server headers.';
-                } else if (response.status === 403) {
-                    userFriendlyMessage = 'Access forbidden. Please check your permissions.';
-                } else if (response.status === 404) {
-                    userFriendlyMessage = 'MCP server not found. Please check the server URL.';
-                } else if (response.status === 429) {
-                    userFriendlyMessage = 'Rate limit exceeded. Please try again later.';
-                }
-                
-                throw new Error(`${userFriendlyMessage} (${response.status}: ${errorData.error || response.statusText})`);
+            const {data: serverTools, errors: testMcpServerQueryErrors} = await amplifyClient.queries.testMcpServer({ mcpServerId: server.id! });
+            
+            if (testMcpServerQueryErrors) {
+                console.error('GraphQL query errors:', testMcpServerQueryErrors);
+                throw new Error(`GraphQL errors: ${testMcpServerQueryErrors.map(e => e.message).join(', ')}`);
             }
 
-            const data = await response.json();
-            
-            if (data.tools) {
+            if (!serverTools) {
+                throw new Error('No data returned from testMcpServer query');
+            }
+
+            if (serverTools.error) {
+                console.error('MCP Server Test Error:', serverTools.error);
+                throw new Error(`MCP Server Error: ${serverTools.error}`);
+            }
+
+            if (serverTools.tools && Array.isArray(serverTools.tools)) {
+                // Convert the tools to the expected format
+                const toolsArray = serverTools.tools.filter(tool => tool !== null && tool !== undefined);
+                
                 console.log('Successfully fetched tools:', {
                     serverName: server.name,
-                    toolCount: data.tools.length,
-                    toolNames: data.tools.map((t: any) => t.name)
+                    toolCount: toolsArray.length,
+                    toolNames: toolsArray.map((t: any) => t?.name).filter(Boolean)
                 });
 
                 // Update the server with the fetched tools
                 await amplifyClient.models.McpServer.update({
                     id: server.id!,
-                    tools: data.tools
+                    tools: toolsArray as any
                 });
 
                 // Update local state
                 setMcpServers(prevServers => 
                     prevServers.map(s => 
-                        s.id === server.id ? { ...s, tools: data.tools } : s
+                        s.id === server.id ? { ...s, tools: toolsArray as any } : s
                     )
                 );
             } else {
