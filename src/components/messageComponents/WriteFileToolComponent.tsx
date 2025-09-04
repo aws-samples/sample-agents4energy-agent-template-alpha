@@ -13,6 +13,7 @@ interface WriteFileToolComponentProps {
 
 const WriteFileToolComponent: React.FC<WriteFileToolComponentProps> = ({ content, theme, chatSessionId }) => {
   try {
+    const toolData = JSON.parse(content?.text || '{}');
     const fileData = JSON.parse(content?.text || '{}');
     const basePath = `chatSessionArtifacts/sessionId=${chatSessionId}/`;
     return (
@@ -29,16 +30,30 @@ const WriteFileToolComponent: React.FC<WriteFileToolComponentProps> = ({ content
         <CheckCircleIcon style={{ color: theme.palette.success.dark }} />
         <Typography variant="body1" color="textPrimary" style={{ flex: 1 }}>
           {fileData.success 
-            ? `File saved successfully` 
+            ? (
+                <div>
+                  <div>File saved successfully</div>
+                  {toolData.s3Key && (
+                    <div style={{ fontSize: '0.875rem', opacity: 0.8, marginTop: '4px' }}>
+                      S3 Key: {toolData.s3Key}
+                    </div>
+                  )}
+                  {toolData.s3Bucket && (
+                    <div style={{ fontSize: '0.875rem', opacity: 0.8, marginTop: '2px' }}>
+                      S3 Bucket: {toolData.s3Bucket}
+                    </div>
+                  )}
+                </div>
+              )
             : `Error: ${fileData.message || 'Unknown error writing file'}`}
         </Typography>
-        {fileData.success && fileData.targetPath && (
-          <Tooltip title={`Open ${fileData.targetPath} in new tab`}>
+        {toolData.success && toolData.targetPath && (
+          <Tooltip title={`Open ${toolData.targetPath} in new tab`}>
             <IconButton
               size="small"
               onClick={() => {
-                const encodedPath = fileData.targetPath.split('/').map((segment: string) => encodeURIComponent(segment)).join('/');
-                window.open(`/preview/${basePath}/${encodedPath}`, '_blank');
+                const encodedPath = toolData.targetPath.split('/').map((segment: string) => encodeURIComponent(segment)).join('/');
+                window.open(`/preview/${toolData.s3Key}`, '_blank');
               }}
               sx={{
                 opacity: 0.7,
@@ -72,4 +87,4 @@ const WriteFileToolComponent: React.FC<WriteFileToolComponentProps> = ({ content
   }
 };
 
-export default WriteFileToolComponent; 
+export default WriteFileToolComponent;
