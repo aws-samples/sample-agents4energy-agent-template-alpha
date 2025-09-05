@@ -250,7 +250,7 @@ const McpServersPage = () => {
                 //     }
                 //     return String(e);
                 // }).join(', ');
-                // throw new Error(`Failed to test MCP server "${server.name}" (${server.url}): ${testMcpServerQueryErrors.map(e => JSON.stringify(e.message) || e.toString()).join(', ')}`);
+                throw new Error(`Failed to test MCP server "${server.name}" (${server.url}): ${testMcpServerQueryErrors.map(e => JSON.stringify(e.message) || e.toString()).join(', ')}`);
             }
 
             if (!serverTools) {

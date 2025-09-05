@@ -13,6 +13,7 @@ export const handler: Schema["testMcpServer"]["functionHandler"] = async (event,
     const amplifyClient = getConfiguredAmplifyClient();
 
     if (!proxyServerInitilized) {
+        console.log('Initializing proxy server')
         proxyServerInitilized = true
         const mcpBridgeServer = await startMcpBridgeServer({
             service: 'lambda'
@@ -32,6 +33,8 @@ export const handler: Schema["testMcpServer"]["functionHandler"] = async (event,
     })
 
     if (!mcpServerInfo) throw new Error('MCP server not found')
+
+    console.log({mcpServerInfo})
 
     const baseHeaders = {
         'target-url': mcpServerInfo.url!,
@@ -55,8 +58,8 @@ export const handler: Schema["testMcpServer"]["functionHandler"] = async (event,
         // additionalToolNamePrefix: "",
 
         mcpServers: {
-            // [`${mcpServerInfo.name}`]: {
-            'test': {
+            [`${mcpServerInfo.name}`]: {
+            // 'test': {
                 url: `http://localhost:${port}/proxy`,
                 headers: {
                     ...baseHeaders,

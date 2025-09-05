@@ -76,7 +76,8 @@ export const startMcpBridgeServer = async (options: McpBridgeOptions = {}) => {
             const targetUrl = req.headers['target-url'] as string | undefined;
 
             if (!targetUrl) {
-                console.warn('No taget url provided')
+                console.warn(`No taget url provided`)
+                console.warn(`headers: ${JSON.stringify(req.headers)}`)
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ text: "Listener listening" }));
                 return// { text: "Listener listening" }
