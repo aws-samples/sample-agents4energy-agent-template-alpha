@@ -65,9 +65,9 @@ export const schema = a.schema({
   }),
 
   Tool: a.customType({
-    name: a.string().required(),
-    description: a.string().required(),
-    schema: a.string().required()
+    name: a.string(),
+    description: a.string(),
+    schema: a.string()
   }),
 
   McpServer: a.model({

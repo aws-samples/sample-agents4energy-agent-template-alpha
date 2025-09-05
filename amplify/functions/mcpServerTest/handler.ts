@@ -15,28 +15,42 @@ export const handler: Schema["testMcpServer"]["functionHandler"] = async (event,
     if (!proxyServerInitilized) {
         console.log('Initializing proxy server')
         proxyServerInitilized = true
-        const mcpBridgeServer = await startMcpBridgeServer({
-            service: 'lambda'
-        })
 
-        // Get the port after the server is listening
-        const address = mcpBridgeServer.address()
-        port = typeof address === 'object' && address !== null ? address.port : null
-        console.log('Server is listening on port:', port)
+        try {
+            const mcpBridgeServer = await startMcpBridgeServer({
+                service: 'lambda'
+            })
+
+            // Get the port after the server is listening
+            const address = mcpBridgeServer.address()
+            port = typeof address === 'object' && address !== null ? address.port : null
+            console.log('Server is listening on port:', port)
+        } catch (error) {
+            console.error('Failed to start MCP bridge server:', error)
+            throw new Error(`Failed to initialize proxy server: ${error instanceof Error ? error.message : String(error)}`)
+        }
     }
 
-    console.log('Getting mcp server info')
-    const { data: { getMcpServer: mcpServerInfo }, errors: getMcpServerErrors } = await amplifyClient.graphql({
+    console.log(`Getting mcp server info for MCP server id ${event.arguments.mcpServerId}`)
+    const getMcpServeInfoResponse = await amplifyClient.graphql({
         query: getMcpServer,
         variables: {
             id: event.arguments.mcpServerId
         }
+    }).catch(error => {
+        console.log("Error getting mcp server response: ", error)
     })
+
+    if (!getMcpServeInfoResponse) throw new Error('Error getting MCP server info: ' + JSON.stringify(getMcpServeInfoResponse, null, 2))
+
+    console.log({ getMcpServeInfoResponse })
+
+    const { data: { getMcpServer: mcpServerInfo }, errors: getMcpServerErrors } = getMcpServeInfoResponse
+
+    console.log({ mcpServerInfo })
 
     if (getMcpServerErrors) throw new Error('Error getting MCP server info: ' + JSON.stringify(getMcpServerErrors, null, 2))
     if (!mcpServerInfo) throw new Error('MCP server not found')
-
-    console.log({mcpServerInfo})
 
     const baseHeaders = {
         'target-url': mcpServerInfo.url!,
@@ -60,8 +74,8 @@ export const handler: Schema["testMcpServer"]["functionHandler"] = async (event,
         // additionalToolNamePrefix: "",
 
         mcpServers: {
-            // [`${mcpServerInfo.name}`]: {
-            'test': {
+            [`${mcpServerInfo.name}`]: {
+            // 'test': {
                 url: `http://localhost:${port}/proxy`,
                 headers: {
                     ...baseHeaders,

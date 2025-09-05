@@ -58,7 +58,8 @@ const {
 //Allow the agent's lambda function to invoke the aws mcp tools function
 cdk.Tags.of(awsMcpToolsFunction).add(`Allow_${stackUUID}`, "True")
 
-awsMcpToolsFunction.grantInvokeUrl(backend.reActAgentFunction.resources.lambda)
+awsMcpToolsFunction.grantInvokeUrl(backend.reActAgentFunction.resources.lambda) //TODO: adding the InvokeFunctionUrl IAM permission may make this unneccessary
+awsMcpToolsFunction.grantInvokeUrl(backend.mcpServerTestFunction.resources.lambda)
 
 // Create an element in the mcp server registry for the A4E Mcp Server
 const McpServerRegistryDdbTable = backend.data.resources.tables["McpServer"]
@@ -218,6 +219,7 @@ athenaExecutionRole.addToPolicy(executeAthenaStatementsPolicy);
 //Add permissions to the lambda functions to invoke the model
 [
   backend.reActAgentFunction.resources.lambda,
+  backend.mcpServerTestFunction.resources.lambda,
   awsMcpToolsFunction
 ].forEach((resource) => {
   resource.addToRolePolicy(
@@ -288,7 +290,8 @@ athenaExecutionRole.addToPolicy(executeAthenaStatementsPolicy);
     new iam.PolicyStatement({
       actions: [
         "athena:GetDataCatalog",
-        "lambda:InvokeFunction"
+        "lambda:InvokeFunction",
+        "lambda:InvokeFunctionUrl"
       ],
       resources: ["*"],
       conditions: {

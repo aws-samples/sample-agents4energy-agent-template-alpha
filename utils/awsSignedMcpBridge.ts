@@ -53,7 +53,7 @@ export interface McpBridgeOptions {
  * @param options Configuration options for the server
  * @returns The HTTP server instance
  */
-export const startMcpBridgeServer = async (options: McpBridgeOptions = {}) => {
+export const startMcpBridgeServer = async (options: McpBridgeOptions = {}): Promise<http.Server> => {
     // await setAmplifyEnvVars();
 
     const port = options.port || 3020;
@@ -179,22 +179,37 @@ export const startMcpBridgeServer = async (options: McpBridgeOptions = {}) => {
         }
     });
 
-    server.listen(port,
-        async () => {
+    console.warn('MCP bridge server starting on port', port);
+
+    // Return a Promise that resolves when the server is actually listening
+    return new Promise((resolve, reject) => {
+        server.listen(port, async (error?: Error) => {
+            if (error) {
+                console.error('Error starting MCP bridge server:', error);
+                reject(error);
+                return;
+            }
+
             try {
+                // Perform health check
                 const proxyRes = await fetch(`http://localhost:${port}/proxy`);
                 const data = await proxyRes.text();
                 console.warn('Proxy server started successfully on port', port);
                 console.warn('Proxy health check result:', data);
-            } catch (error) {
-                console.error('Error during proxy server startup:', error);
+                resolve(server);
+            } catch (healthCheckError) {
+                console.error('Error during proxy server health check:', healthCheckError);
+                // Still resolve since the server is listening, health check failure is not critical
+                resolve(server);
             }
-        }
-    );
+        });
 
-    console.warn('MCP bridge server starting on port', port);
-
-    return server;
+        // Handle server errors
+        server.on('error', (error) => {
+            console.error('MCP bridge server error:', error);
+            reject(error);
+        });
+    });
 }
 
 /**
