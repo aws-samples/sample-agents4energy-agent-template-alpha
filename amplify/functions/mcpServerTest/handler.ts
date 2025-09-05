@@ -25,13 +25,15 @@ export const handler: Schema["testMcpServer"]["functionHandler"] = async (event,
         console.log('Server is listening on port:', port)
     }
 
-    const { data: { getMcpServer: mcpServerInfo } } = await amplifyClient.graphql({
+    console.log('Getting mcp server info')
+    const { data: { getMcpServer: mcpServerInfo }, errors: getMcpServerErrors } = await amplifyClient.graphql({
         query: getMcpServer,
         variables: {
             id: event.arguments.mcpServerId
         }
     })
 
+    if (getMcpServerErrors) throw new Error('Error getting MCP server info: ' + JSON.stringify(getMcpServerErrors, null, 2))
     if (!mcpServerInfo) throw new Error('MCP server not found')
 
     console.log({mcpServerInfo})
@@ -58,8 +60,8 @@ export const handler: Schema["testMcpServer"]["functionHandler"] = async (event,
         // additionalToolNamePrefix: "",
 
         mcpServers: {
-            [`${mcpServerInfo.name}`]: {
-            // 'test': {
+            // [`${mcpServerInfo.name}`]: {
+            'test': {
                 url: `http://localhost:${port}/proxy`,
                 headers: {
                     ...baseHeaders,
@@ -70,6 +72,8 @@ export const handler: Schema["testMcpServer"]["functionHandler"] = async (event,
     })
 
     try {
+
+        console.log(`mcp client mcpServers config: ${mcpClient.config.mcpServers}`)
         const tools = await mcpClient.getTools()
 
         // Transform MCP tools to match the expected schema format

@@ -116,7 +116,7 @@ export const startMcpBridgeServer = async (options: McpBridgeOptions = {}) => {
                     sessionToken: process.env.AWS_SESSION_TOKEN
                 });
 
-                console.warn('Full request to be sent to the target host: ', opts)
+                // console.warn('Full request to be sent to the target host: ', opts)
 
                 // Convert aws4 signed request to axios config
                 // Create a clean headers object that axios can accept
