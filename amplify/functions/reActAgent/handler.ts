@@ -30,7 +30,8 @@ import { startMcpBridgeServer } from "../../../utils/awsSignedMcpBridge"
 const USE_MCP = true;
 // const LOCAL_PROXY_PORT = 3020
 
-let mcpInitilized = false
+let proxyServerInitilized = false
+let proxyServerPort: number | null
 // let mcpTools: StructuredToolInterface<ToolSchemaBase, any, any>[] = []
 // Each chat session will have a unique set of MCP tools because the chat-session-id header value will be different.
 let mcpTools: Record<string,StructuredToolInterface<ToolSchemaBase, any, any>[]> = {}
@@ -81,8 +82,20 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
             // temperature: 0
         });
 
-        if (!mcpInitilized && USE_MCP) {
-            mcpInitilized = true
+        if (! proxyServerInitilized ){
+            // Start the MCP bridge server with default options
+            const mcpBridgeServer = await startMcpBridgeServer({
+                // port: LOCAL_PROXY_PORT,
+                service: 'lambda'
+            })
+            // Get the port after the server is listening
+            const address = mcpBridgeServer.address()
+            proxyServerPort = typeof address === 'object' && address !== null ? address.port : null
+            console.log('Server is listening on port:', proxyServerPort)
+        }
+
+        if (!(event.arguments.chatSessionId in mcpTools) && USE_MCP) {
+            proxyServerInitilized = true
             await amplifyClient.graphql({
                 query: publishResponseStreamChunk,
                 variables: {
@@ -91,16 +104,6 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
                     chatSessionId: event.arguments.chatSessionId
                 }
             })
-
-            // Start the MCP bridge server with default options
-            const mcpBridgeServer = await startMcpBridgeServer({
-                // port: LOCAL_PROXY_PORT,
-                service: 'lambda'
-            })
-            // Get the port after the server is listening
-            const address = mcpBridgeServer.address()
-            const port = typeof address === 'object' && address !== null ? address.port : null
-            console.log('Server is listening on port:', port)
 
             //Get the configured mcp servers from the MCP registry
             const {data: {listMcpServers: {items: mcpServers} } } = await amplifyClient.graphql({
@@ -134,7 +137,7 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
                     }
 
                     mcpServersConfig[server.name!] = {
-                        url: `http://localhost:${port}/proxy`,
+                        url: `http://localhost:${proxyServerPort}/proxy`,
                         headers: {
                             ...baseHeaders,
                             ...serverHeaders
