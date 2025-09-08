@@ -165,6 +165,7 @@ export const startMcpBridgeServer = async (options: McpBridgeOptions = {}): Prom
                         }
                         console.error('Target server error response:', error.response.status);
                         console.error('Error message body:', errorMessage);
+                        console.warn(`headers: ${JSON.stringify(req.headers)}`)
                         res.writeHead(error.response.status, error.response.headers as any);
                         res.end(error.response.data);
                     } else {
