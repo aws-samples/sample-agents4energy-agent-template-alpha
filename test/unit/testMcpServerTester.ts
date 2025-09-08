@@ -22,7 +22,7 @@ const main = async () => {
   // Create a dummy event for the handler
   const dummyEvent = {
     arguments: {
-      mcpServerId: "b8f6fe94-49cf-4b4b-b205-004277d9e756"
+      mcpServerId: "mcpServerRegistry"
     },
     identity: {
       sub: "test-user-123",  // Used as userId if arguments.userId is not provided

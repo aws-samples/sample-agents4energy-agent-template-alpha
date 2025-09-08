@@ -50,7 +50,7 @@ export const handler: Schema["testMcpServer"]["functionHandler"] = async (event,
     console.log({ mcpServerInfo })
 
     if (getMcpServerErrors) throw new Error('Error getting MCP server info: ' + JSON.stringify(getMcpServerErrors, null, 2))
-    if (!mcpServerInfo) throw new Error('MCP server not found')
+    if (!mcpServerInfo) throw new Error(`MCP server with id (${event.arguments.mcpServerId}) not found`)
 
     const baseHeaders = {
         'target-url': mcpServerInfo.url!,
@@ -89,6 +89,7 @@ export const handler: Schema["testMcpServer"]["functionHandler"] = async (event,
 
         console.log(`mcp client mcpServers config: ${mcpClient.config.mcpServers}`)
         const tools = await mcpClient.getTools()
+        console.log({tools})
 
         // Transform MCP tools to match the expected schema format
         const transformedTools: Schema["Tool"]["type"][] = tools.map(tool => ({
