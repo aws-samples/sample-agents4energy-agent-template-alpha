@@ -31,7 +31,9 @@ const USE_MCP = true;
 // const LOCAL_PROXY_PORT = 3020
 
 let mcpInitilized = false
-let mcpTools: StructuredToolInterface<ToolSchemaBase, any, any>[] = []
+// let mcpTools: StructuredToolInterface<ToolSchemaBase, any, any>[] = []
+// Each chat session will have a unique set of MCP tools because the chat-session-id header value will be different.
+let mcpTools: Record<string,StructuredToolInterface<ToolSchemaBase, any, any>[]> = {}
 
 // Increase the default max listeners to prevent warnings
 EventEmitter.defaultMaxListeners = 10;
@@ -150,7 +152,7 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
                     mcpServers: mcpServersConfig
                 })
 
-                mcpTools = await mcpClient.getTools()
+                mcpTools[event.arguments.chatSessionId] = await mcpClient.getTools()
             } else {
                 console.log('No enabled MCP servers found, skipping MCP client initialization')
             }
@@ -165,9 +167,9 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
             })
         }
 
-        console.log('Mcp Tools: ', mcpTools)
+        console.log('Mcp Tools: ', mcpTools[event.arguments.chatSessionId])
 
-        const agentTools = USE_MCP ? mcpTools : [
+        const agentTools = USE_MCP ? mcpTools[event.arguments.chatSessionId] : [
             new Calculator(),
             ...s3FileManagementTools,
             userInputTool,
