@@ -141,7 +141,7 @@ export const startMcpBridgeServer = async (options: McpBridgeOptions = {}): Prom
                         responseType: 'arraybuffer' // To handle binary responses correctly
                     });
 
-                    console.log('target response body response received: ', targetRes.data);
+                    // console.log('target response body response received: ', targetRes.data);
                     
                     // Convert response headers to format expected by http.ServerResponse
                     const responseHeaders: Record<string, string | string[] | undefined> = {};
@@ -158,7 +158,13 @@ export const startMcpBridgeServer = async (options: McpBridgeOptions = {}): Prom
                         res.end(JSON.stringify({ error: 'Gateway Timeout - request took too long to complete' }));
                     } else if (axios.isAxiosError(error) && error.response) {
                         // Forward the error response from the target server
-                        console.error('Target server error response:', error.response.status, ' ', error.response.data);
+                        // Convert buffer to string for better error visibility
+                        let errorMessage = error.response.data;
+                        if (Buffer.isBuffer(errorMessage)) {
+                            errorMessage = errorMessage.toString('utf8');
+                        }
+                        console.error('Target server error response:', error.response.status);
+                        console.error('Error message body:', errorMessage);
                         res.writeHead(error.response.status, error.response.headers as any);
                         res.end(error.response.data);
                     } else {
