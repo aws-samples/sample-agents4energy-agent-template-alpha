@@ -225,31 +225,19 @@ const McpServersPage = () => {
     };
 
     const fetchAndUpdateServerTools = async (server: McpServer) => {
-        if (!server.enabled || !server.url) return;
+        console.log('Fetching tools for server');
+        console.log({server})
+        if (!server.enabled) return;
 
         setLoadingTools(server.id!);
 
         try {
-            console.log('Fetching tools for server:', {
-                name: server.name,
-                serverId: server.id,
-                url: server.url,
-                signWithAwsCreds: server.signRequestsWithAwsCreds
-            });
-
             const {data: serverTools, errors: testMcpServerQueryErrors} = await amplifyClient.queries.testMcpServer({ mcpServerId: server.id! });
             
             console.log({testMcpServerQueryErrors})
 
             if (testMcpServerQueryErrors) {
                 console.error('GraphQL query errors:', testMcpServerQueryErrors);
-                // const errorMessages = testMcpServerQueryErrors.map(e => {
-                //     if (typeof e === 'string') return e;
-                //     if (e && typeof e === 'object') {
-                //         return e.message || e.toString() || JSON.stringify(e);
-                //     }
-                //     return String(e);
-                // }).join(', ');
                 throw new Error(`Failed to test MCP server "${server.name}" (${server.url}): ${testMcpServerQueryErrors.map(e => JSON.stringify(e.message) || e.toString()).join(', ')}`);
             }
 
