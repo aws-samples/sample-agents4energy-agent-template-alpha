@@ -71,13 +71,16 @@ export const schema = a.schema({
   }),
 
   McpServer: a.model({
-    name: a.string().required().authorization((allow) => [allow.authenticated()]),
+    name: a.string().required().authorization((allow) => [allow.owner(), allow.authenticated()]),
     url: a.string().authorization(allow => [allow.owner()]),
     headers: a.ref("HeaderEntry").array().authorization(allow => [allow.owner()]),
     signRequestsWithAwsCreds: a.boolean().default(false),
     enabled: a.boolean().default(true),
     tools: a.ref("Tool").array()
-  }).authorization((allow) => [allow.owner(), allow.authenticated().to(["read","update"])]),
+  }).authorization((allow) => [
+    allow.owner(),
+    allow.authenticated().to(["read", "update"])
+  ]),
 
   ChatSession: a.model({
     name: a.string(),

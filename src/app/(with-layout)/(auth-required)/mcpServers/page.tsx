@@ -191,7 +191,8 @@ const McpServersPage = () => {
     const handleDelete = async (serverId: string, serverName: string) => {
         if (window.confirm(`Are you sure you want to delete the MCP server "${serverName}"?`)) {
             try {
-                await amplifyClient.models.McpServer.delete({ id: serverId });
+                const delteResult = await amplifyClient.models.McpServer.delete({ id: serverId });
+                console.log({delteResult})
                 setMcpServers(mcpServers.filter(s => s.id !== serverId));
             } catch (error) {
                 console.error('Error deleting MCP server:', error);
