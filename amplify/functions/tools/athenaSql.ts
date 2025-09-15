@@ -14,21 +14,33 @@ const getAthenaDatabase = () => process.env.ATHENA_DATABASE_NAME || 'default';
 const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
 
 // Helper function to execute a SQL query and wait for completion
-export async function executeSqlQuery(
-    athenaClient: AthenaClient,
-    sqlQuery: string,
-    database: string,
-    description: string,
-    chatSessionId: string,
-    progressIndex: number,
-    options: {
-        timeoutSeconds?: number,
-        waitMessage?: string,
-        successMessage?: string,
-        failureMessage?: string,
-        continueOnFailure?: boolean
-    } = {}
-): Promise<GetQueryExecutionCommandOutput> {
+export async function executeSqlQuery(params: {
+    athenaClient: AthenaClient;
+    sqlQuery: string;
+    database: string;
+    description: string;
+    chatSessionId: string;
+    progressIndex: number;
+    catalog?: string;
+    options?: {
+        timeoutSeconds?: number;
+        waitMessage?: string;
+        successMessage?: string;
+        failureMessage?: string;
+        continueOnFailure?: boolean;
+    };
+}): Promise<GetQueryExecutionCommandOutput> {
+    const {
+        athenaClient,
+        sqlQuery,
+        database,
+        description,
+        chatSessionId,
+        progressIndex,
+        catalog,
+        options = {}
+    } = params;
+
     const {
         timeoutSeconds = 300,
         waitMessage = "⏳ Executing SQL query...",
@@ -39,13 +51,20 @@ export async function executeSqlQuery(
 
     let currentProgressIndex = progressIndex;
 
+    // Build QueryExecutionContext with optional catalog
+    const queryExecutionContext: any = {
+        Database: database
+    };
+    
+    if (catalog) {
+        queryExecutionContext.Catalog = catalog;
+    }
+
     // Start the query execution
     const startCommand = new StartQueryExecutionCommand({
         QueryString: sqlQuery,
         WorkGroup: getAthenaWorkgroup(),
-        QueryExecutionContext: {
-            Database: database
-        },
+        QueryExecutionContext: queryExecutionContext,
         ResultConfiguration: {
             OutputLocation: `s3://${process.env.STORAGE_BUCKET_NAME}/${getChatSessionPrefix()}athena-sql-results/`,
         }
@@ -359,14 +378,15 @@ DESCRIBE my_database.my_table;
 `,
         inputSchema: {
             sqlQuery: z.string().describe("SQL query to execute against Athena. The query will be executed in the configured database."),
+            catalog: z.string().optional().describe("Catalog name to execute the query against. If not provided, uses the default configured catalog."),
             database: z.string().optional().describe("Database name to execute the query against. If not provided, uses the default configured database."),
             timeout: z.number().optional().default(300).describe("Timeout in seconds for the query execution"),
             description: z.string().optional().describe("Optional description for the query execution"),
             saveResults: z.boolean().optional().default(true).describe("Whether to save query results to chat session artifacts as CSV file"),
-            csvFileName: z.string().optional().describe("Custom filename for the CSV file (e.g., 'anomalyDetectionResults.csv'). If not provided, a timestamp-based filename will be used.")
+            csvFileName: z.string().describe("Filename for the CSV file (e.g., 'anomalyDetectionResults.csv').")
         }
     }, async (args) => {
-        const { sqlQuery, database, timeout = 300, description = "SQL query execution", saveResults = true, csvFileName } = args;
+        const { sqlQuery, catalog, database, timeout = 300, description = "SQL query execution", saveResults = true, csvFileName } = args;
         let progressIndex = 0;
         const chatSessionId = getChatSessionId();
 
@@ -387,19 +407,20 @@ DESCRIBE my_database.my_table;
             await publishProgress(chatSessionId, `📊 Executing query against database: ${targetDatabase}`, progressIndex++);
 
             // Execute the SQL query
-            const queryResult = await executeSqlQuery(
+            const queryResult = await executeSqlQuery({
                 athenaClient,
                 sqlQuery,
-                targetDatabase,
+                database: targetDatabase,
                 description,
                 chatSessionId,
                 progressIndex,
-                {
+                catalog,
+                options: {
                     timeoutSeconds: Math.ceil(timeout),
                     waitMessage: `⏳ Executing SQL query...`,
                     successMessage: `✅ Query execution completed!`
                 }
-            );
+            });
 
             const finalState = queryResult.QueryExecution?.Status?.State;
             const queryExecutionId = queryResult.QueryExecution?.QueryExecutionId;
