@@ -21,14 +21,15 @@ describe('Athena SQL Tool Test', function () {
   });
 
   it('should execute SQL query using Athena', async function() {
-    const result = await executeSqlQuery(
-      new AthenaClient(),
-      `SHOW DATABASES`,
-      'default',
-      'test',
-      'test',
-      1
-    )
+    const result = await executeSqlQuery({
+      athenaClient: new AthenaClient(),
+      sqlQuery: `SHOW DATABASES`,
+      catalog: 'AwsDataCatalog',
+      database: 'default',
+      description: 'test',
+      chatSessionId: 'test',
+      progressIndex: 1
+    })
 
     console.log('result:\n', JSON.stringify(result, null, 2));
 
@@ -90,19 +91,19 @@ describe('Athena SQL Tool Test', function () {
     console.log('Testing underlying functionality with args:', toolArgs);
 
     // Test the core functionality that the MCP tool would use
-    const result = await executeSqlQuery(
-      new AthenaClient(),
-      toolArgs.sqlQuery,
-      toolArgs.database,
-      toolArgs.description,
-      'test-mcp-session',
-      1,
-      {
+    const result = await executeSqlQuery({
+      athenaClient: new AthenaClient(),
+      sqlQuery: toolArgs.sqlQuery,
+      database: toolArgs.database,
+      description: toolArgs.description,
+      chatSessionId: 'test-mcp-session',
+      progressIndex: 1,
+      options: {
         timeoutSeconds: 300,
         waitMessage: "⏳ Executing SQL query...",
         successMessage: "✅ Query execution completed!"
       }
-    );
+    });
 
     console.log('Core functionality result:', JSON.stringify(result, null, 2));
 
