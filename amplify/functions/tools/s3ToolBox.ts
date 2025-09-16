@@ -263,7 +263,7 @@ export async function readS3Object(props: { key: string, maxBytes: number, start
                 totalBytes: contentLength,
                 bytesRead: content.length,
                 truncationMessage: wasTruncated ?
-                    `\n[...File truncated. Showing bytes ${startAtByte} to ${startAtByte + content.length} of ${contentLength} total bytes...]` :
+                    `\n[...File truncated. Showing bytes ${startAtByte} to ${startAtByte + content.length} of ${contentLength} total bytes...]\n Continue calling this tool to read more of the file.` :
                     undefined
             };
         } else {
@@ -402,7 +402,7 @@ export const listFiles = tool(
 // Tool to read a file from S3
 export const readFile = tool(
     async ({ filename, startAtByte = 0 }) => {
-        const maxBytes = 1024;
+        const maxBytes = 4096;
         try {
             // Normalize the path to prevent path traversal attacks
             const targetPath = path.normalize(filename);
