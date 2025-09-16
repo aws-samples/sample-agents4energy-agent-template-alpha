@@ -269,6 +269,9 @@ When using the textToTableTool:
 - Results are automatically sorted by date if available (chronological order)
 - Use dataToInclude/dataToExclude to prioritize certain types of information
 - When reading well reports, always include a column for a description of the well event
+
+
+${process.env.ADDITIONAL_SYSTEM_PROMPT || ""}
         `//.replace(/^\s+/gm, '') //This trims the whitespace from the beginning of each line
 
         const input = {
