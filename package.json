@@ -25,7 +25,7 @@
     "@langchain/aws": "^0.1.11",
     "@langchain/community": "^0.3.28",
     "@langchain/langgraph": "^0.2.44",
-    "@langchain/mcp-adapters": "^0.5.2",
+    "@langchain/mcp-adapters": "^0.6.0",
     "@mui/icons-material": "^6.4.2",
     "@mui/material": "^6.3.1",
     "@mui/material-nextjs": "^6.3.1",

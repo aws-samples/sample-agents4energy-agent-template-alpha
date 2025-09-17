@@ -150,6 +150,7 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
                 const mcpClient = new MultiServerMCPClient({
                     useStandardContentBlocks: true,
                     prefixToolNameWithServerName: false,
+                    defaultToolTimeout: 5*60*1000,//5 minute default tool timeout
                     // additionalToolNamePrefix: "",
 
                     mcpServers: mcpServersConfig
