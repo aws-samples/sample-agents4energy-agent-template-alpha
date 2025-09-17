@@ -1,17 +1,14 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import * as path from "path";
-import { S3Client, PutObjectCommand, ListObjectsV2Command, GetObjectCommand, ListObjectsV2CommandInput } from "@aws-sdk/client-s3";
+import { S3Client, ListObjectsV2Command, GetObjectCommand } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage"
 import { ChatBedrockConverse } from "@langchain/aws";
 import { getConfiguredAmplifyClient } from '../../../utils/amplifyUtils';
 import { publishResponseStreamChunk } from "../graphql/mutations";
 import { getChatSessionId, getChatSessionPrefix } from "./toolUtils";
 import { validate } from 'jsonschema';
-import { stringifyLimitStringLength } from "../../../utils/langChainUtils";
 import { BaseMessage, AIMessage, HumanMessage } from "@langchain/core/messages";
-import { match } from "assert";
-// import { stringifyLimitStringLength } from "../../../utils/stringUtils";
 
 // Schema for listing files
 const listFilesSchema = z.object({
@@ -231,7 +228,7 @@ interface S3ReadResult {
 }
 
 export async function readS3Object(props: { key: string, maxBytes: number, startAtByte: number }): Promise<S3ReadResult> {
-    const { key, maxBytes = 2048, startAtByte = 0 } = props;
+    const { key, maxBytes = 8192, startAtByte = 0 } = props;
     const s3Client = getS3Client();
     const bucketName = getBucketName();
 
@@ -256,6 +253,7 @@ export async function readS3Object(props: { key: string, maxBytes: number, start
             // Check if content was truncated, accounting for startAtByte
             const contentLength = parseInt(response.ContentRange?.split('/')[1] || '0', 10);
             const wasTruncated = maxBytes > 0 && (contentLength - startAtByte) > maxBytes;
+            const endByte = startAtByte + content.length
 
             return {
                 content,
@@ -263,7 +261,7 @@ export async function readS3Object(props: { key: string, maxBytes: number, start
                 totalBytes: contentLength,
                 bytesRead: content.length,
                 truncationMessage: wasTruncated ?
-                    `\n[...File truncated. Showing bytes ${startAtByte} to ${startAtByte + content.length} of ${contentLength} total bytes...]\n Continue calling this tool to read more of the file.` :
+                    `\n[...File truncated. Showing bytes ${startAtByte} to ${endByte} of ${contentLength} total bytes...]\n Call this tool again with startAtByte=${endByte} to read more of the file.` :
                     undefined
             };
         } else {
@@ -402,7 +400,7 @@ export const listFiles = tool(
 // Tool to read a file from S3
 export const readFile = tool(
     async ({ filename, startAtByte = 0 }) => {
-        const maxBytes = 4096;
+        const maxBytes = 8192;
         try {
             // Normalize the path to prevent path traversal attacks
             const targetPath = path.normalize(filename);
