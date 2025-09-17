@@ -168,6 +168,21 @@ backend.reActAgentFunction.resources.lambda.addToRolePolicy(
   })
 );
 
+// Add Bedrock knowledge base permissions
+backend.reActAgentFunction.resources.lambda.addToRolePolicy(
+  new iam.PolicyStatement({
+    actions: [
+      "bedrock:RetrieveAndGenerate",
+      "bedrock:Retrieve",
+      "bedrock:InvokeModel"
+    ],
+    resources: [
+      "arn:aws:bedrock:*:*:knowledge-base/WLMPDD7FSP",
+      "arn:aws:bedrock:*::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0"
+    ],
+  })
+);
+
 backend.reActAgentFunction.addEnvironment(
   'STORAGE_BUCKET_NAME',
   backend.storage.resources.bucket.bucketName

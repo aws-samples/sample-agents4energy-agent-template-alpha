@@ -7,6 +7,7 @@ import { HumanMessage, ToolMessage, BaseMessage, SystemMessage, AIMessageChunk, 
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { Calculator } from "@langchain/community/tools/calculator";
 import { DuckDuckGoSearch } from "@langchain/community/tools/duckduckgo_search";
+import { z } from "zod";
 
 import { publishResponseStreamChunk } from "../graphql/mutations";
 
@@ -17,15 +18,21 @@ import { pysparkTool } from "../tools/athenaPySparkTool";
 import { webBrowserTool } from "../tools/webBrowserTool";
 import { renderAssetTool } from "../tools/renderAssetTool";
 import { createProjectToolBuilder } from "../tools/createProjectTool";
-// import { permeabilityCalculator } from "../tools/customWorkshopTool";
+import { permeabilityCalculator } from "../tools/customWorkshopTool";
+import { knowledgeBaseTool } from "../tools/knowledgeBaseTool";
+//import { wellLogDisplayTool } from "../tools/wellLogDisplayTool";
 
 import { Schema } from '../../data/resource';
 
 import { getLangChainChatMessagesStartingWithHumanMessage, getLangChainMessageTextContent, publishMessage, stringifyLimitStringLength } from '../../../utils/langChainUtils';
 import { EventEmitter } from "events";
 
+
+
 // Increase the default max listeners to prevent warnings
 EventEmitter.defaultMaxListeners = 10;
+
+// Add Bedrock Knowledgebase
 
 // Add cleanup helper
 const cleanupEventEmitter = (emitter: EventEmitter) => {
@@ -65,7 +72,39 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
         // by ensuring no message content is empty when sent to Bedrock
         const chatSessionMessages = await getLangChainChatMessagesStartingWithHumanMessage(event.arguments.chatSessionId)
 
-       
+        // Auto-query knowledge base for geological, geophysical, and petrophysical questions
+        let kbContext = "";
+        const geologicalKeywords = [
+            'geological', 'geology', 'geophysical', 'geophysics', 'petrophysical', 'petrophysics',
+            'formation', 'rock', 'reservoir', 'seismic', 'well log', 'porosity', 'permeability',
+            'saturation', 'lithology', 'facies', 'stratigraphy', 'structural', 'sedimentary',
+            'carbonate', 'sandstone', 'shale', 'mudstone', 'limestone', 'dolomite'
+        ];
+        
+        if (chatSessionMessages.length > 0) {
+            const lastMessage = chatSessionMessages[chatSessionMessages.length - 1];
+            if (lastMessage instanceof HumanMessage) {
+                const messageContent = lastMessage.content as string;
+                const isGeologicalQuery = geologicalKeywords.some(keyword => 
+                    messageContent.toLowerCase().includes(keyword.toLowerCase())
+                );
+                
+                try {
+                    const kbResults = await knowledgeBaseTool.invoke({ query: messageContent });
+                    kbContext = typeof kbResults === 'string' ? kbResults : JSON.stringify(kbResults);
+                    
+                    // If this is a geological query and KB has no relevant info, make it explicit
+                    if (isGeologicalQuery && (kbContext.includes("No relevant information") || kbContext.includes("Error querying"))) {
+                        kbContext = `KNOWLEDGE BASE QUERY RESULT: No relevant information found for geological/geophysical/petrophysical query: "${messageContent}". You may now use other sources as fallback.`;
+                    } else if (isGeologicalQuery) {
+                        kbContext = `KNOWLEDGE BASE QUERY RESULT (USE THIS FIRST): ${kbContext}`;
+                    }
+                } catch (error) {
+                    console.log('KB lookup failed:', error);
+                    kbContext = "Knowledge base unavailable - you may use other sources";
+                }
+            }
+        }
 
         const agentModel = new ChatBedrockConverse({
             model: process.env.AGENT_MODEL_ID,
@@ -73,7 +112,9 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
         });
 
         const agentTools = [
-            // permeabilityCalculator,
+            knowledgeBaseTool,
+            //wellLogDisplayTool,
+            permeabilityCalculator,
             new Calculator(),
             // new DuckDuckGoSearch({maxResults: 3}),
             // webBrowserTool,
@@ -84,6 +125,7 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
             }),
             pysparkTool({
                 additionalSetupScript:`
+sc.addPyFile("s3://${bucketName}/global/pypi/pypi_libs.zip")
 import plotly.io as pio
 import plotly.graph_objects as go
 
@@ -91,19 +133,213 @@ import plotly.graph_objects as go
 custom_layout = go.Layout(
     paper_bgcolor='white',
     plot_bgcolor='white',
-    xaxis=dict(showgrid=False),
+    xaxis=dict(
+        showgrid=False,
+        gridcolor='lightgray'),
     yaxis=dict(
         showgrid=True,
-        gridcolor='lightgray',
-        type='log'  # <-- Set y-axis to logarithmic
-    )
+        gridcolor='lightgray'
+        )
 )
 
 # Create and register the template
 custom_template = go.layout.Template(layout=custom_layout)
 pio.templates["white_clean_log"] = custom_template
 pio.templates.default = "white_clean_log"
-                `,}),
+                `,
+            additionalToolDescription: `
+las = lasio.read("local_file.las")
+for item in las.well:
+    print(f"{item.descr} ({item.mnemonic}): {item.value}")
+for count, curve in enumerate(las.curves):
+    print(f"Curve: {curve.mnemonic}, Units: {curve.unit}, Description: {curve.descr}")
+print(f"There are a total of: {count+1} curves present within this file")
+well = las.df()
+
+#Create Composite Well Log Display
+import matplotlib.pyplot as plt
+import numpy as np
+     
+def create_composite_log(las, logs_to_plot, depth_range=None):
+     # Set up the figure
+     fig, axes = plt.subplots(1, len(logs_to_plot), figsize=(2*len(logs_to_plot), 10), sharey=True)
+         
+     # Get depth
+     depth = las.index
+     if depth_range:
+         min_depth, max_depth = depth_range
+         depth_mask = (depth >= min_depth) & (depth <= max_depth)
+         depth = depth[depth_mask]
+
+    #Set up the plot axes
+    ax1 = plt.subplot2grid((1,6), (0,0), rowspan=1, colspan = 1)
+    ax2 = plt.subplot2grid((1,6), (0,1), rowspan=1, colspan = 1, sharey = ax1)
+    ax3 = plt.subplot2grid((1,6), (0,2), rowspan=1, colspan = 1, sharey = ax1)
+    ax4 = plt.subplot2grid((1,6), (0,3), rowspan=1, colspan = 1, sharey = ax1)
+    ax5 = ax3.twiny() #Twins the y-axis for the density track with the neutron track
+    ax6 = plt.subplot2grid((1,6), (0,4), rowspan=1, colspan = 1, sharey = ax1)
+    ax7 = ax2.twiny()
+
+    # As our curve scales will be detached from the top of the track,
+    # this code adds the top border back in without dealing with splines
+    ax10 = ax1.twiny()
+    ax10.xaxis.set_visible(False)
+    ax11 = ax2.twiny()
+    ax11.xaxis.set_visible(False)
+    ax12 = ax3.twiny()
+    ax12.xaxis.set_visible(False)
+    ax13 = ax4.twiny()
+    ax13.xaxis.set_visible(False)
+    ax14 = ax6.twiny()
+    ax14.xaxis.set_visible(False)
+
+    # Gamma Ray track
+    ax1.plot(well["GR"], well.index, color = "green", linewidth = 0.5)
+    ax1.set_xlabel("Gamma")
+    ax1.xaxis.label.set_color("green")
+    ax1.set_xlim(0, 200)
+    ax1.set_ylabel("Depth (m)")
+    ax1.tick_params(axis='x', colors="green")
+    ax1.spines["top"].set_edgecolor("green")
+    ax1.title.set_color('green')
+    ax1.set_xticks([0, 50, 100, 150, 200])
+
+    # Resistivity track
+    ax2.plot(well["RDEP"], well.index, color = "red", linewidth = 0.5)
+    ax2.set_xlabel("Resistivity - Deep")
+    ax2.set_xlim(0.2, 2000)
+    ax2.xaxis.label.set_color("red")
+    ax2.tick_params(axis='x', colors="red")
+    ax2.spines["top"].set_edgecolor("red")
+    ax2.set_xticks([0.1, 1, 10, 100, 1000])
+    ax2.semilogx()
+
+    # Density track
+    ax3.plot(well["RHOB"], well.index, color = "red", linewidth = 0.5)
+    ax3.set_xlabel("Density")
+    ax3.set_xlim(1.95, 2.95)
+    ax3.xaxis.label.set_color("red")
+    ax3.tick_params(axis='x', colors="red")
+    ax3.spines["top"].set_edgecolor("red")
+    ax3.set_xticks([1.95, 2.45, 2.95])
+
+    # Sonic track
+    ax4.plot(well["DTC"], well.index, color = "purple", linewidth = 0.5)
+    ax4.set_xlabel("Sonic")
+    ax4.set_xlim(140, 40)
+    ax4.xaxis.label.set_color("purple")
+    ax4.tick_params(axis='x', colors="purple")
+    ax4.spines["top"].set_edgecolor("purple")
+
+    # Neutron track placed ontop of density track
+    ax5.plot(well["NPHI"], well.index, color = "blue", linewidth = 0.5)
+    ax5.set_xlabel('Neutron')
+    ax5.xaxis.label.set_color("blue")
+    ax5.set_xlim(0.45, -0.15)
+    ax5.set_ylim(4150, 3500)
+    ax5.tick_params(axis='x', colors="blue")
+    ax5.spines["top"].set_position(("axes", 1.08))
+    ax5.spines["top"].set_visible(True)
+    ax5.spines["top"].set_edgecolor("blue")
+    ax5.set_xticks([0.45,  0.15, -0.15])
+
+    # Caliper track
+    ax6.plot(well["CALI"], well.index, color = "black", linewidth = 0.5)
+    ax6.set_xlabel("Caliper")
+    ax6.set_xlim(6, 16)
+    ax6.xaxis.label.set_color("black")
+    ax6.tick_params(axis='x', colors="black")
+    ax6.spines["top"].set_edgecolor("black")
+    #ax6.fill_betweenx(well_nan.index, 8.5, well["CALI"], facecolor='yellow')
+    ax6.set_xticks([6,  11, 16])
+
+    # Resistivity track - Curve 2
+    ax7.plot(well["RMED"], well.index, color = "green", linewidth = 0.5)
+    ax7.set_xlabel("Resistivity - Med")
+    ax7.set_xlim(0.2, 2000)
+    ax7.xaxis.label.set_color("green")
+    ax7.spines["top"].set_position(("axes", 1.08))
+    ax7.spines["top"].set_visible(True)
+    ax7.tick_params(axis='x', colors="green")
+    ax7.spines["top"].set_edgecolor("green")
+    ax7.set_xticks([0.1, 1, 10, 100, 1000])
+    ax7.semilogx()
+
+
+    # Common functions for setting up the plot can be extracted into
+    # a for loop. This saves repeating code.
+    for ax in [ax1, ax2, ax3, ax4, ax6]:
+    ax.set_ylim(3200, 2700)
+    ax.grid(which='major', color='lightgrey', linestyle='-')
+    ax.xaxis.set_ticks_position("top")
+    ax.xaxis.set_label_position("top")
+    ax.spines["top"].set_position(("axes", 1.02))
+    
+    # loop through the formations dictionary and zone colours
+    #for depth, colour in zip(formations.values(), zone_colours):
+    # use the depths and colours to shade across the subplots
+    #ax.axhspan(depth[0], depth[1], color=colour, alpha=0.1)
+    
+    
+    for ax in [ax2, ax3, ax4, ax6]:
+        plt.setp(ax.get_yticklabels(), visible = False)
+         
+    plt.tight_layout()
+    return fig
+         
+#Create Petrophysical Cross-plots
+def create_crossplot(las, x_log, y_log, color_by=None, overlay=None, **kwargs):
+     fig, ax = plt.subplots(figsize=(8, 8))
+         
+     x_data = las[x_log].values
+     y_data = las[y_log].values
+         
+     # Basic scatter plot
+     if color_by is None:
+         ax.scatter(x_data, y_data, **kwargs)
+     else:
+         # Color by another log
+         color_data = las[color_by].values
+         scatter = ax.scatter(x_data, y_data, c=color_data, **kwargs)
+         plt.colorbar(scatter, label=color_by)
+         
+     # Add overlays (e.g., mineral lines)
+     if overlay == 'neutron-density':
+         # Add sandstone, limestone, dolomite lines
+         pass  # Implement specific overlay logic
+         
+     ax.set_xlabel(x_log)
+     ax.set_ylabel(y_log)
+     ax.grid(True)
+         
+     return fig
+
+#Create Cross-plot Matrix
+def create_crossplot_matrix(las, logs, color_by=None, **kwargs):
+     n = len(logs)
+     fig, axes = plt.subplots(n, n, figsize=(n*3, n*3))
+         
+     for i, y_log in enumerate(logs):
+         for j, x_log in enumerate(logs):
+             if i != j:  # Skip diagonal
+                 x_data = las[x_log].values
+                 y_data = las[y_log].values
+                     
+                 if color_by is None:
+                     axes[i, j].scatter(x_data, y_data, **kwargs)
+                 else:
+                     color_data = las[color_by].values
+                     scatter = axes[i, j].scatter(x_data, y_data, c=color_data, **kwargs)
+                     
+                 axes[i, j].set_xlabel(x_log)
+                 axes[i, j].set_ylabel(y_log)
+             else:
+                 # Display histogram on diagonal
+                 axes[i, j].hist(las[x_log].values, bins=30)
+                 axes[i, j].set_title(x_log)
+         
+     plt.tight_layout()
+     return fig`}),
             ...s3FileManagementTools,
             renderAssetTool
         ]
@@ -149,146 +385,139 @@ pio.templates.default = "white_clean_log"
 
         
         let systemMessageContent = `
-You are a helpful llm agent showing a demo workflow. 
-Use markdown formatting for your responses (like **bold**, *italic*, ## headings, etc.), but DO NOT wrap your response in markdown code blocks.
-Today's date is ${new Date().toLocaleDateString()}.
 
-List the files in the global/notes directory for guidance on how to respond to the user.
-Create intermediate files to store your planned actions, thoughts and work. Use the writeFile tool to create these files. 
-Store them in the 'intermediate' directory. After you complete a planned step, record the results in the file.
+       ## Knowledge Base Tool Usage Instructions
 
-When generating a csv file, use the pysparkTool to generate the file and not the writeFile tool.
+### MANDATORY RULES:
+1. **ALWAYS query knowledge base FIRST** for geological, geophysical, and petrophysical questions
+2. **ONLY use other sources** if knowledge base returns no relevant information
+3. **NEVER provide answers from general LLM knowledge** without first checking knowledge base
+4. **NEVER create synthetic data** for plots or graphs unless explicitly requested by user
 
-<Well Repair Project Generation Guidelines>
-1. Data Collection Checklist:
-    - Historic production data (monthly gas/oil volumes)
-    - Current well status
-    - Existing tubing depth
-    - Current artificial lift type
-    - Well file information:
-        - Use the textToTableTool to extract the Operational Events from the well file.
-        - The file pattern should be the well's api number with no formatting (ex: 3004529202)
-        - Set table columns for: 
-            - Date of the operation (YYYY-MM-DD format)
-            - Event type (drilling, completion, workover, surface facility / tank work, administrative, etc)
-            - Text from the report describing proposed or completed operations
-            - Tubing depth
-            - Artifical lift type. You MUST use the column definition below:
-{
-    "columnName": "ArtificialLiftType", 
-    "columnDescription": "CRITICAL EXTRACTION RULES (in order of precedence):\n1. EXPLICIT ROD PUMP PHRASES:\n   - If 'rods', 'Rods & pump', 'RIH W/ PUMP & RODS', or similar phrases are found, ALWAYS classify as 'Rod Pump'.\n2. ROD CONTEXT:\n   - If 'rods' or 'RODS' appears in ANY context related to production or well completion, classify as 'Rod Pump'.\n3. SECONDARY CRITERIA (if no rods mentioned):\n   - 'Plunger Lift': Search for 'plunger lift' or 'bumper spring'\n   - 'ESP': Search for 'electric submersible pump' or 'ESP'",
-    "columnDataDefinition": {
-        "type": "string", 
-        "enum": [
-            "Rod Pump", 
-            "Plunger Lift", 
-            "ESP", 
-            "Flowing", 
-            "None"
-        ]
-    }
-}
-            - Any other relevant information
-        Note: Administrative events include:
-            - Change in well operator
-            - Change in transporter
-            - Regulatory filings and permits
-            - Ownership transfers
-            - Other legal/administrative changes that do not affect well operations
+### Required Response Pattern:
 
-2. Analyze the well events and production data to determine the cause of the production drop.
-3. Generate a procedure to repair the well.
-    - Use the well file information table to determine the tubing depth and artificial lift type.
-    - Don't use rows with the administrative event type for artificial lift type.
-    - The last row with an artificial lift type is the current artificial lift type.
-    - If any row shows "Rod Pump" as the artificial lift type, use that as the artificial lift type.
-    - This can include:
-        - Using a workover rig to adjusting the well configuration (tubing depth, artificial lift type) to improve production.
-        - Using a braden line unit to swap fluid out of the well
-        - Making a surface repair
-        - Changing an artificial lift setting
-    - Guidance on types of artifical lift:
-        - Plunger Lift:
-            - Fluid rates < 10 bbl/day
-            - Gas to Oil Ratio (GOR) > 0.4 scf/bbl per 1,000 ft of well depth
-        - Rod Lift:
-            - Efficient for high GOR wells when flowing gas up the annulus (Casing acts as a sperator). Set tubing below lowest perforation.
-            - Capital intensive to install, but low operating costs.
-            - If the well is currently on rod lift, don't change the artificial lift type.
-            - Sutible for late life wells.
-        - Gas Lift:
-            - Fluid rates > 10 bbl/day
-            - Reservoir Pressure Gradient between 0.01 and 0.06 psi/ft.
-            - Requires a gas supply. Assume not if you are not sure.
-            - High fuel gas consumption.
-        - Electric Submersible Pump (ESP):
-            - Fluid rates > 10 bbl/day
-            - Reservoir Pressure > 1,000 psi
-            - Electricy is available at the well site (Assume not if you are not sure)
-            - Low solids content in produced fluids
-        - Artificial Lift Not Recommended:
-            - Well flows naturally with no artificial lift
-      
-4. Estimate the cost of repairing the well.
-5. Report Structure:
-   a) Executive Summary
-      - Recommended action (Repair/Do Not Repair)
-      - NPV10 calculation (If the pysparkTool response didn't print this output, look for an economic analysis file and read it with the readFile tool)
-      - Incremental production metrics 
-   b) Detailed Economic Analysis
-      - Plot historic production, the decline curve, and operational events
-        - Ex: <iframe src="plots/production_and_decline_curve_plot.html" width="100%" height="500px" frameborder="0"></iframe>
-      - Repair cost breakdown
-   c) Technical Assessment
-      - Operational events table:
-        - If the textToTable tool returned a link to a table of operational events, include in ifram which links to it.
-        - If not, create a table with operational events.
-      - Current well condition and artificial lift type
-      - Summary of the proposed procedure
-      - Link to the proposed repair procedure (ex: <a href="reports/repair_procedure.md">Proposed Repair Procedure</a>)
-      - Expected production improvement
-      - If you recommend changing artificial lift type, explain why and use produciton rates to support the recommendation
-    d) Analysis Workflow
-      - Data Collection and Validation
-        * List all data sources gathered
-      
-      - Analysis Steps
-        * Document each major analysis performed
-        * For each analysis:
-          - Purpose and methodology
-          - Key parameters and assumptions
-          - Link to supporting calculations or intermediate files
-      
-      - Results Generation
-        * Document how final metrics were calculated
-        * List all plots and visualizations generated
-        * Explain key decisions in presentation of results
-        * Link to final output files and supporting documentation
-      
-      - Quality Assurance
-        * Note any limitations or uncertainties in the analysis
-        * Include recommendations for future improvements
+For geological/geophysical/petrophysical questions:
+1. **FIRST**: Query knowledge base using relevant search terms
+2. **IF knowledge base has relevant information**: Use ONLY that information to answer
+3. **IF knowledge base has no relevant information**: Then and only then use other sources
+4. **NEVER skip knowledge base query** for these topics
 
-    e) Data Sources
-      - Links to every data source used in the report
-      - Include footnotes where the data was used
-      - Example:
-           \`\`\`html
-           <h2>Data Sources</h2>
-           <ul>
-                <li><a href="data/production_data.csv">Production Data</a></li>
-                <li><a href="data/production_data.csv">Production Data</a></li>
-                <li><a href="data/monthly_cash_flow_projection.csv">Monthly Cash Flow Projection</a></li>
-           </ul>
-           \`\`\`
+### Data and Plotting Rules:
+- **NEVER create synthetic/fake data** for plots or visualizations
+- **IF required data doesn't exist**: Inform user about data unavailability
+- **ONLY create synthetic data** when explicitly requested by user
+- **ALWAYS use real data** from available sources when creating plots
 
-</Well Repair Project Generation Guidelines>
+### Topic Coverage (Knowledge Base Priority):
+- Geological formations, structures, processes
+- Geophysical methods, data interpretation  
+- Petrophysical properties, measurements
+- Rock mechanics, reservoir characterization
+- Seismic analysis, well logging
 
-When creating plots:
-- ALWAYS check for and use existing files and data tables before generating new ones
-- If a table has already been generated, reuse that data instead of regenerating it
+### Prohibited Actions:
+- Answering geo-science questions without knowledge base query first
+- Creating synthetic data for plots without explicit user request
+- Skipping knowledge base for geological/geophysical/petrophysical topics
 
-When creating reports:
+# Petrophysics Agent Instructions
+
+## Overview
+You are a petrophysics agent designed to execute formation evaluation and petrophysical workflows using well-log data, core data, and other subsurface information. Your capabilities include data loading, visualization, analysis, and comprehensive reporting.
+
+## Data Loading and Management Guidelines
+
+1. **LAS File Handling**:
+   - Use the lasio Python package to load and parse LAS files
+   - Search recursively through all available data folders to locate LAS files
+   
+2. **Core Data Integration**:
+   - Load core data from CSV, Excel, or other tabular formats
+   - Align core data with well log depths for integrated analysis
+   - Handle depth shifts and corrections between core and log data
+
+3. **Well Report Processing**:
+   - Extract key information from well reports (PDF, text)
+   - Organize formation tops, lithology descriptions, and test results
+
+## Visualization Guidelines
+
+1. **Data Validation Requirements**:
+   - **NEVER create synthetic, fake, or sample data** for any visualization
+   - **ALWAYS verify data exists** before creating plots
+   - **IF data is missing**: Inform user about unavailability and suggest alternatives
+   - **ONLY use real data** from uploaded files, databases, or knowledge base
+
+2. **Composite Well Log Display**:
+   - Create multi-track log displays using matplotlib ONLY with real well data
+   - Include customizable tracks for different log types
+   
+3. **Petrophysical Cross-plots**:
+   - Generate standard cross-plots (e.g., neutron-density, M-N, etc.) ONLY with actual data
+   - Include color-coding by depth or additional parameters
+   - Add overlay templates (e.g., mineral lines, fluid lines)
+
+4. **Cross-plot Matrix**:
+   - Create a matrix of cross-plots for multiple log combinations only when asked to do so
+   - Enable quick comparison of relationships between different logs 
+   - **MUST use real data only** 
+
+
+## Petrophysical Analysis Guidelines
+
+1. **Basic Log Analysis**:
+   - Calculate shale volume using gamma ray normalization
+   - Determine porosity from density logs
+   - Estimate water saturation using Archie's equation or other models
+   - Create well log display of calculated logs.
+
+2. **Advanced Petrophysical Workflows**:
+   - Implement multi-mineral analysis - optional, only if a tool is available and is explicitly requested by user.
+   - Perform clay typing and mineral identification - optional, only if a tool is available and is explicitly requested by user.
+   - Execute permeability estimation from logs and core data - optional, only if a tool is available and is explicitly requested by user.
+
+3. **Formation Evaluation Workflow**:
+   - Identify pay zones based on cutoff criteria
+   - Cutoff criteria: Vsh<0.4 and Porosity> 0.1 and sw < 0
+   - Calculate net-to-gross ratios
+   - Estimate hydrocarbon volumes  
+
+4. **Quality check guidelines**:
+   - Perform quality control on the log data
+   - Identify and flag outliers or anomalies
+   - Ensure data quality for accurate analysis
+   - Treat -999.25 values as NaN values. Do not perform any calculation with NaN values.
+   - Report if a key well-log for petrophysical analysis and formation evaluation has more than 70% NaN values.
+   - Generate intermediate well-log displays whenever possible and relevant
+
+## Reporting
+
+1. **Comprehensive Report Generation**:
+   - Create detailed PDF reports of all analyses performed
+   - Include methodology descriptions, assumptions, and limitations
+   - Summarize key findings and recommendations
+
+2. **Report Structure**:
+   - Executive summary
+   - Data inventory and quality assessment
+   - Methodology and workflow description
+   - Analysis results with visualizations
+   - Interpretation and conclusions
+   - Recommendations for further analysis
+   - Appendices with detailed plots and data tables
+
+## Example Workflow Execution
+
+1. Load all available LAS files from the data directory
+2. Perform quality control on the log data
+3. Generate composite log displays for key wells
+4. Create standard petrophysical cross-plots
+5. Calculate basic petrophysical properties
+6. Generate a cross-plot matrix for key parameters
+7. Perform formation evaluation and identify zones of interest
+8. Generate a comprehensive report documenting the entire workflow
+
+## When creating reports:
 - Use iframes to display plots or graphics
 - Use the writeFile tool to create the first draft of the report file
 - Use html formatting for the report
@@ -301,28 +530,19 @@ When creating reports:
   * Example iframe: <iframe src="plots/well_production_plot.html" width="100%" height="500px" frameborder="0"></iframe>
   * Example link: <a href="data/production_data.csv">Download Data</a>
 
-When using the file management tools:
+## When using the file management tools:
 - The listFiles tool returns separate 'directories' and 'files' fields to clearly distinguish between them
 - To access a directory, include the trailing slash in the path or use the directory name
 - To read a file, use the readFile tool with the complete path including the filename
 - Global files are shared across sessions and are read-only
 - When saving reports to file, use the writeFile tool with html formatting
 
-When using the textToTableTool:
-- IMPORTANT: For simple file searches, just use the identifying text (e.g., "15_9_19_A") as the pattern
-- IMPORTANT: Don't use this file on structured data like csv files. Use the pysparkTool instead.
-- The tool will automatically add wildcards and search broadly if needed
-- For global files, you can use "global/pattern" OR just "pattern" - the tool handles both formats
-- Examples of good patterns:
-  * "15_9_19_A" (finds any file containing this text)
-  * "reports" (finds any file containing "reports")
-  * ".*\\.txt$" (finds all text files)
-  * "data/.*\\.yaml$" (finds YAML files in the data directory)
-- Define the table columns with a clear description of what to extract
-- Results are automatically sorted by date if available (chronological order)
-- Use dataToInclude/dataToExclude to prioritize certain types of information
-- When reading well reports, always include a column for a description of the well event
-        `//.replace(/^\s+/gm, '') //This trims the whitespace from the beginning of each line
+## Technical Requirements
+
+- Python
+
+${kbContext ? `\n## CURRENT KNOWLEDGE BASE CONTEXT:\n${kbContext}\n` : ''}
+`//.replace(/^\s+/gm, '') //This trims the whitespace from the beginning of each line
 
         const input = {
             messages: [
@@ -416,6 +636,22 @@ When using the textToTableTool:
                                         }
                                     } catch (error) {
                                         console.error("Error processing pysparkTool result:", error);
+                                    }
+                                }
+
+                                // Check if this is a wellLogDisplayTool result and format it for better display
+                                if (streamChunk instanceof ToolMessage && streamChunk.name === 'wellLogDisplayTool') {
+                                    try {
+                                        const wellLogResult = JSON.parse(streamChunk.content as string);
+                                        if (wellLogResult.success && wellLogResult.config) {
+                                            // Attach well log configuration data for special rendering
+                                            (streamChunk as any).additional_kwargs = {
+                                                wellLogConfig: wellLogResult.config,
+                                                messageContentType: 'well_log_display'
+                                            };
+                                        }
+                                    } catch (error) {
+                                        console.error("Error processing wellLogDisplayTool result:", error);
                                     }
                                 }
 

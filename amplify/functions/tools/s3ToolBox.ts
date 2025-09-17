@@ -950,7 +950,7 @@ export const textToTableTool = tool(
 
             // Search in global files
             const globalWellFiles = await findFilesMatchingPattern(
-                GLOBAL_PREFIX + 'well-files/',
+                GLOBAL_PREFIX + 'well-logs/',
                 params.filePattern
             );
             matchingFiles.push(...globalWellFiles);
@@ -1549,7 +1549,7 @@ export const searchFiles = tool(
             // Search in global files if requested
             if (includeGlobal) {
                 const globalWellFiles = await findFilesMatchingPattern(
-                    GLOBAL_PREFIX + 'well-files/',
+                    GLOBAL_PREFIX + 'well-logs/',
                     filePattern
                 );
                 matchingFiles.push(...globalWellFiles);
