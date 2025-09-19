@@ -115,6 +115,12 @@ export const schema = a.schema({
       index("chatSessionIdUnderscoreFieldName").sortKeys(["createdAt"])
     ])
     .authorization((allow) => [allow.owner(), allow.authenticated(), allow.guest()]),
+  
+  Settings: a.model({
+    name: a.string(),
+    value: a.string(),
+  })
+    .authorization((allow) => [allow.owner(), allow.authenticated()]),
 
   //These assets enable token level streaming from the model
   ResponseStreamChunk: a.customType({
