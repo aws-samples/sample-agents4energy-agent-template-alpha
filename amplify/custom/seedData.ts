@@ -16,7 +16,6 @@ export class SeedDataConstruct extends Construct {
         // System prompt content to seed
         const systemPromptContent = `You are a helpful llm agent showing a demo workflow. 
 Use markdown formatting for your responses (like **bold**, *italic*, ## headings, etc.), but DO NOT wrap your response in markdown code blocks.
-Today's date is ${new Date().toLocaleDateString()}.
 
 List the files in the global/notes directory for guidance on how to respond to the user.
 Create intermediate files to store your planned actions, thoughts and work. Use the writeFile tool to create these files. 
@@ -77,8 +76,8 @@ When using the textToTableTool:
                         value: { S: systemPromptContent },
                         id: { S: 'system_prompt_setting' },
                         __typename: { S: 'Settings' },
-                        createdAt: { S: new Date().toISOString() },
-                        updatedAt: { S: new Date().toISOString() },
+                        createdAt: { S: '2024-01-01T00:00:00.000Z' },
+                        updatedAt: { S: '2024-01-01T00:00:00.000Z' },
                         owner: { S: 'system' },
                     }
                 },
@@ -94,8 +93,8 @@ When using the textToTableTool:
                         value: { S: systemPromptContent },
                         id: { S: 'system_prompt_setting' },
                         __typename: { S: 'Settings' },
-                        createdAt: { S: new Date().toISOString() },
-                        updatedAt: { S: new Date().toISOString() },
+                        createdAt: { S: '2024-01-01T00:00:00.000Z' },
+                        updatedAt: { S: '2024-01-01T00:00:00.000Z' },
                         owner: { S: 'system' },
                     }
                 },
