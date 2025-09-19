@@ -69,7 +69,7 @@ export type McpServer = {
   enabled?: boolean | null,
   headers?:  Array<HeaderEntry | null > | null,
   id: string,
-  name?: string | null,
+  name: string,
   owner?: string | null,
   signRequestsWithAwsCreds?: boolean | null,
   tools?:  Array<Tool | null > | null,
@@ -135,6 +135,16 @@ export enum ProjectStatus {
   scheduled = "scheduled",
 }
 
+
+export type Settings = {
+  __typename: "Settings",
+  createdAt: string,
+  id: string,
+  name?: string | null,
+  owner?: string | null,
+  updatedAt: string,
+  value?: string | null,
+};
 
 export type EventInvocationResponse = {
   __typename: "EventInvocationResponse",
@@ -324,6 +334,30 @@ export type ModelProjectConnection = {
   nextToken?: string | null,
 };
 
+export type ModelSettingsFilterInput = {
+  and?: Array< ModelSettingsFilterInput | null > | null,
+  createdAt?: ModelStringInput | null,
+  id?: ModelIDInput | null,
+  name?: ModelStringInput | null,
+  not?: ModelSettingsFilterInput | null,
+  or?: Array< ModelSettingsFilterInput | null > | null,
+  owner?: ModelStringInput | null,
+  updatedAt?: ModelStringInput | null,
+  value?: ModelStringInput | null,
+};
+
+export type ModelSettingsConnection = {
+  __typename: "ModelSettingsConnection",
+  items:  Array<Settings | null >,
+  nextToken?: string | null,
+};
+
+export type TestMcpServerReturnType = {
+  __typename: "TestMcpServerReturnType",
+  error?: string | null,
+  tools?:  Array<Tool | null > | null,
+};
+
 export type ModelChatMessageConditionInput = {
   and?: Array< ModelChatMessageConditionInput | null > | null,
   chatSessionId?: ModelIDInput | null,
@@ -410,7 +444,7 @@ export type CreateMcpServerInput = {
   enabled?: boolean | null,
   headers?: Array< HeaderEntryInput | null > | null,
   id?: string | null,
-  name?: string | null,
+  name: string,
   signRequestsWithAwsCreds?: boolean | null,
   tools?: Array< ToolInput | null > | null,
   url?: string | null,
@@ -472,6 +506,23 @@ export type ProjectNextActionInput = {
   buttonTextBeforeClick?: string | null,
 };
 
+export type ModelSettingsConditionInput = {
+  and?: Array< ModelSettingsConditionInput | null > | null,
+  createdAt?: ModelStringInput | null,
+  name?: ModelStringInput | null,
+  not?: ModelSettingsConditionInput | null,
+  or?: Array< ModelSettingsConditionInput | null > | null,
+  owner?: ModelStringInput | null,
+  updatedAt?: ModelStringInput | null,
+  value?: ModelStringInput | null,
+};
+
+export type CreateSettingsInput = {
+  id?: string | null,
+  name?: string | null,
+  value?: string | null,
+};
+
 export type DeleteChatMessageInput = {
   id: string,
 };
@@ -489,6 +540,10 @@ export type DeleteMcpServerInput = {
 };
 
 export type DeleteProjectInput = {
+  id: string,
+};
+
+export type DeleteSettingsInput = {
   id: string,
 };
 
@@ -538,6 +593,12 @@ export type UpdateProjectInput = {
   result?: string | null,
   sourceChatSessionId?: string | null,
   status?: ProjectStatus | null,
+};
+
+export type UpdateSettingsInput = {
+  id: string,
+  name?: string | null,
+  value?: string | null,
 };
 
 export type ModelSubscriptionChatMessageFilterInput = {
@@ -640,6 +701,17 @@ export type ModelSubscriptionProjectFilterInput = {
   updatedAt?: ModelSubscriptionStringInput | null,
 };
 
+export type ModelSubscriptionSettingsFilterInput = {
+  and?: Array< ModelSubscriptionSettingsFilterInput | null > | null,
+  createdAt?: ModelSubscriptionStringInput | null,
+  id?: ModelSubscriptionIDInput | null,
+  name?: ModelSubscriptionStringInput | null,
+  or?: Array< ModelSubscriptionSettingsFilterInput | null > | null,
+  owner?: ModelStringInput | null,
+  updatedAt?: ModelSubscriptionStringInput | null,
+  value?: ModelSubscriptionStringInput | null,
+};
+
 export type GetChatMessageQueryVariables = {
   id: string,
 };
@@ -727,7 +799,7 @@ export type GetMcpServerQuery = {
       value?: string | null,
     } | null > | null,
     id: string,
-    name?: string | null,
+    name: string,
     owner?: string | null,
     signRequestsWithAwsCreds?: boolean | null,
     tools?:  Array< {
@@ -774,6 +846,22 @@ export type GetProjectQuery = {
     sourceChatSessionId?: string | null,
     status?: ProjectStatus | null,
     updatedAt: string,
+  } | null,
+};
+
+export type GetSettingsQueryVariables = {
+  id: string,
+};
+
+export type GetSettingsQuery = {
+  getSettings?:  {
+    __typename: "Settings",
+    createdAt: string,
+    id: string,
+    name?: string | null,
+    owner?: string | null,
+    updatedAt: string,
+    value?: string | null,
   } | null,
 };
 
@@ -933,7 +1021,7 @@ export type ListMcpServersQuery = {
       createdAt: string,
       enabled?: boolean | null,
       id: string,
-      name?: string | null,
+      name: string,
       owner?: string | null,
       signRequestsWithAwsCreds?: boolean | null,
       updatedAt: string,
@@ -968,6 +1056,45 @@ export type ListProjectsQuery = {
       updatedAt: string,
     } | null >,
     nextToken?: string | null,
+  } | null,
+};
+
+export type ListSettingsQueryVariables = {
+  filter?: ModelSettingsFilterInput | null,
+  limit?: number | null,
+  nextToken?: string | null,
+};
+
+export type ListSettingsQuery = {
+  listSettings?:  {
+    __typename: "ModelSettingsConnection",
+    items:  Array< {
+      __typename: "Settings",
+      createdAt: string,
+      id: string,
+      name?: string | null,
+      owner?: string | null,
+      updatedAt: string,
+      value?: string | null,
+    } | null >,
+    nextToken?: string | null,
+  } | null,
+};
+
+export type TestMcpServerQueryVariables = {
+  mcpServerId: string,
+};
+
+export type TestMcpServerQuery = {
+  testMcpServer?:  {
+    __typename: "TestMcpServerReturnType",
+    error?: string | null,
+    tools?:  Array< {
+      __typename: "Tool",
+      description?: string | null,
+      name?: string | null,
+      schema?: string | null,
+    } | null > | null,
   } | null,
 };
 
@@ -1062,7 +1189,7 @@ export type CreateMcpServerMutation = {
       value?: string | null,
     } | null > | null,
     id: string,
-    name?: string | null,
+    name: string,
     owner?: string | null,
     signRequestsWithAwsCreds?: boolean | null,
     tools?:  Array< {
@@ -1110,6 +1237,23 @@ export type CreateProjectMutation = {
     sourceChatSessionId?: string | null,
     status?: ProjectStatus | null,
     updatedAt: string,
+  } | null,
+};
+
+export type CreateSettingsMutationVariables = {
+  condition?: ModelSettingsConditionInput | null,
+  input: CreateSettingsInput,
+};
+
+export type CreateSettingsMutation = {
+  createSettings?:  {
+    __typename: "Settings",
+    createdAt: string,
+    id: string,
+    name?: string | null,
+    owner?: string | null,
+    updatedAt: string,
+    value?: string | null,
   } | null,
 };
 
@@ -1204,7 +1348,7 @@ export type DeleteMcpServerMutation = {
       value?: string | null,
     } | null > | null,
     id: string,
-    name?: string | null,
+    name: string,
     owner?: string | null,
     signRequestsWithAwsCreds?: boolean | null,
     tools?:  Array< {
@@ -1252,6 +1396,23 @@ export type DeleteProjectMutation = {
     sourceChatSessionId?: string | null,
     status?: ProjectStatus | null,
     updatedAt: string,
+  } | null,
+};
+
+export type DeleteSettingsMutationVariables = {
+  condition?: ModelSettingsConditionInput | null,
+  input: DeleteSettingsInput,
+};
+
+export type DeleteSettingsMutation = {
+  deleteSettings?:  {
+    __typename: "Settings",
+    createdAt: string,
+    id: string,
+    name?: string | null,
+    owner?: string | null,
+    updatedAt: string,
+    value?: string | null,
   } | null,
 };
 
@@ -1361,7 +1522,7 @@ export type UpdateMcpServerMutation = {
       value?: string | null,
     } | null > | null,
     id: string,
-    name?: string | null,
+    name: string,
     owner?: string | null,
     signRequestsWithAwsCreds?: boolean | null,
     tools?:  Array< {
@@ -1409,6 +1570,23 @@ export type UpdateProjectMutation = {
     sourceChatSessionId?: string | null,
     status?: ProjectStatus | null,
     updatedAt: string,
+  } | null,
+};
+
+export type UpdateSettingsMutationVariables = {
+  condition?: ModelSettingsConditionInput | null,
+  input: UpdateSettingsInput,
+};
+
+export type UpdateSettingsMutation = {
+  updateSettings?:  {
+    __typename: "Settings",
+    createdAt: string,
+    id: string,
+    name?: string | null,
+    owner?: string | null,
+    updatedAt: string,
+    value?: string | null,
   } | null,
 };
 
@@ -1503,7 +1681,7 @@ export type OnCreateMcpServerSubscription = {
       value?: string | null,
     } | null > | null,
     id: string,
-    name?: string | null,
+    name: string,
     owner?: string | null,
     signRequestsWithAwsCreds?: boolean | null,
     tools?:  Array< {
@@ -1551,6 +1729,23 @@ export type OnCreateProjectSubscription = {
     sourceChatSessionId?: string | null,
     status?: ProjectStatus | null,
     updatedAt: string,
+  } | null,
+};
+
+export type OnCreateSettingsSubscriptionVariables = {
+  filter?: ModelSubscriptionSettingsFilterInput | null,
+  owner?: string | null,
+};
+
+export type OnCreateSettingsSubscription = {
+  onCreateSettings?:  {
+    __typename: "Settings",
+    createdAt: string,
+    id: string,
+    name?: string | null,
+    owner?: string | null,
+    updatedAt: string,
+    value?: string | null,
   } | null,
 };
 
@@ -1645,7 +1840,7 @@ export type OnDeleteMcpServerSubscription = {
       value?: string | null,
     } | null > | null,
     id: string,
-    name?: string | null,
+    name: string,
     owner?: string | null,
     signRequestsWithAwsCreds?: boolean | null,
     tools?:  Array< {
@@ -1693,6 +1888,23 @@ export type OnDeleteProjectSubscription = {
     sourceChatSessionId?: string | null,
     status?: ProjectStatus | null,
     updatedAt: string,
+  } | null,
+};
+
+export type OnDeleteSettingsSubscriptionVariables = {
+  filter?: ModelSubscriptionSettingsFilterInput | null,
+  owner?: string | null,
+};
+
+export type OnDeleteSettingsSubscription = {
+  onDeleteSettings?:  {
+    __typename: "Settings",
+    createdAt: string,
+    id: string,
+    name?: string | null,
+    owner?: string | null,
+    updatedAt: string,
+    value?: string | null,
   } | null,
 };
 
@@ -1787,7 +1999,7 @@ export type OnUpdateMcpServerSubscription = {
       value?: string | null,
     } | null > | null,
     id: string,
-    name?: string | null,
+    name: string,
     owner?: string | null,
     signRequestsWithAwsCreds?: boolean | null,
     tools?:  Array< {
@@ -1835,6 +2047,23 @@ export type OnUpdateProjectSubscription = {
     sourceChatSessionId?: string | null,
     status?: ProjectStatus | null,
     updatedAt: string,
+  } | null,
+};
+
+export type OnUpdateSettingsSubscriptionVariables = {
+  filter?: ModelSubscriptionSettingsFilterInput | null,
+  owner?: string | null,
+};
+
+export type OnUpdateSettingsSubscription = {
+  onUpdateSettings?:  {
+    __typename: "Settings",
+    createdAt: string,
+    id: string,
+    name?: string | null,
+    owner?: string | null,
+    updatedAt: string,
+    value?: string | null,
   } | null,
 };
 
