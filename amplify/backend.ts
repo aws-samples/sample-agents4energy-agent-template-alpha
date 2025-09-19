@@ -14,6 +14,7 @@ import { fileURLToPath } from 'url';
 
 import { PdfToYamlConstruct } from './custom/pdfToYamlConstruct';
 import { McpServerConstruct } from './custom/mcpServer';
+import { SeedDataConstruct } from './custom/seedData';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -93,6 +94,11 @@ new custom_resources.AwsCustomResource(backend.stack, 'McpServerRegistryInit', {
   ]),
 });
 
+// Seed the Settings table with the system prompt
+const SettingsDdbTable = backend.data.resources.tables["Settings"];
+new SeedDataConstruct(backend.stack, 'SeedData', {
+  settingsTable: SettingsDdbTable
+});
 
 // Create a dedicated IAM role for Athena execution
 const athenaExecutionRole = new iam.Role(backend.stack, 'AthenaExecutionRole', {
