@@ -106,6 +106,7 @@ const TopNavBar: React.FC = () => {
                 )}
                 <MenuItem onClick={signOut}>Logout</MenuItem>
                 <MenuItem>Agent ID: {outputs.custom.stackUUID}</MenuItem>
+                <MenuItem onClick={() => { handleClose(); router.push('/settings'); }}>Settings</MenuItem>
               </Menu>
             </>
           ) : (

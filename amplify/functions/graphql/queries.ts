@@ -140,6 +140,21 @@ export const getProject = /* GraphQL */ `query GetProject($id: ID!) {
   APITypes.GetProjectQueryVariables,
   APITypes.GetProjectQuery
 >;
+export const getSettings = /* GraphQL */ `query GetSettings($id: ID!) {
+  getSettings(id: $id) {
+    createdAt
+    id
+    name
+    owner
+    updatedAt
+    value
+    __typename
+  }
+}
+` as GeneratedQuery<
+  APITypes.GetSettingsQueryVariables,
+  APITypes.GetSettingsQuery
+>;
 export const invokeReActAgent = /* GraphQL */ `query InvokeReActAgent(
   $chatSessionId: ID!
   $foundationModelId: String
@@ -364,4 +379,43 @@ export const listProjects = /* GraphQL */ `query ListProjects(
 ` as GeneratedQuery<
   APITypes.ListProjectsQueryVariables,
   APITypes.ListProjectsQuery
+>;
+export const listSettings = /* GraphQL */ `query ListSettings(
+  $filter: ModelSettingsFilterInput
+  $limit: Int
+  $nextToken: String
+) {
+  listSettings(filter: $filter, limit: $limit, nextToken: $nextToken) {
+    items {
+      createdAt
+      id
+      name
+      owner
+      updatedAt
+      value
+      __typename
+    }
+    nextToken
+    __typename
+  }
+}
+` as GeneratedQuery<
+  APITypes.ListSettingsQueryVariables,
+  APITypes.ListSettingsQuery
+>;
+export const testMcpServer = /* GraphQL */ `query TestMcpServer($mcpServerId: String!) {
+  testMcpServer(mcpServerId: $mcpServerId) {
+    error
+    tools {
+      description
+      name
+      schema
+      __typename
+    }
+    __typename
+  }
+}
+` as GeneratedQuery<
+  APITypes.TestMcpServerQueryVariables,
+  APITypes.TestMcpServerQuery
 >;

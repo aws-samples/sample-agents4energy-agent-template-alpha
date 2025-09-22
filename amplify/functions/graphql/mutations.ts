@@ -155,6 +155,24 @@ export const createProject = /* GraphQL */ `mutation CreateProject(
   APITypes.CreateProjectMutationVariables,
   APITypes.CreateProjectMutation
 >;
+export const createSettings = /* GraphQL */ `mutation CreateSettings(
+  $condition: ModelSettingsConditionInput
+  $input: CreateSettingsInput!
+) {
+  createSettings(condition: $condition, input: $input) {
+    createdAt
+    id
+    name
+    owner
+    updatedAt
+    value
+    __typename
+  }
+}
+` as GeneratedMutation<
+  APITypes.CreateSettingsMutationVariables,
+  APITypes.CreateSettingsMutation
+>;
 export const deleteChatMessage = /* GraphQL */ `mutation DeleteChatMessage(
   $condition: ModelChatMessageConditionInput
   $input: DeleteChatMessageInput!
@@ -301,6 +319,24 @@ export const deleteProject = /* GraphQL */ `mutation DeleteProject(
 ` as GeneratedMutation<
   APITypes.DeleteProjectMutationVariables,
   APITypes.DeleteProjectMutation
+>;
+export const deleteSettings = /* GraphQL */ `mutation DeleteSettings(
+  $condition: ModelSettingsConditionInput
+  $input: DeleteSettingsInput!
+) {
+  deleteSettings(condition: $condition, input: $input) {
+    createdAt
+    id
+    name
+    owner
+    updatedAt
+    value
+    __typename
+  }
+}
+` as GeneratedMutation<
+  APITypes.DeleteSettingsMutationVariables,
+  APITypes.DeleteSettingsMutation
 >;
 export const publishResponseStreamChunk = /* GraphQL */ `mutation PublishResponseStreamChunk(
   $chatSessionId: String!
@@ -468,4 +504,22 @@ export const updateProject = /* GraphQL */ `mutation UpdateProject(
 ` as GeneratedMutation<
   APITypes.UpdateProjectMutationVariables,
   APITypes.UpdateProjectMutation
+>;
+export const updateSettings = /* GraphQL */ `mutation UpdateSettings(
+  $condition: ModelSettingsConditionInput
+  $input: UpdateSettingsInput!
+) {
+  updateSettings(condition: $condition, input: $input) {
+    createdAt
+    id
+    name
+    owner
+    updatedAt
+    value
+    __typename
+  }
+}
+` as GeneratedMutation<
+  APITypes.UpdateSettingsMutationVariables,
+  APITypes.UpdateSettingsMutation
 >;

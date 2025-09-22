@@ -14,6 +14,7 @@ import { fileURLToPath } from 'url';
 
 import { PdfToYamlConstruct } from './custom/pdfToYamlConstruct';
 import { McpServerConstruct } from './custom/mcpServer';
+import { SeedDataConstruct } from './custom/seedData';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -93,6 +94,11 @@ new custom_resources.AwsCustomResource(backend.stack, 'McpServerRegistryInit', {
   ]),
 });
 
+// Seed the Settings table with the system prompt
+const SettingsDdbTable = backend.data.resources.tables["Settings"];
+new SeedDataConstruct(backend.stack, 'SeedData', {
+  settingsTable: SettingsDdbTable
+});
 
 // Create a dedicated IAM role for Athena execution
 const athenaExecutionRole = new iam.Role(backend.stack, 'AthenaExecutionRole', {
@@ -162,6 +168,7 @@ athenaExecutionRole.addToPolicy(
 // Create Athena workgroup for PySpark execution with a new name to avoid update issues
 const athenaPysparkWorkgroup = new athena.CfnWorkGroup(backend.stack, 'SparkWorkgroup', {
   name: `pyspark-workgroup-${stackUUID}`,
+  recursiveDeleteOption: true,
   workGroupConfiguration: {
     resultConfiguration: {
       outputLocation: `s3://${backend.storage.resources.bucket.bucketName}/athena-results/`,
@@ -176,6 +183,7 @@ const athenaPysparkWorkgroup = new athena.CfnWorkGroup(backend.stack, 'SparkWork
 // Create Athena workgroup for SQL queries
 const athenaSqlWorkgroup = new athena.CfnWorkGroup(backend.stack, 'SqlWorkgroup', {
   name: `sql-workgroup-${stackUUID}`,
+  recursiveDeleteOption: true,
   workGroupConfiguration: {
     resultConfiguration: {
       outputLocation: `s3://${backend.storage.resources.bucket.bucketName}/athena-sql-results/`,

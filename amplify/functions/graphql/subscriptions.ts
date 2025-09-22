@@ -155,6 +155,24 @@ export const onCreateProject = /* GraphQL */ `subscription OnCreateProject(
   APITypes.OnCreateProjectSubscriptionVariables,
   APITypes.OnCreateProjectSubscription
 >;
+export const onCreateSettings = /* GraphQL */ `subscription OnCreateSettings(
+  $filter: ModelSubscriptionSettingsFilterInput
+  $owner: String
+) {
+  onCreateSettings(filter: $filter, owner: $owner) {
+    createdAt
+    id
+    name
+    owner
+    updatedAt
+    value
+    __typename
+  }
+}
+` as GeneratedSubscription<
+  APITypes.OnCreateSettingsSubscriptionVariables,
+  APITypes.OnCreateSettingsSubscription
+>;
 export const onDeleteChatMessage = /* GraphQL */ `subscription OnDeleteChatMessage(
   $filter: ModelSubscriptionChatMessageFilterInput
   $owner: String
@@ -302,6 +320,24 @@ export const onDeleteProject = /* GraphQL */ `subscription OnDeleteProject(
   APITypes.OnDeleteProjectSubscriptionVariables,
   APITypes.OnDeleteProjectSubscription
 >;
+export const onDeleteSettings = /* GraphQL */ `subscription OnDeleteSettings(
+  $filter: ModelSubscriptionSettingsFilterInput
+  $owner: String
+) {
+  onDeleteSettings(filter: $filter, owner: $owner) {
+    createdAt
+    id
+    name
+    owner
+    updatedAt
+    value
+    __typename
+  }
+}
+` as GeneratedSubscription<
+  APITypes.OnDeleteSettingsSubscriptionVariables,
+  APITypes.OnDeleteSettingsSubscription
+>;
 export const onUpdateChatMessage = /* GraphQL */ `subscription OnUpdateChatMessage(
   $filter: ModelSubscriptionChatMessageFilterInput
   $owner: String
@@ -448,6 +484,24 @@ export const onUpdateProject = /* GraphQL */ `subscription OnUpdateProject(
 ` as GeneratedSubscription<
   APITypes.OnUpdateProjectSubscriptionVariables,
   APITypes.OnUpdateProjectSubscription
+>;
+export const onUpdateSettings = /* GraphQL */ `subscription OnUpdateSettings(
+  $filter: ModelSubscriptionSettingsFilterInput
+  $owner: String
+) {
+  onUpdateSettings(filter: $filter, owner: $owner) {
+    createdAt
+    id
+    name
+    owner
+    updatedAt
+    value
+    __typename
+  }
+}
+` as GeneratedSubscription<
+  APITypes.OnUpdateSettingsSubscriptionVariables,
+  APITypes.OnUpdateSettingsSubscription
 >;
 export const recieveResponseStreamChunk = /* GraphQL */ `subscription RecieveResponseStreamChunk($chatSessionId: String!) {
   recieveResponseStreamChunk(chatSessionId: $chatSessionId) {
