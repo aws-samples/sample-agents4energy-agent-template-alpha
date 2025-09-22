@@ -312,28 +312,6 @@ athenaExecutionRole.addToPolicy(executeAthenaStatementsPolicy);
 
 })
 
-// const graphQLApi = appsync.GraphqlApi.fromGraphqlApiAttributes(backend.data.stack, 'graphQLApi', {
-//   graphqlApiId: backend.data.apiId
-// })
-
-// awsMcpToolsFunction.addToRolePolicy(
-//   new iam.PolicyStatement({
-//     actions: ["appsync:GraphQL"],
-//     resources: [
-//       `arn:aws:appsync:${backend.stack.region}:${backend.stack.account}:apis/${graphQLApi.apiId}`,
-//       // graphQLApi.arn
-//       // `${graphQLApi.graphQLEndpointArn}/types/Query/*`,
-//       // `${graphQLApi.graphQLEndpointArn}/types/Mutation/*`
-//     ],
-//   })
-// )
-
-// // Allow the MCP server to interact with the GraphQL api
-// graphQLApi.grantQuery(awsMcpToolsFunction)
-// graphQLApi.grantMutation(awsMcpToolsFunction)
-
-
-
 //Allow the reActAgentFunction to retrieve the API key used to invoke the MCP server
 backend.reActAgentFunction.resources.lambda.addToRolePolicy(
   new iam.PolicyStatement({
@@ -412,6 +390,16 @@ backend.addOutput({
     reactAgentLambdaArn: backend.reActAgentFunction.resources.lambda.functionArn,
     mcpRestApiUrl: mcpRestApi.urlForPath(mcpResource.path),
     apiKeyArn: apiKey.keyArn,
+    mcpServers: {
+      a4eTools: {
+        functionUrl: awsMcpToolsFunctionUrl.url,
+        lambdaArn: awsMcpToolsFunction.functionArn
+      },
+      agentInvoker: {
+        functionUrl: mcpAgentInvokerFunctionUrl.url,
+        lambdaArn: backend.mcpAgentInvoker.resources.lambda.functionArn
+      }
+    },
     mcpAgentInvokerUrl: mcpAgentInvokerFunctionUrl.url,
     mcpFunctionUrl: awsMcpToolsFunctionUrl.url,
     stackUUID: stackUUID

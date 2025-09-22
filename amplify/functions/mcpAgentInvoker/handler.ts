@@ -1,6 +1,6 @@
 import middy from "@middy/core";
 import httpErrorHandler from "@middy/http-error-handler";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import mcpMiddleware from "middy-mcp";
 
@@ -23,6 +23,7 @@ server.registerTool("invokeReactAgent", {
     description: "Invokes an agent which specializes in operational tasks, like running large scale data analysis",
     inputSchema: { prompt: z.string() }
 }, async ({ prompt }) => {
+
     const amplifyClient = getConfiguredAmplifyClient()
     // Create a new chat session
     console.log('Creating new chat session');
@@ -115,6 +116,73 @@ server.registerTool("invokeReactAgent", {
     }
 });
 
+
+server.registerPrompt(
+    "dummy",
+    {
+        title: "Dummy Prompt",
+        description: "Here is a dummy prompt",
+        argsSchema: { myArgString: z.string() }
+    },
+    ({ myArgString }) => ({
+        messages: [{
+            role: "user",
+            content: {
+                type: "text",
+                text: `Here is the arg you sent:\n\n${myArgString}`
+            }
+        }]
+    })
+);
+
+// Static resource
+server.registerResource(
+    "config",
+    "config://app",
+    {
+        title: "Application Config",
+        description: "Application configuration data",
+        mimeType: "text/plain"
+    },
+    async (uri: any) => ({
+        contents: [{
+            uri: uri.href,
+            text: "App configuration here"
+        }]
+    })
+);
+
+const resource = new ResourceTemplate(`metadata:///{+path}`, {
+    list: async () => {
+        return {
+            resources: [
+                {
+                    name: "metadata-item",
+                    uri: "metadata:///test",
+                    title: "Metadata Item",
+                    description: "A metadata resource item"
+                }
+            ]
+        };
+    },
+    complete: {
+        ["+path"]: async (value) => {
+            return ["test"];
+        },
+    },
+});
+
+server.registerResource("test",
+    resource,
+    {},
+    async (uri: any) => ({
+        contents: [{
+            uri: uri.href,
+            text: "Output here"
+        }]
+    })
+)
+
 // Add logging middleware
 const logMiddleware = () => {
     return {
@@ -140,7 +208,6 @@ export const handler = middy(async (
     console.log('Chat Session Id: ', chatSessionId)
 
     setChatSessionId(chatSessionId);
-    // setFoundationModelId(event.headers["foundation-model-id"] ?? "default-foundation-model-id");
     // The return will be handled by the mcp server
     return {};
 })
