@@ -168,6 +168,7 @@ athenaExecutionRole.addToPolicy(
 // Create Athena workgroup for PySpark execution with a new name to avoid update issues
 const athenaPysparkWorkgroup = new athena.CfnWorkGroup(backend.stack, 'SparkWorkgroup', {
   name: `pyspark-workgroup-${stackUUID}`,
+  recursiveDeleteOption: true,
   workGroupConfiguration: {
     resultConfiguration: {
       outputLocation: `s3://${backend.storage.resources.bucket.bucketName}/athena-results/`,
@@ -182,6 +183,7 @@ const athenaPysparkWorkgroup = new athena.CfnWorkGroup(backend.stack, 'SparkWork
 // Create Athena workgroup for SQL queries
 const athenaSqlWorkgroup = new athena.CfnWorkGroup(backend.stack, 'SqlWorkgroup', {
   name: `sql-workgroup-${stackUUID}`,
+  recursiveDeleteOption: true,
   workGroupConfiguration: {
     resultConfiguration: {
       outputLocation: `s3://${backend.storage.resources.bucket.bucketName}/athena-sql-results/`,

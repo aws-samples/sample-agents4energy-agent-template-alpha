@@ -3,7 +3,6 @@ import cdk, {
     aws_iam as iam,
     custom_resources,
 } from 'aws-cdk-lib';
-import { defineBackend } from '@aws-amplify/backend';
 
 export interface SeedDataProps {
     settingsTable: cdk.aws_dynamodb.ITable;
