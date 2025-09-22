@@ -950,7 +950,7 @@ export const textToTableTool = tool(
 
             // Search in global files
             const globalWellFiles = await findFilesMatchingPattern(
-                GLOBAL_PREFIX + 'well-logs/',
+                GLOBAL_PREFIX + 'well-data/',
                 params.filePattern
             );
             matchingFiles.push(...globalWellFiles);
