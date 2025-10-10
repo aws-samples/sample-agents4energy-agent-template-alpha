@@ -1,6 +1,6 @@
 import { expect } from 'chai';
 import aws4 from 'aws4';
-import https from 'https';
+import axios, { AxiosRequestConfig } from 'axios';
 import { URL } from 'url';
 
 import { setAmplifyEnvVars } from '../../utils/amplifyUtils';
@@ -66,60 +66,44 @@ describe('AWS MCP Tools Integration Tests', function () {
 
     console.log('Full list tools request: ', opts)
 
-    // Make the HTTPS request
-    const req = https.request(opts, (res) => {
-      let data = '';
+    // Create axios config from signed request
+    const axiosConfig: AxiosRequestConfig = {
+      method: 'POST',
+      url: lambdaUrl,
+      data: bodyData,
+      headers: opts.headers as Record<string, string>,
+      timeout: 10000
+    };
 
-      // Check status code
-      expect(res.statusCode).to.be.oneOf([200, 201]);
-
-      res.on('data', (chunk) => {
-        data += chunk;
-      });
-
-      res.on('end', () => {
+    // Make the request with axios
+    axios(axiosConfig)
+      .then(response => {
         try {
-          // console.log('List Tools response: ', data)
+          // Check status code
+          expect(response.status).to.be.oneOf([200, 201]);
 
-          const response = JSON.parse(data);
-
-          console.log('List Tools response: ', JSON.stringify(response, null, 2))
+          console.log('List Tools response: ', JSON.stringify(response.data, null, 2))
 
           // Verify response structure
-          expect(response).to.have.property('jsonrpc', '2.0');
-          expect(response).to.have.property('id', 1);
-          expect(response).to.have.property('result');
+          expect(response.data).to.have.property('jsonrpc', '2.0');
+          expect(response.data).to.have.property('id', 1);
+          expect(response.data).to.have.property('result');
 
-          const tools = response.result.tools;
+          const tools = response.data.result.tools;
           expect(tools).to.be.an('array');
 
           done();
         } catch (error) {
           done(error);
         }
+      })
+      .catch(error => {
+        done(error);
       });
-    });
-
-    // Add timeout to prevent hanging indefinitely
-    req.setTimeout(10000, () => {
-      done(new Error('Request timed out after 10 seconds'));
-      req.destroy();
-    });
-
-    req.on('error', (err) => {
-      done(err);
-    });
-
-    // Send the request
-    req.end(bodyData);
   });
 
-  it('should successfully execute the add tool', function (done) {
+  it('should successfully execute the invokeReactAgent tool', function (done) {
     const url = new URL(lambdaUrl);
-
-    // const a = 5;
-    // const b = 7;
-    // const expectedResult = a + b;
 
     const bodyData = JSON.stringify({
       jsonrpc: "2.0",
@@ -155,54 +139,39 @@ describe('AWS MCP Tools Integration Tests', function () {
       sessionToken: process.env.AWS_SESSION_TOKEN
     });
 
-    // Make the HTTPS request
-    const req = https.request(opts, (res) => {
-      let data = '';
+    // Create axios config from signed request
+    const axiosConfig: AxiosRequestConfig = {
+      method: 'POST',
+      url: lambdaUrl,
+      data: bodyData,
+      headers: opts.headers as Record<string, string>,
+      timeout: 10000
+    };
 
-      // // Check status code
-      // expect(res.statusCode).to.be.oneOf([200, 201]);
-
-      res.on('data', (chunk) => {
-        data += chunk;
-      });
-
-      res.on('end', () => {
+    // Make the request with axios
+    axios(axiosConfig)
+      .then(response => {
         try {
-          // console.log('Add numbers response: ', data)
-
-          const response = JSON.parse(data);
-
-          console.log('Call tool response: ', JSON.stringify(response, null, 2))
+          console.log('Call invokeReactAgent tool response: ', JSON.stringify(response.data, null, 2))
 
           // Verify response structure
-          expect(response).to.have.property('jsonrpc', '2.0');
-          expect(response).to.have.property('id', 2);
-          expect(response).to.have.property('result');
+          expect(response.data).to.have.property('jsonrpc', '2.0');
+          expect(response.data).to.have.property('id', 2);
+          expect(response.data).to.have.property('result');
 
           // Verify the result contains the expected content
-          expect(response.result).to.have.property('content');
-          expect(response.result.content).to.be.an('array');
-          expect(response.result.content[0]).to.have.property('type', 'text');
-          // expect(response.result.content[0]).to.have.property('text', String(expectedResult));
+          expect(response.data.result).to.have.property('content');
+          expect(response.data.result.content).to.be.an('array');
+          expect(response.data.result.content[0]).to.have.property('type', 'text');
+          // expect(response.data.result.content[0]).to.have.property('text', String(expectedResult));
 
           done();
         } catch (error) {
           done(error);
         }
+      })
+      .catch(error => {
+        done(error);
       });
-    });
-
-    // Add timeout to prevent hanging indefinitely
-    req.setTimeout(10000, () => {
-      done(new Error('Request timed out after 10 seconds'));
-      req.destroy();
-    });
-
-    req.on('error', (err) => {
-      done(err);
-    });
-
-    // Send the request
-    req.end(bodyData);
   });
 });

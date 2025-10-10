@@ -24,9 +24,9 @@ server.registerTool("invokeReactAgent", {
     inputSchema: { prompt: z.string() }
 }, async ({ prompt }) => {
     try {
+        console.log(`Invoked the invokeReactAgentTool with prompt:\n ${prompt}`);
         const amplifyClient = getConfiguredAmplifyClient()
         // Create a new chat session
-        console.log('Creating new chat session');
         const { data: newChatSession, errors: newChatSessionErrors } = await amplifyClient.graphql({
             query: createChatSession,
             variables: {
@@ -39,6 +39,7 @@ server.registerTool("invokeReactAgent", {
             console.error(newChatSessionErrors);
             process.exit(1);
         }
+        console.log(`Created chat seession with id ${newChatSession.createChatSession.id}`)
 
         const { errors: newChatMessageErrors } = await amplifyClient.graphql({
             query: createChatMessage,
@@ -62,8 +63,7 @@ server.registerTool("invokeReactAgent", {
             query: invokeReActAgent,
             variables: {
                 chatSessionId: newChatSession.createChatSession.id,
-                userId: 'test-user',
-                // origin: domainUrl
+                userId: 'test-user'
             },
         });
 
@@ -86,7 +86,7 @@ server.registerTool("invokeReactAgent", {
                 }
             });
             if (lastMessageErrors) {
-                console.error(lastMessageErrors);
+                console.error(`Error getting last message ${JSON.stringify(lastMessageErrors, null, 2)}`);
                 process.exit(1);
             }
 
@@ -94,12 +94,13 @@ server.registerTool("invokeReactAgent", {
             if (messages.length > 0) {
                 const lastMessage = messages[0];
                 responseComplete = lastMessage.responseComplete || false;
-                if (responseComplete) console.log('Assistant response complete. Final response: \n', lastMessage.content?.text);
+                if (responseComplete) {
+                    console.log('Assistant response complete. Final response: \n', lastMessage.content?.text);
+                    const finalResponseText = lastMessage.content?.text || "No Text Returned"
 
-                const finalResponseText = lastMessage.content?.text || "No Text Returned"
-
-                return {
-                    content: [{ type: "text", text: finalResponseText }],
+                    return {
+                        content: [{ type: "text", text: finalResponseText }],
+                    }
                 }
             }
 
