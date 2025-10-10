@@ -134,6 +134,24 @@ Administrators can manually create user accounts through the AWS Amplify console
 
 **Note:** Users created by administrators will need to change their temporary password on first login. For more details, see the [AWS Amplify user management documentation](https://docs.amplify.aws/react/build-a-backend/auth/manage-users/with-amplify-console/).
 
+## User and Administration Guides
+
+After deploying the application, use these guides for day-to-day operations and administration:
+
+### 📚 Operational Documentation
+
+- **[User Management Guide](docs/user-management.md)** - Create and manage user accounts in AWS Amplify
+- **[Model Configuration Guide](docs/model-configuration.md)** - Update and configure AI language models  
+- **[Data Management Overview](docs/data-management-overview.md)** - Comprehensive guide to all data integration strategies
+
+### 📊 Data Integration Strategies
+
+- **[Unstructured Data Management](docs/unstructured-data-management.md)** - Upload and analyze PDF documents and reports
+- **[Structured Data Management](docs/structured-data-management.md)** - Create databases from CSV files within chat sessions
+- **[Federated Data Sources](docs/federated-data-sources.md)** - Connect directly to enterprise databases and systems
+
+These guides provide step-by-step instructions for common administrative tasks and help users get the most out of the application's three distinct data management approaches.
+
 ## Athena Data Catalog Access Control
 
 The Lambda functions in this project have been configured with fine-grained access control for Athena data catalog operations. The IAM policy for `athena:GetDataCatalog` includes a resource-based condition that restricts access to only those resources tagged with a specific pattern.
