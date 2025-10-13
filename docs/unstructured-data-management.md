@@ -4,14 +4,14 @@ This guide explains how to add unstructured data (PDF files and documents) to th
 
 ## Add Unstructured Data to the Application
 
-Follow these steps to upload PDF documents that the AI agent can analyze:
+Follow these steps to upload PDF documents tha+t the AI agent can analyze:
 
 ### Step 1: Access Storage Configuration
 
 1. **Navigate to Your Application**
    - Go to the AWS Amplify page: https://us-east-1.console.aws.amazon.com/amplify/apps
    - Click on your application (e.g., "sample-agents4energy-agent-template-alpha")
-   - Click on the deployed branch (e.g., "no-guest-access")
+   - Click on the deployed branch (e.g., "main")
 
 2. **Access Storage**
    - Click "Storage" in the left sidebar
