@@ -184,7 +184,8 @@ export const schema = a.schema({
 })
   .authorization((allow) => [
     allow.resource(reActAgentFunction),
-    allow.resource(mcpServerTestFunction)
+    allow.resource(mcpServerTestFunction),
+    allow.resource(mcpAgentInvoker)
   ]);
 
 export type Schema = ClientSchema<typeof schema>;
