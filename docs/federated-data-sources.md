@@ -63,12 +63,12 @@ Both the Athena data source and the Lambda function must be tagged for the AI ag
 #### Tag the Lambda Function
 
 1. **Find Lambda Function**
-   - Navigate to the AWS Lambda console: https://console.aws.amazon.com/lambda/
-   - Find the function with "reActAgentlambda" in the name
+   - In the Athena console, navigate to your federated data source details page
+   - Locate the "Lambda function" field, which displays the function name as a clickable link
+   - Click on the Lambda function name to open it directly in the Lambda console
 
 2. **Add Tags to Lambda**
-   - Click on your Lambda function
-   - Go to the "Configuration" tab
+   - In the Lambda fuction's AWS console page, go to the "Configuration" tab
    - Click on "Tags" in the left sidebar
    - Click "Add tags"
    - Add the same tag:

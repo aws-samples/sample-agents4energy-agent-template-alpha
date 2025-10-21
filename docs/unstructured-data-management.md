@@ -48,7 +48,7 @@ Follow these steps to upload PDF documents tha+t the AI agent can analyze:
 After uploading and waiting for processing:
 
 1. **Navigate to the Application**
-   - Go to your deployed application URL (e.g., https://no-guest-access.d14p543cy4s7og.amplifyapp.com/)
+   - Go to your deployed application URL (e.g., https://main.d14p543cy4s7og.amplifyapp.com/)
 
 2. **Log In**
    - Use the credentials created through the user management process

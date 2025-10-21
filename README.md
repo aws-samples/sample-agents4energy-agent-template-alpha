@@ -2,6 +2,9 @@
 
 This project shows an example implimenation of hosting a [LangGraph agent](https://www.langchain.com/langgraph) in an AWS Lambda function to process digital operations related energy woakloads.
 
+Agents4Energy (A4E) is an easily configurable and deployable, set of open-source agentic workflows to help customers in Energy industry accelerate their workloads on AWS. A4E enables industry professionals to use generative AI assistants for a range of common energy industry use cases such as reservoir characterization, well workover assessment, field data analysis, supply chain optimization, and asset integrity management.
+
+
 ## Architecture Overview
 
 The following diagram illustrates the high-level architecture of the GenAI Agentic platform:
@@ -56,6 +59,25 @@ graph LR
   - **S3 File System**: Document storage and data management
   - **Athena SQL Tool**: Query federated data sources (SAP, Snowflake, Postgres)
   - **Athena PySpark Tool**: Advanced data analytics and visualization generation
+
+
+## User and Administration Guides
+
+After deploying the application, use these guides for day-to-day operations and administration:
+
+### 📚 Operational Documentation
+
+- **[User Management Guide](docs/user-management.md)** - Create and manage user accounts in AWS Amplify
+- **[Model Configuration Guide](docs/model-configuration.md)** - Update and configure AI language models  
+- **[Data Management Overview](docs/data-management-overview.md)** - Comprehensive guide to all data integration strategies
+
+### 📊 Data Integration Strategies
+
+- **[Unstructured Data Management](docs/unstructured-data-management.md)** - Upload and analyze PDF documents and reports
+- **[Structured Data Management](docs/structured-data-management.md)** - Create databases from CSV files within chat sessions
+- **[Federated Data Sources](docs/federated-data-sources.md)** - Connect directly to enterprise databases and systems
+
+These guides provide step-by-step instructions for common administrative tasks and help users get the most out of the application's three distinct data management approaches.
 
 ## Deploy the Project with AWS Amplify
 This option will create a public facing URL which let's users interact with your application.
@@ -131,26 +153,6 @@ Administrators can manually create user accounts through the AWS Amplify console
 5. Enter the user's email address and temporary password
 6. Choose whether to send an invitation email or suppress messages
 7. Click **Create user**
-
-**Note:** Users created by administrators will need to change their temporary password on first login. For more details, see the [AWS Amplify user management documentation](https://docs.amplify.aws/react/build-a-backend/auth/manage-users/with-amplify-console/).
-
-## User and Administration Guides
-
-After deploying the application, use these guides for day-to-day operations and administration:
-
-### 📚 Operational Documentation
-
-- **[User Management Guide](docs/user-management.md)** - Create and manage user accounts in AWS Amplify
-- **[Model Configuration Guide](docs/model-configuration.md)** - Update and configure AI language models  
-- **[Data Management Overview](docs/data-management-overview.md)** - Comprehensive guide to all data integration strategies
-
-### 📊 Data Integration Strategies
-
-- **[Unstructured Data Management](docs/unstructured-data-management.md)** - Upload and analyze PDF documents and reports
-- **[Structured Data Management](docs/structured-data-management.md)** - Create databases from CSV files within chat sessions
-- **[Federated Data Sources](docs/federated-data-sources.md)** - Connect directly to enterprise databases and systems
-
-These guides provide step-by-step instructions for common administrative tasks and help users get the most out of the application's three distinct data management approaches.
 
 ## Athena Data Catalog Access Control
 

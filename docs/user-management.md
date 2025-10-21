@@ -11,7 +11,7 @@ Follow these step-by-step instructions to create users through the AWS Amplify c
 
 2. **Access Your Application**
    - Click on your application (e.g., "sample-agents4energy-agent-template-alpha")
-   - Click on the deployed branch (e.g., "no-guest-access")
+   - Click on the deployed branch (e.g., "main")
 
 3. **Navigate to Authentication**
    - Click "Authentication" in the left sidebar

@@ -1,6 +1,5 @@
 Agents4Energy (A4E) is an easily configurable and deployable, set of open-source agentic workflows to help customers in Energy industry accelerate their workloads on AWS. A4E enables industry professionals to use generative AI assistants for a range of common energy industry use cases such as reservoir characterization, well workover assessment, field data analysis, supply chain optimization, and asset integrity management.
 
-To address the needs of the energy industry and harness the great power presented by GenAI, AWS is proud to announce Agents4Energy. This solution makes it easy for operators and service companies to incorporate the sixth generation of computing into their existing technical environments. Much like a travel agent handles the nitty-gritty details of booking a vacation for you, energy agents scan diverse data sources and enterprise systems to unlock insights and complete tasks on your behalf.
 
 ## Architecture Overview
 
@@ -46,6 +45,18 @@ graph LR
     class LangGraph agentLayer
     class S3Tool,AthenaSql,AthenaPySpark toolLayer
 ```
+
+## Data Access Capabilities
+
+**Unstructured Data Access**
+- File system interface for PDFs, reports, and documents
+- Upload and analyze within chat sessions
+- AI-powered insights from technical documents
+
+**Structured Data Access**
+- **Data Lake**: Create databases from CSV files using Athena PySpark
+- **Federated Connections**: Direct queries to SAP, Snowflake, Postgres via Athena SQL
+- Real-time access without data migration
 
 ### Key Components:
 

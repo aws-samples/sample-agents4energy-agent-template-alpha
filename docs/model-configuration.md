@@ -11,7 +11,7 @@ Follow these steps to change the AI model used by your application:
 1. **Navigate to Your Application**
    - Go to the AWS Amplify page: https://us-east-1.console.aws.amazon.com/amplify/apps
    - Click on your application (e.g., "sample-agents4energy-agent-template-alpha")
-   - Click on the deployed branch (e.g., "no-guest-access")
+   - Click on the deployed branch (e.g., "main")
 
 2. **Access Functions**
    - Click on "Functions" in the left sidebar
@@ -32,7 +32,7 @@ Follow these steps to change the AI model used by your application:
 
 3. **Edit Model Configuration**
    - Click "Edit" to modify the environment variables
-   - Change the "AGENT_MODEL_ID" value to: `us.anthropic.claude-sonnet-4-20250514-v1:0`
+   - Change the "AGENT_MODEL_ID" value to a bedrock model identifier (ex: `us.anthropic.claude-sonnet-4-20250514-v1:0`)
    - Scroll down and click "Save"
 
 ## Available Models
