@@ -51,80 +51,21 @@ const generateThemeStyles = (theme: Theme): string => `
     /* Typography */
     h1, h2, h3, h4, h5, h6 {
       color: var(--text-primary);
-      margin-top: 1.5em;
-      margin-bottom: 0.5em;
     }
-    
-    h1 { font-size: 2em; font-weight: 500; }
-    h2 { font-size: 1.5em; font-weight: 500; }
-    h3 { font-size: 1.25em; font-weight: 500; }
-    
-    p {
-      margin-bottom: 1em;
-    }
-    
+
     /* Links */
     a {
       color: var(--info-main);
-      text-decoration: none;
-    }
-    
-    a:hover {
-      text-decoration: underline;
-    }
-    
-    /* Code blocks */
-    code {
-      background-color: rgba(0, 0, 0, 0.05);
-      padding: 2px 6px;
-      border-radius: 3px;
-      font-family: 'Courier New', Courier, monospace;
-      font-size: 0.9em;
-    }
-    
-    pre {
-      background-color: rgba(0, 0, 0, 0.05);
-      padding: 12px;
-      border-radius: 4px;
-      overflow-x: auto;
-    }
-    
-    pre code {
-      background-color: transparent;
-      padding: 0;
-    }
-    
-    /* Tables */
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      margin: 1em 0;
-    }
-    
-    th, td {
-      border: 1px solid rgba(0, 0, 0, 0.12);
-      padding: 8px 12px;
-      text-align: left;
     }
     
     th {
       background-color: var(--background-default);
-      font-weight: 600;
-    }
-    
-    /* Lists */
-    ul, ol {
-      margin-bottom: 1em;
-      padding-left: 2em;
     }
     
     /* Blockquotes */
     blockquote {
       border-left: 4px solid var(--primary-main);
-      margin: 1em 0;
-      padding-left: 1em;
       color: var(--text-secondary);
-      font-style: italic;
     }
     
     /* Utility classes */
@@ -325,6 +266,7 @@ export default function FileViewer({
 
         <iframe
           srcDoc={styledHtmlContent}
+          // srcDoc={htmlContent}
           className="w-full h-full"
           style={{
             border: 'none',
