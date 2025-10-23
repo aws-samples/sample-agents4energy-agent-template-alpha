@@ -23,10 +23,9 @@ Follow these steps to upload CSV files and create databases for structured data 
    - The AI agent can help you create folders and manage files
 
 2. **Create Data Directory**
-   - Ask the agent to create a folder structure for your data:
-   ```
-   Please create a folder called 'data' in my chat session artifacts for uploading CSV files.
-   ```
+   - Open the chat session files by clicking the file button on the top right of the screen.
+   - Click the `New Folder` button.
+   - Give the folder the name `data`.
 
 ### Step 3: Upload CSV Files
 
