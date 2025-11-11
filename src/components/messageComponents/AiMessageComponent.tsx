@@ -4,8 +4,11 @@ import { Typography, Button, Box } from '@mui/material';
 import BuildIcon from '@mui/icons-material/Build';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { Streamdown } from 'streamdown';
+
 import { stringify } from 'yaml';
 import { Message } from '@/../utils/types';
 import CopyButton from './CopyButton';
@@ -29,9 +32,10 @@ const AiMessageComponent: React.FC<AiMessageComponentProps> = ({ message, theme 
       width: '100%'
     }}>
       <div style={aiMessageStyle}>
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+        <Streamdown isAnimating={true}>{message.content?.text}</Streamdown>
+        {/* <ReactMarkdown remarkPlugins={[remarkGfm]}>
           {message.content?.text}
-        </ReactMarkdown>
+        </ReactMarkdown> */}
         {message.toolCalls && message.toolCalls !== '[]' && (
           <div style={{
             backgroundColor: theme.palette.grey[100],
