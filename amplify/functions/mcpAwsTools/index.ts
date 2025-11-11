@@ -154,7 +154,7 @@ pio.templates.default = "white_clean_log"
     // updateFile,
     // textToTableTool,
     // searchFiles,
-    renderAssetTool,
+    // renderAssetTool,
     userInputTool,
     createProjectTool
 ]
