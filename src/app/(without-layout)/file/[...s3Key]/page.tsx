@@ -5,8 +5,9 @@ import { getUrl } from 'aws-amplify/storage';
 import { Amplify } from 'aws-amplify';
 import { useState, useEffect } from 'react';
 import { useRef } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+// import ReactMarkdown from 'react-markdown';
+// import remarkGfm from 'remark-gfm';
+import { Streamdown } from 'streamdown';
 import { CircularProgress, Box, Typography } from '@mui/material';
 
 interface PageProps {
@@ -29,7 +30,7 @@ export default function Page({ params }: PageProps) {
         setFileResponse(null);
         setFileContent("");
         setError(null);
-        
+
         const s3Key = params.s3Key.join('/');
         const s3KeyDecoded = s3Key.split('/').map((item: string) => decodeURIComponent(item)).join('/');
 
@@ -72,10 +73,10 @@ export default function Page({ params }: PageProps) {
   // Return the file response when available
   if (isMarkdown) {
     return (
-      <div style={{ 
-        height: '100vh', 
-        width: '100%', 
-        overflow: 'auto', 
+      <div style={{
+        height: '100vh',
+        width: '100%',
+        overflow: 'auto',
         padding: '20px',
         backgroundColor: '#ffffff',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
@@ -86,7 +87,7 @@ export default function Page({ params }: PageProps) {
           maxWidth: '800px',
           margin: '0 auto'
         }}>
-          <ReactMarkdown 
+          {/* <ReactMarkdown 
             remarkPlugins={[remarkGfm]}
             components={{
               // Custom styling for markdown elements
@@ -107,7 +108,10 @@ export default function Page({ params }: PageProps) {
             }}
           >
             {fileContent}
-          </ReactMarkdown>
+          </ReactMarkdown> */}
+          <Streamdown>
+            {fileContent}
+          </Streamdown>
         </div>
       </div>
     );
@@ -115,18 +119,18 @@ export default function Page({ params }: PageProps) {
 
   return (
     <div style={{ height: '100vh', width: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-      <iframe 
-        style={{ 
-          height: '100%', 
-          width: '100%', 
+      <iframe
+        style={{
+          height: '100%',
+          width: '100%',
           border: 'none',
           flex: '1 1 auto',
           overflow: 'auto'
-        }} 
+        }}
         srcDoc={fileContent}
         onLoad={() => setIsLoading(false)}
       />
-      
+
       {/* Loading overlay */}
       {isLoading && (
         <Box

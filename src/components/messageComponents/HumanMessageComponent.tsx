@@ -3,8 +3,6 @@ import { Theme } from '@mui/material/styles';
 import { Button, CircularProgress, Typography, Box } from '@mui/material';
 import ReplayIcon from '@mui/icons-material/Replay';
 
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { Streamdown } from 'streamdown';
 
 import { Message } from '@/../utils/types';
