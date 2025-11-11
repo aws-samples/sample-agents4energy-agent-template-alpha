@@ -630,7 +630,7 @@ export const updateFile = tool(
 );
 
 // Helper function to process document links
-async function processDocumentLinks(content: string, chatSessionId: string): Promise<string> {
+export function processDocumentLinks(content: string, chatSessionId: string): string {
 
     const originBasePath = process.env.ORIGIN_BASE_PATH || ""
     // // Get the origin from toolUtils
