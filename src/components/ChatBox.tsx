@@ -60,10 +60,16 @@ const ChatBox = (params: {
   // const [showChainOfThought, setShowChainOfThought] = useState(false);
   // const [selectedAgent, setSelectedAgent] = useState<('reActAgent' | 'planAndExecuteAgent' | 'projectGenerationAgent')>("reActAgent");
 
-  //Subscribe to the chat messages
+  //Query and Subscribe to the chat messages
   useEffect(() => {
     const messageSubscriptionHandler = async () => {
       console.log('Creating message subscription for garden: ', params.chatSessionId)
+
+      const {data: initialChatMessages} = await amplifyClient.models.ChatMessage.listChatMessageByChatSessionIdAndCreatedAt({
+        chatSessionId: params.chatSessionId
+      })
+      setMessages(initialChatMessages)
+
       const messagesSub = amplifyClient.models.ChatMessage.observeQuery({
         filter: {
           chatSessionId: { eq: params.chatSessionId }
