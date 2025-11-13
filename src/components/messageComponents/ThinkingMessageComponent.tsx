@@ -2,6 +2,7 @@ import React from 'react';
 import { Theme } from '@mui/material/styles';
 import { Typography } from '@mui/material';
 import { Message } from '@/../utils/types';
+import { Streamdown } from 'streamdown';
 
 interface ThinkingComponentProps {
     message: Message;
@@ -11,10 +12,7 @@ interface ThinkingComponentProps {
 const ThinkingMessageComponent: React.FC<ThinkingComponentProps> = ({ message, theme }) => {
     return (
         <div style={{
-            // display: 'flex',
-            // flexDirection: 'column',
             width: '100%',
-            maxHeight: '100px',
             overflowY: 'auto'
         }}>
             <div style={{
@@ -26,8 +24,11 @@ const ThinkingMessageComponent: React.FC<ThinkingComponentProps> = ({ message, t
                 <Typography variant="body2" color="text.secondary">
                     Thinking:
                 </Typography>
+
                 <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.9rem', fontStyle: 'italic' }}>
-                    {message.content?.text}
+                    <Streamdown isAnimating={true}>
+                        {message.content?.text}
+                    </Streamdown>
                 </Typography>
             </div>
         </div>
