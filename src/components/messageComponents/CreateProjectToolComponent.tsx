@@ -9,33 +9,37 @@ interface ProjectFinancial {
   // NPV10: number;
   cost: number;
   revenuePresentValue: number;
-  incrimentalOilRateBOPD: number | null;
-  incrimentalGasRateMCFD: number | null;
+  incrimentalOilRateBOPD?: number | null;
+  incrimentalGasRateMCFD?: number | null;
   successProbability: number;
-  __typename: string;
+  __typename?: string;
 }
 
 interface Project {
-  createdAt: string;
+  createdAt?: string;
   description: string;
   financial: ProjectFinancial;
-  foundationModelId: string;
-  id: string;
+  foundationModelId?: string;
+  id?: string;
   name: string;
-  owner: string | null;
-  procedureS3Path: string;
+  owner?: string | null;
+  procedureS3Path?: string;
   reportS3Path: string;
-  result: string | null;
-  sourceChatSessionId: string;
+  result?: string | null;
+  sourceChatSessionId?: string;
   status: string;
-  updatedAt: string;
-  __typename: string;
+  updatedAt?: string;
+  __typename?: string;
+  nextAction?: {
+    buttonTextBeforeClick: string;
+    buttonTextAfterClick: string;
+  };
 }
 
 interface ProjectToolResponse {
-  status: string;
-  message: string;
-  project: Project;
+  status?: string;
+  message?: string;
+  project?: Project;
 }
 
 interface CreateProjectToolComponentProps {
@@ -45,8 +49,10 @@ interface CreateProjectToolComponentProps {
 
 const CreateProjectToolComponent: React.FC<CreateProjectToolComponentProps> = ({ content, theme }) => {
   try {
-    const toolData: ProjectToolResponse = JSON.parse(content?.text || '{}');
-    const { project } = toolData;
+    const parsedData = JSON.parse(content?.text || '{}');
+    
+    // Handle both wrapped and unwrapped project data
+    const project: Project = parsedData.project || parsedData;
 
     const npvr = (project.financial.revenuePresentValue - project.financial.cost)/project.financial.cost;
 
@@ -111,29 +117,37 @@ const CreateProjectToolComponent: React.FC<CreateProjectToolComponentProps> = ({
                 Project Details
               </Typography>
               <Box sx={{ mt: 1 }}>
-                <Typography variant="body2">
-                  Created: {new Date(project.createdAt).toLocaleDateString()}
-                </Typography>
-                <Typography variant="body2">
-                  ID: {project.id}
-                </Typography>
-                <Typography variant="body2">
-                  Model: {project.foundationModelId.split(':')[0]}
-                </Typography>
+                {project.createdAt && (
+                  <Typography variant="body2">
+                    Created: {new Date(project.createdAt).toLocaleDateString()}
+                  </Typography>
+                )}
+                {project.id && (
+                  <Typography variant="body2">
+                    ID: {project.id}
+                  </Typography>
+                )}
+                {project.foundationModelId && (
+                  <Typography variant="body2">
+                    Model: {project.foundationModelId.split(':')[0]}
+                  </Typography>
+                )}
               </Box>
             </Grid>
           </Grid>
         </CardContent>
-        <CardActions>
-          <Link
-            href={`/preview/chatSessionArtifacts/sessionId=${project.sourceChatSessionId}/${project.reportS3Path}`}
-            target='_blank'
-            rel='noopener noreferrer'
-            passHref
-          >
-            <Button>Open Report</Button>
-          </Link>
-        </CardActions>
+        {project.reportS3Path && project.sourceChatSessionId && (
+          <CardActions>
+            <Link
+              href={`/preview/chatSessionArtifacts/sessionId=${project.sourceChatSessionId}/${project.reportS3Path}`}
+              target='_blank'
+              rel='noopener noreferrer'
+              passHref
+            >
+              <Button>Open Report</Button>
+            </Link>
+          </CardActions>
+        )}
       </Card>
     );
   } catch (error) {
