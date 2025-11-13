@@ -156,7 +156,7 @@ pio.templates.default = "white_clean_log"
     // searchFiles,
     // renderAssetTool,
     userInputTool,
-    // createProjectTool
+    createProjectTool
 ]
 
 for (const langChainTool of langGraphTools) {

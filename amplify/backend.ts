@@ -56,6 +56,14 @@ const {
   mcpFunctionUrl: awsMcpToolsFunctionUrl
 } = new McpServerConstruct(backend.stack, "McpServer", {})
 
+// awsMcpToolsFunction.addEnvironment("AMPLIFY_DATA_GRAPHQL_ENDPOINT", backend.data.graphqlUrl)
+// awsMcpToolsFunction.addToRolePolicy(
+//   new iam.PolicyStatement({
+//     actions: [],
+//     resources: []
+//   })
+// )
+
 //Allow the agent's lambda function to invoke the aws mcp tools function
 cdk.Tags.of(awsMcpToolsFunction).add(`Allow_${stackUUID}`, "True")
 

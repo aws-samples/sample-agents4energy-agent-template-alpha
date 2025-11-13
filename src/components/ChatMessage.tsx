@@ -92,8 +92,8 @@ const ChatMessage = (params: {
                     />;
                 case 'userInputTool':
                     return <UserInputToolComponent content={message.content} theme={theme} />;
-                case 'createProject':
-                    return <CreateProjectToolComponent content={message.content} theme={theme} />;
+                // case 'createProject':
+                //     return <CreateProjectToolComponent content={message.content} theme={theme} />;
                 case 'calculator':
                     return <CalculatorToolComponent content={message.content} theme={theme} />;
                 case 'searchFiles':
