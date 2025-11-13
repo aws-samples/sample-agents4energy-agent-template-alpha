@@ -65,7 +65,7 @@ const HumanMessageComponent: React.FC<HumanMessageComponentProps> = ({
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: theme.spacing(0.5) }}>
         <CopyButton text={message.content?.text || ''} />
-        {onRegenerateMessage && (
+        {/* {onRegenerateMessage && (
           <>
             <Button 
               size="small"
@@ -132,7 +132,7 @@ const HumanMessageComponent: React.FC<HumanMessageComponentProps> = ({
               </div>
             )}
           </>
-        )}
+        )} */}
       </div>
     </div>
   );

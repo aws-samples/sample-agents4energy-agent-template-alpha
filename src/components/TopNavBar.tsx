@@ -38,7 +38,8 @@ const TopNavBar: React.FC = () => {
       amplifyClient.queries.invokeReActAgent({ chatSessionId: "initilize" })
 
       const newChatSession = await amplifyClient.models.ChatSession.create({});
-      router.push(`/chat/${newChatSession.data!.id}`);
+      // router.push(`/chat/${newChatSession.data!.id}`);
+      window.open(`/chat/${newChatSession.data!.id}`, '_blank');
     } catch (error) {
       console.error("Error creating chat session:", error);
       alert("Failed to create chat session.");
