@@ -3,7 +3,8 @@ import { Theme } from '@mui/material/styles';
 import { Button, CircularProgress, Typography, Box } from '@mui/material';
 import ReplayIcon from '@mui/icons-material/Replay';
 
-import { Streamdown } from 'streamdown';
+// import { Streamdown } from 'streamdown';
+import RenderMarkdownCorrectLinks from '@/components/RenderMarkdownCorrectLinks'
 
 import { Message } from '@/../utils/types';
 import CopyButton from './CopyButton';
@@ -57,7 +58,11 @@ const HumanMessageComponent: React.FC<HumanMessageComponentProps> = ({
     }}>
       <div style={humanMessageStyle}>
         <div style={markdownStyle}>
-          <Streamdown isAnimating={false}>{message.content?.text}</Streamdown>
+          <RenderMarkdownCorrectLinks
+            chatSessionId={message.chatSessionId || ""}
+            markdownText={message.content?.text || ""}
+          />
+          {/* <Streamdown isAnimating={false}>{message.content?.text}</Streamdown> */}
           {/* <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {message.content?.text}
           </ReactMarkdown> */}

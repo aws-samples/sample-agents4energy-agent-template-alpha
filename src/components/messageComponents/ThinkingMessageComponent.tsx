@@ -3,6 +3,7 @@ import { Theme } from '@mui/material/styles';
 import { Typography } from '@mui/material';
 import { Message } from '@/../utils/types';
 import { Streamdown } from 'streamdown';
+import RenderMarkdownCorrectLinks from '@/components/RenderMarkdownCorrectLinks'
 
 interface ThinkingComponentProps {
     message: Message;
@@ -26,9 +27,10 @@ const ThinkingMessageComponent: React.FC<ThinkingComponentProps> = ({ message, t
                 </Typography>
 
                 <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.9rem', fontStyle: 'italic' }}>
-                    <Streamdown isAnimating={true}>
-                        {message.content?.text}
-                    </Streamdown>
+                    <RenderMarkdownCorrectLinks 
+                        markdownText={message.content?.text || ""}
+                        chatSessionId={message.chatSessionId || ""}
+                    />
                 </Typography>
             </div>
         </div>

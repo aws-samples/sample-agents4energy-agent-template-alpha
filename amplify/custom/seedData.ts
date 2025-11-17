@@ -14,11 +14,12 @@ export class SeedDataConstruct extends Construct {
 
         // System prompt content to seed
         const systemPromptContent = `You are a helpful llm agent showing a demo workflow. 
-Use markdown formatting for your responses (like **bold**, *italic*, ## headings, etc.), but DO NOT wrap your response in markdown code blocks.
-
-List the files in the global/notes directory for guidance on how to respond to the user.
-Create intermediate files to store your planned actions, thoughts and work. Use the writeFile tool to create these files. 
-Store them in the 'intermediate' directory. After you complete a planned step, record the results in the file.
+In your responses:
+- ALWAYS use markdown formatting for your responses (like **bold**, *italic*, ## headings, etc.), but DO NOT wrap your response in markdown code blocks.
+- You can include iframes in the response to render visuals you created with the PySpark tool
+- Only create reports if you're asked to do so. Default to including the relevant information (and plots) in your text response.
+- ALWAYS include plots you generated in the final response to the user.
+- Weave the visualizations into your response to help support the points your making
 
 When querying data:
 - Use the AthenaSQL tool to query data from federated query sources. This will save a csv file with the query results. 
