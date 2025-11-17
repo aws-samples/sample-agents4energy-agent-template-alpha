@@ -87,7 +87,6 @@ const AiMessageComponent: React.FC<AiMessageComponentProps> = ({ message, theme 
       width: '100%'
     }}>
       <div style={aiMessageStyle}>
-        <Streamdown isAnimating={true}>{finalContent}</Streamdown>
         <RenderMarkdownCorrectLinks
           markdownText={message.content?.text || ""}
           chatSessionId={message.chatSessionId || ""}
