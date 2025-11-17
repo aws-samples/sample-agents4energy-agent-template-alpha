@@ -31,39 +31,40 @@ const createProjectToolSchema = z.object({
 
 export const createProjectTool = tool(
     async (args) => {
-        try {
-            const amplifyClient = getConfiguredAmplifyClient();
+        return args
+        // try {
+        //     const amplifyClient = getConfiguredAmplifyClient();
             
-            // Create the project with initial status as pending if not specified
-            const projectData = {
-                ...args,
-                status: args.status || "drafting",
-                sourceChatSessionId: getChatSessionId(),
-                foundationModelId: process.env.AGENT_MODEL_ID,
-            };
+        //     // Create the project with initial status as pending if not specified
+        //     const projectData = {
+        //         ...args,
+        //         status: args.status || "drafting",
+        //         sourceChatSessionId: getChatSessionId(),
+        //         foundationModelId: process.env.AGENT_MODEL_ID,
+        //     };
 
-            const result = await amplifyClient.graphql({
-                query: createProject,
-                variables: {
-                    input: projectData
-                }
-            });
+        //     const result = await amplifyClient.graphql({
+        //         query: createProject,
+        //         variables: {
+        //             input: projectData
+        //         }
+        //     });
 
-            if (result.errors) throw new Error("Failed to create project: " + result.errors.map(e => e.message).join(", "));
-            if (!result.data) throw new Error("Failed to create project: No data returned");
+        //     if (result.errors) throw new Error("Failed to create project: " + result.errors.map(e => e.message).join(", "));
+        //     if (!result.data) throw new Error("Failed to create project: No data returned");
             
-            return {
-                status: "success",
-                message: `Successfully created project: ${projectData.name}`,
-                project: result.data.createProject
-            };
-        } catch (error: unknown) {
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-            return {
-                status: "error",
-                message: `Failed to create project: ${errorMessage} \n\n ${JSON.stringify(error)}`
-            };
-        }
+        //     return {
+        //         status: "success",
+        //         message: `Successfully created project: ${projectData.name}`,
+        //         project: result.data.createProject
+        //     };
+        // } catch (error: unknown) {
+        //     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        //     return {
+        //         status: "error",
+        //         message: `Failed to create project: ${errorMessage} \n\n ${JSON.stringify(error)}`
+        //     };
+        // }
     },
     {
         name: "createProject",

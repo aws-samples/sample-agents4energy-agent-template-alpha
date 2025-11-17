@@ -1,8 +1,9 @@
 import React from 'react';
 import { Theme } from '@mui/material/styles';
 import { Button, Typography } from '@mui/material';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+// import ReactMarkdown from 'react-markdown';
+// import remarkGfm from 'remark-gfm';
+import { Streamdown } from 'streamdown';
 import { Message } from '@/../utils/types';
 
 interface UserInputToolComponentProps {
@@ -29,11 +30,9 @@ const UserInputToolComponent: React.FC<UserInputToolComponentProps> = ({ content
           {toolData.title || 'User Action Required'}
         </Typography>
 
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
-        >
+        <Streamdown>
           {toolData.description || 'Please take action by clicking the button below.'}
-        </ReactMarkdown>
+        </Streamdown>
 
         <Button
           variant="contained"

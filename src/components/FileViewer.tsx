@@ -4,8 +4,9 @@ import { getUrl } from 'aws-amplify/storage';
 import { CircularProgress, useTheme } from '@mui/material';
 import { Theme } from '@mui/material/styles';
 import AceEditor from 'react-ace';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+// import ReactMarkdown from 'react-markdown';
+// import remarkGfm from 'remark-gfm';
+import { Streamdown } from 'streamdown';
 
 import 'ace-builds/src-noconflict/mode-javascript';
 import 'ace-builds/src-noconflict/mode-json';
@@ -342,28 +343,9 @@ export default function FileViewer({
             maxWidth: '800px',
             margin: '0 auto'
           }}>
-            <ReactMarkdown 
-              remarkPlugins={[remarkGfm]}
-              components={{
-                // Custom styling for markdown elements
-                h1: ({children}) => <h1 style={{borderBottom: '2px solid #eee', paddingBottom: '10px', marginBottom: '20px'}}>{children}</h1>,
-                h2: ({children}) => <h2 style={{borderBottom: '1px solid #eee', paddingBottom: '8px', marginBottom: '16px'}}>{children}</h2>,
-                h3: ({children}) => <h3 style={{marginBottom: '12px'}}>{children}</h3>,
-                p: ({children}) => <p style={{marginBottom: '16px'}}>{children}</p>,
-                ul: ({children}) => <ul style={{marginBottom: '16px', paddingLeft: '20px'}}>{children}</ul>,
-                ol: ({children}) => <ol style={{marginBottom: '16px', paddingLeft: '20px'}}>{children}</ol>,
-                li: ({children}) => <li style={{marginBottom: '4px'}}>{children}</li>,
-                blockquote: ({children}) => <blockquote style={{borderLeft: '4px solid #ddd', paddingLeft: '16px', margin: '16px 0', fontStyle: 'italic', color: '#666'}}>{children}</blockquote>,
-                code: ({children}) => <code style={{backgroundColor: '#f6f8fa', padding: '2px 4px', borderRadius: '3px', fontSize: '0.9em', fontFamily: 'Monaco, Consolas, "Liberation Mono", "Courier New", monospace'}}>{children}</code>,
-                pre: ({children}) => <pre style={{backgroundColor: '#f6f8fa', padding: '16px', borderRadius: '6px', overflow: 'auto', fontSize: '0.9em', fontFamily: 'Monaco, Consolas, "Liberation Mono", "Courier New", monospace', marginBottom: '16px'}}>{children}</pre>,
-                table: ({children}) => <table style={{borderCollapse: 'collapse', width: '100%', marginBottom: '16px'}}>{children}</table>,
-                th: ({children}) => <th style={{border: '1px solid #ddd', padding: '8px', backgroundColor: '#f6f8fa', textAlign: 'left'}}>{children}</th>,
-                td: ({children}) => <td style={{border: '1px solid #ddd', padding: '8px'}}>{children}</td>,
-                a: ({children, href}) => <a href={href} style={{color: '#0366d6', textDecoration: 'none'}} onMouseOver={(e) => e.currentTarget.style.textDecoration = 'underline'} onMouseOut={(e) => e.currentTarget.style.textDecoration = 'none'}>{children}</a>
-              }}
-            >
+            <Streamdown>
               {content || fileContent || ''}
-            </ReactMarkdown>
+            </Streamdown>
           </div>
         </div>
       );

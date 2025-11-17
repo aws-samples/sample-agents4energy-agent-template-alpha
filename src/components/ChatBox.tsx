@@ -60,26 +60,30 @@ const ChatBox = (params: {
   // const [showChainOfThought, setShowChainOfThought] = useState(false);
   // const [selectedAgent, setSelectedAgent] = useState<('reActAgent' | 'planAndExecuteAgent' | 'projectGenerationAgent')>("reActAgent");
 
-  //Subscribe to the chat messages
+  //Query and Subscribe to the chat messages
   useEffect(() => {
     const messageSubscriptionHandler = async () => {
       console.log('Creating message subscription for garden: ', params.chatSessionId)
-      const messagesSub = amplifyClient.models.ChatMessage.observeQuery({
+
+      const {data: initialChatMessages} = await amplifyClient.models.ChatMessage.listChatMessageByChatSessionIdAndCreatedAt({
+        chatSessionId: params.chatSessionId
+      })
+      setMessages(initialChatMessages)
+
+      const messagesSub = amplifyClient.models.ChatMessage.onCreate({
         filter: {
           chatSessionId: { eq: params.chatSessionId }
         }
       }).subscribe({
-        next: ({ items }) => {
+        next: (newMessage) => {
           setMessages((prevMessages) => {
-            // Only take the most recent messagesPerPage messages
-            const recentMessages = items.slice(-messagesPerPage);
-            const sortedMessages = combineAndSortMessages(prevMessages, recentMessages)
+            const sortedMessages = combineAndSortMessages(prevMessages, [newMessage])
             if (sortedMessages[sortedMessages.length - 1] && sortedMessages[sortedMessages.length - 1].responseComplete) {
               setIsLoading(false)
               setStreamChunkMessage(undefined)
               setResponseStreamChunks([])
             }
-            setHasMoreMessages(items.length > messagesPerPage);
+            // setHasMoreMessages(items.length > messagesPerPage);
             return sortedMessages
           })          
         }

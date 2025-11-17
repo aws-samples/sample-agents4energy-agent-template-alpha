@@ -114,7 +114,7 @@ export const schema = a.schema({
       index("chatSessionId").sortKeys(["createdAt"]),
       index("chatSessionIdUnderscoreFieldName").sortKeys(["createdAt"])
     ])
-    .authorization((allow) => [allow.owner(), allow.authenticated(), allow.guest()]),
+    .authorization((allow) => [allow.owner(), allow.authenticated().to(["read","create"]), allow.guest().to(["read"])]),
   
   Settings: a.model({
     name: a.string(),

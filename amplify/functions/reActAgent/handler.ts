@@ -28,6 +28,8 @@ import { EventEmitter } from "events";
 
 import { startMcpBridgeServer } from "../../../utils/awsSignedMcpBridge"
 
+import { createProject } from '../graphql/mutations';
+
 const USE_MCP = true;
 // const LOCAL_PROXY_PORT = 3020
 
@@ -35,7 +37,7 @@ let proxyServerInitilized = false
 let proxyServerPort: number | null
 // let mcpTools: StructuredToolInterface<ToolSchemaBase, any, any>[] = []
 // Each chat session will have a unique set of MCP tools because the chat-session-id header value will be different.
-let mcpTools: Record<string,StructuredToolInterface<ToolSchemaBase, any, any>[]> = {}
+let mcpTools: Record<string, StructuredToolInterface<ToolSchemaBase, any, any>[]> = {}
 // let systemMessageContent = ''
 
 // Increase the default max listeners to prevent warnings
@@ -75,14 +77,14 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
 
         // This function includes validation to prevent "The text field in the ContentBlock object is blank" errors
         // by ensuring no message content is empty when sent to Bedrock
-        const chatSessionMessages = await getLangChainChatMessagesStartingWithHumanMessage(event.arguments.chatSessionId)        
+        const chatSessionMessages = await getLangChainChatMessagesStartingWithHumanMessage(event.arguments.chatSessionId)
 
         const agentModel = new ChatBedrockConverse({
             model: process.env.AGENT_MODEL_ID,
             // temperature: 0
         });
 
-        if (! proxyServerInitilized ){
+        if (!proxyServerInitilized) {
             // Start the MCP bridge server with default options
             const mcpBridgeServer = await startMcpBridgeServer({
                 // port: LOCAL_PROXY_PORT,
@@ -106,7 +108,7 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
             })
 
             //Get the configured mcp servers from the MCP registry
-            const {data: {listMcpServers: {items: mcpServers} } } = await amplifyClient.graphql({
+            const { data: { listMcpServers: { items: mcpServers } } } = await amplifyClient.graphql({
                 query: listMcpServers
             })
 
@@ -114,7 +116,7 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
 
             // Build the mcpServers configuration dynamically from enabled servers
             const mcpServersConfig: Record<string, any> = {}
-            
+
             mcpServers
                 .filter(server => server.enabled && server.name && server.url) // Only include enabled servers with valid name and url
                 .forEach(server => {
@@ -150,7 +152,7 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
                 const mcpClient = new MultiServerMCPClient({
                     useStandardContentBlocks: true,
                     prefixToolNameWithServerName: false,
-                    defaultToolTimeout: 5*60*1000,//5 minute default tool timeout
+                    defaultToolTimeout: 5 * 60 * 1000,//5 minute default tool timeout
                     // additionalToolNamePrefix: "",
 
                     mcpServers: mcpServersConfig
@@ -192,7 +194,7 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
 
 
         console.log("system prompt: ", systemMessageContent)
-        
+
 
         // The initial invocation can generate the MCP server connection information and tools. Then, if there are no messages, return no response. That way the subsequent invocation which the user sends with a chat message won't have to wait for the mcp tools to load. 
         if (chatSessionMessages.length === 0) {
@@ -280,6 +282,39 @@ export const handler: Schema["invokeReActAgent"]["functionHandler"] = async (eve
                                         console.log({ toolCallMessage, toolCallArgs, toolName, selectedToolSchema, zodError, formattedZodError: zodError?.error?.format() })
 
                                         streamChunk.content += '\n\n' + stringify(zodError?.error?.format())
+                                    }
+
+                                    if (streamChunk instanceof AIMessageChunk) {
+                                        streamChunk.tool_calls?.map(async toolCall => {
+                                            if (toolCall.name === "createProject") {
+                                                try {
+                                                    // Create the project with initial status as pending if not specified
+                                                    const projectData = {
+                                                        ...toolCall.args,
+                                                        status: toolCall.args.status || "drafting",
+                                                        sourceChatSessionId: event.arguments.chatSessionId,
+                                                        foundationModelId: process.env.AGENT_MODEL_ID,
+                                                    } as any;
+
+                                                    const result = await amplifyClient.graphql({
+                                                        query: createProject,
+                                                        variables: {
+                                                            input: projectData
+                                                        }
+                                                    });
+
+                                                    if (result.errors) throw new Error("Failed to create project: " + result.errors.map(e => e.message).join(", "));
+                                                    if (!result.data) throw new Error("Failed to create project: No data returned");
+                                                    console.log(`Successfully created project ${result.data.createProject.id}`)
+                                                } catch (error: unknown) {
+                                                    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+                                                    return {
+                                                        status: "error",
+                                                        message: `Failed to create project: ${errorMessage} \n\n ${JSON.stringify(error)}`
+                                                    };
+                                                }
+                                            }
+                                        })
                                     }
 
                                     // Check if this is a table result from textToTableTool and format it properly

@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { Theme } from '@mui/material/styles';
 import { Button, CircularProgress, Typography, Box } from '@mui/material';
 import ReplayIcon from '@mui/icons-material/Replay';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+
+// import { Streamdown } from 'streamdown';
+import RenderMarkdownCorrectLinks from '@/components/RenderMarkdownCorrectLinks'
+
 import { Message } from '@/../utils/types';
 import CopyButton from './CopyButton';
 
@@ -56,14 +58,19 @@ const HumanMessageComponent: React.FC<HumanMessageComponentProps> = ({
     }}>
       <div style={humanMessageStyle}>
         <div style={markdownStyle}>
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          <RenderMarkdownCorrectLinks
+            chatSessionId={message.chatSessionId || ""}
+            markdownText={message.content?.text || ""}
+          />
+          {/* <Streamdown isAnimating={false}>{message.content?.text}</Streamdown> */}
+          {/* <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {message.content?.text}
-          </ReactMarkdown>
+          </ReactMarkdown> */}
         </div>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: theme.spacing(0.5) }}>
         <CopyButton text={message.content?.text || ''} />
-        {onRegenerateMessage && (
+        {/* {onRegenerateMessage && (
           <>
             <Button 
               size="small"
@@ -130,7 +137,7 @@ const HumanMessageComponent: React.FC<HumanMessageComponentProps> = ({
               </div>
             )}
           </>
-        )}
+        )} */}
       </div>
     </div>
   );

@@ -11,9 +11,13 @@ const amplifyClient = generateClient<Schema>();
 
 // import WithAuth from '@/components/WithAuth';
 
+type ChatSessionWithFirstMessage = Schema["ChatSession"]["type"] & {
+    firstMessageText?: string;
+}
+
 const Page = () => {
     const { user } = useAuthenticator((context) => [context.user]);
-    const [chatSessions, setChatSessions] = useState<Schema["ChatSession"]["createType"][]>([]);
+    const [chatSessions, setChatSessions] = useState<ChatSessionWithFirstMessage[]>([]);
 
     useEffect(() => {
         const fetchChatSessions = async () => {
@@ -25,7 +29,25 @@ const Page = () => {
                 }
             });
             const sortedChatSessions = result.data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-            setChatSessions(sortedChatSessions);
+
+            // Fetch the first message for each chat session
+            const sessionsWithMessages = await Promise.all(
+                sortedChatSessions.map(async (session) => {
+                    const messagesResult = await amplifyClient.models.ChatMessage.listChatMessageByChatSessionIdAndCreatedAt({
+                        chatSessionId: session.id
+                    }, { limit: 1 });
+
+                    const firstMessage = messagesResult.data[0];
+                    const firstMessageText = firstMessage?.content?.text || '';
+
+                    return {
+                        ...session,
+                        firstMessageText
+                    } as ChatSessionWithFirstMessage;
+                })
+            );
+
+            setChatSessions(sessionsWithMessages);
         };
         fetchChatSessions();
     }, [user.userId]);
@@ -33,9 +55,25 @@ const Page = () => {
     return (
         <Box>
             {chatSessions.map(chatSession => (
-                <Card key={chatSession.id}>
+                <Card key={chatSession.id} sx={{ mb: 2 }}>
                     <CardContent>
                         <Typography variant="h5">{chatSession.name}</Typography>
+
+                        {chatSession.firstMessageText && (
+                            <Box mt={1}>
+                                <Typography variant="body2" color="text.secondary">
+                                    {chatSession.firstMessageText.substring(0, 200)}
+                                    {chatSession.firstMessageText.length > 200 ? '...' : ''}
+                                </Typography>
+                            </Box>
+                        )}
+
+                        <Box mt={1}>
+                            <Typography variant="caption" color="text.secondary">
+                                Created: {chatSession.createdAt ? new Date(chatSession.createdAt).toLocaleString() : 'Unknown'}
+                            </Typography>
+                        </Box>
+
                         <Box mt={2}>
                             <Link href={`/chat/${chatSession.id}`}>
                                 Open Chat
