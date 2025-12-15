@@ -256,14 +256,22 @@ const handleStdioInput = async () => {
 
             localTransport.onmessage = async (incomingMessage: any) => {
                 try {
-                    console.warn("Processing message: ", incomingMessage)
+                    console.warn("\n\n=== NEW MESSAGE RECEIVED ===")
+                    console.warn("Timestamp:", new Date().toISOString())
+                    console.warn("Message type:", typeof incomingMessage)
+                    console.warn("Message keys:", Object.keys(incomingMessage || {}))
+                    console.warn("Message method:", incomingMessage?.method)
+                    console.warn("Message id:", incomingMessage?.id)
+                    console.warn("Full message:", JSON.stringify(incomingMessage, null, 2))
                     console.warn('Target URL: ', targetUrl)
-
 
                     // Parse the target URL
                     const url = new URL(targetUrl);
 
                     const bodyData = JSON.stringify(incomingMessage || "")
+                    console.warn("=== REQUEST BODY ===")
+                    console.warn("Body data type:", typeof bodyData)
+                    console.warn("Body data length:", bodyData.length)
 
                     // Get AWS credentials from environment
                     const region = process.env.AWS_REGION;
@@ -307,30 +315,106 @@ const handleStdioInput = async () => {
                         });
                     }
 
-                    console.warn('Body data: ', bodyData)
-
                     const remoteResponse = await axios.post(targetUrl, bodyData, {
                         headers,
                     });
 
-                    console.warn('Response data from remote server: ', remoteResponse.data)
+                    console.warn("=== REMOTE RESPONSE ===")
+                    console.warn('Response status:', remoteResponse.status)
+                    console.warn('Response headers:', JSON.stringify(remoteResponse.headers, null, 2))
+                    console.warn('Response data type:', typeof remoteResponse.data)
+                    console.warn('Response data is Buffer:', Buffer.isBuffer(remoteResponse.data))
+                    console.warn('Response data:', remoteResponse.data)
 
+                    // Parse the response if it's a string (to handle double-stringified JSON)
+                    let responseData = remoteResponse.data;
+                    
+                    console.warn("=== PARSING RESPONSE ===")
+                    console.warn('Initial responseData type:', typeof responseData)
+                    
+                    if (typeof responseData === 'string') {
+                        console.warn('Response is a string, attempting to parse...')
+                        try {
+                            responseData = JSON.parse(responseData);
+                            console.warn('Successfully parsed stringified response')
+                            console.warn('Parsed data type:', typeof responseData)
+                            console.warn('Parsed data:', JSON.stringify(responseData, null, 2))
+                        } catch (e) {
+                            console.error('Failed to parse response as JSON:', e);
+                            console.error('String content:', responseData.substring(0, 200))
+                            // Continue with original data if parsing fails
+                        }
+                    }
 
-                    // // Create axios config without data initially
-                    // const axiosConfig: any = {
-                    //     method: opts.method as string,
-                    //     url: targetUrl,
-                    //     headers: headers,
-                    //     timeout: 15000
-                    // };
-
-                    // // Always include data in axios config (either the actual data or an empty object)
-                    // axiosConfig.data = body;
-
-                    // // Make the request using axios
-                    // const response = await axios(axiosConfig);
-
-                    localTransport.send(remoteResponse.data)
+                    console.warn("=== SENDING RESPONSE ===")
+                    console.warn('Final responseData type:', typeof responseData)
+                    console.warn('Final responseData is valid JSON-RPC:', !!(responseData?.jsonrpc && responseData?.id !== undefined))
+                    console.warn('Final responseData structure check:')
+                    console.warn('  - has jsonrpc:', 'jsonrpc' in (responseData || {}))
+                    console.warn('  - has id:', 'id' in (responseData || {}))
+                    console.warn('  - has result:', 'result' in (responseData || {}))
+                    console.warn('  - has error:', 'error' in (responseData || {}))
+                    console.warn('Final responseData:', JSON.stringify(responseData, null, 2))
+                    
+                    // Ensure we're sending a proper JSON-RPC response object
+                    // The StdioServerTransport expects the raw object, not a string
+                    if (typeof responseData === 'string') {
+                        console.error('ERROR: responseData is a string, should be an object!')
+                        
+                        // Handle empty string responses
+                        if (responseData === '' || responseData.trim() === '') {
+                            console.error('CRITICAL: Received empty string response from Lambda!')
+                            console.error('Original incoming message was:', JSON.stringify(incomingMessage, null, 2))
+                            
+                            // Check if this is a notification (no id field = no response expected)
+                            if (!('id' in (incomingMessage || {})) || incomingMessage.id === undefined) {
+                                console.warn('This is a NOTIFICATION message (no id), no response needed')
+                                console.warn('Notification method:', incomingMessage?.method)
+                                console.warn('Skipping response for notification')
+                                return; // Don't send any response for notifications
+                            }
+                            
+                            console.error('This is a REQUEST message, Lambda should have returned a response')
+                            
+                            // Send a proper JSON-RPC error response for requests only
+                            responseData = {
+                                jsonrpc: "2.0",
+                                id: incomingMessage.id,
+                                error: {
+                                    code: -32603,
+                                    message: 'Internal error: Lambda returned empty response'
+                                }
+                            };
+                            console.error('Converted to error response:', JSON.stringify(responseData, null, 2))
+                        } else {
+                            console.error('Attempting to parse non-empty string into object...')
+                            try {
+                                responseData = JSON.parse(responseData);
+                            } catch (e) {
+                                console.error('Failed to parse responseData string:', e)
+                                // Convert parse error to JSON-RPC error
+                                responseData = {
+                                    jsonrpc: "2.0",
+                                    id: incomingMessage?.id || null,
+                                    error: {
+                                        code: -32700,
+                                        message: 'Parse error: Invalid JSON response from Lambda'
+                                    }
+                                };
+                            }
+                        }
+                    }
+                    
+                    console.warn('About to call localTransport.send() with type:', typeof responseData)
+                    
+                    try {
+                        await localTransport.send(responseData)
+                        console.warn('✓ localTransport.send() completed successfully')
+                    } catch (sendError: any) {
+                        console.error('✗ ERROR in localTransport.send():', sendError)
+                        console.error('Error details:', JSON.stringify(sendError, null, 2))
+                        throw sendError;
+                    }
 
                     // // Send the response back through the transport as a JSON-RPC response
                     // localTransport.send({
