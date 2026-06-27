@@ -23,7 +23,7 @@
     "@emotion/cache": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@langchain/aws": "^0.1.11",
-    "@langchain/community": "^0.3.28",
+    "@langchain/community": "^1.1.14",
     "@langchain/langgraph": "^0.2.44",
     "@langchain/mcp-adapters": "^0.6.0",
     "@mui/icons-material": "^6.4.2",
