@@ -57,7 +57,7 @@ export const schema = a.schema({
       buttonTextAfterClick: a.string(),
     })
   })
-    .authorization((allow) => [allow.owner(), allow.authenticated(), allow.guest()]),
+    .authorization((allow) => [allow.owner(), allow.authenticated()]),
 
   HeaderEntry: a.customType({
     key: a.string(),
@@ -86,7 +86,7 @@ export const schema = a.schema({
     name: a.string(),
     messages: a.hasMany("ChatMessage", "chatSessionId"),
   })
-    .authorization((allow) => [allow.owner(), allow.authenticated(), allow.guest()]),
+    .authorization((allow) => [allow.owner(), allow.authenticated()]),
 
   ChatMessage: a
     .model({
@@ -114,7 +114,7 @@ export const schema = a.schema({
       index("chatSessionId").sortKeys(["createdAt"]),
       index("chatSessionIdUnderscoreFieldName").sortKeys(["createdAt"])
     ])
-    .authorization((allow) => [allow.owner(), allow.authenticated().to(["read","create"]), allow.guest().to(["read"])]),
+    .authorization((allow) => [allow.owner(), allow.authenticated().to(["read","create"])]),
   
   Settings: a.model({
     name: a.string(),
