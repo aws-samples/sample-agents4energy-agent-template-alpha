@@ -31,13 +31,13 @@ export default function AuthPage() {
       <Box sx={{ my: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <Paper elevation={3} sx={{ p: 4, width: '100%' }}>
           <Authenticator
-            signUpAttributes={['email', 'name']}
+            hideSignUp
             components={{
               Header() {
                 return (
                   <Box sx={{ textAlign: 'center', mb: 3 }}>
                     <h1>Welcome</h1>
-                    <p>Sign in to your account or create a new one</p>
+                    <p>Sign in to your account</p>
                   </Box>
                 );
               }

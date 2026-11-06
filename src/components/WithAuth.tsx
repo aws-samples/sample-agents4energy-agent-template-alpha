@@ -8,7 +8,7 @@ interface WithAuthProps {
 
 const WithAuth: React.FC<WithAuthProps> = ({ children }) => {
   return (
-    <Authenticator>
+    <Authenticator hideSignUp>
       {children}
     </Authenticator>
   )

@@ -36,12 +36,8 @@ For development environments, you can use the provided script:
 node scripts/createUser.js
 ```
 
-### Enabling Self-Registration
-To allow users to create their own accounts:
-1. Navigate to the AWS Cognito console
-2. Select your User Pool
-3. Go to "Authentication -> Sign-up" tab
-4. Under "Self-service sign-up", change "Self-registration" to "Enabled"
+Public self-registration is disabled. Administrators should use the approved
+user-creation methods above and should not enable it for internal deployments.
 
 ## User Management Best Practices
 
