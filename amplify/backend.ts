@@ -38,10 +38,15 @@ console.log(`Stack UUID: ${stackUUID}`)
 
 
 //This will disable the ability for users to sign up in the UI. The administrator will manually create users.
-const { cfnUserPool } = backend.auth.resources.cfnResources;
+const { cfnUserPool, cfnIdentityPool } = backend.auth.resources.cfnResources;
 cfnUserPool.adminCreateUserConfig = {
   allowAdminCreateUserOnly: true,
 };
+
+//Disable Cognito guest (unauthenticated) identities. Amplify Gen2 enables them by
+//default, which exposes an anonymous identity on the public site and trips the AppSec
+//"Unauth Access: Open Cognito" (UnauthWebService) finding.
+cfnIdentityPool.allowUnauthenticatedIdentities = false;
 
 const mcpAgentInvokerFunctionUrl = backend.mcpAgentInvoker.resources.lambda.addFunctionUrl({
   authType: lambda.FunctionUrlAuthType.AWS_IAM,
