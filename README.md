@@ -121,16 +121,11 @@ This script will automatically read your Amplify configuration and create a user
 
 8. Create a new chat session by clicking the "Create" button, and try out (or modify) one of the sample prompts.
 
-## Enabling User Self-Registration
+## User Registration
 
-By default, user registration is restricted to administrators. To enable user self-registration so that users can create their own accounts:
-
-1. Navigate to the AWS Cognito console
-2. Select your User Pool
-3. Go to the "Authentication -> Sign-up" tab
-4. Under "Self-service sign-up", change the "Self-registration" field to "Enabled"
-
-For more detailed information, see the [AWS Cognito documentation on signing up users](https://docs.aws.amazon.com/cognito/latest/developerguide/signing-up-users-in-your-app.html?icmpid=docs_cognito_console_help_panel).
+User registration is restricted to administrators. The sign-in screens do not
+offer self-registration; administrators can create accounts as described below.
+Do not enable public self-registration for internal deployments.
 
 ## Creating Users as an Administrator
 
